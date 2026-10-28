@@ -85,8 +85,14 @@ describe("ask preload boundary", () => {
 
     it.each([
       ["systemPrompt", { presetId: "ask", context: "", systemPrompt: 42 }],
-      ["systemPrompt as an object", { presetId: "ask", context: "", systemPrompt: {} }],
-      ["contextDirectives", { presetId: "ask", context: "", contextDirectives: null }],
+      [
+        "systemPrompt as an object",
+        { presetId: "ask", context: "", systemPrompt: {} },
+      ],
+      [
+        "contextDirectives",
+        { presetId: "ask", context: "", contextDirectives: null },
+      ],
       [
         "contextDirectives as an array",
         { presetId: "ask", context: "", contextDirectives: ["App locale: en"] },

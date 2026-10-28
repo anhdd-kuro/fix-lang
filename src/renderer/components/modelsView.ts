@@ -4,7 +4,11 @@
  * extracted from `ModelsPanel.tsx` (Chunk 8) so the descriptor logic is
  * unit-testable without a DOM testing library (none is installed).
  */
-import { msg, type Message, type MessageKey } from "~/features/i18n/shared/message";
+import {
+  msg,
+  type Message,
+  type MessageKey,
+} from "~/features/i18n/shared/message";
 import type { ModelRow, TokenDayBar } from "../MainWindow/modelsAggregations";
 
 /** Parses a dense local-day key ("YYYY-MM-DD") into a local `Date` — never round-trip through the ISO string (a UTC-midnight parse can render as the previous day in a negative-offset timezone). Mirrors `tokenActivityView.ts`'s helper of the same name. */
@@ -23,7 +27,8 @@ const dateFromDayKey = (dayKey: string): Date => {
 export const barDateLabel = (
   formatDate: (date: Date, options?: Intl.DateTimeFormatOptions) => string,
   dayKey: string,
-): string => formatDate(dateFromDayKey(dayKey), { month: "short", day: "numeric" });
+): string =>
+  formatDate(dateFromDayKey(dayKey), { month: "short", day: "numeric" });
 
 /** Model table column header keys — resolved via `t()` at render time. */
 export const MODEL_TABLE_HEADER_KEYS = {
@@ -34,7 +39,8 @@ export const MODEL_TABLE_HEADER_KEYS = {
 } as const satisfies Record<string, MessageKey>;
 
 /** Section title above the donut + ranked table. */
-export const MODEL_BREAKDOWN_TITLE_KEY = "models.breakdown.title" as const satisfies MessageKey;
+export const MODEL_BREAKDOWN_TITLE_KEY =
+  "models.breakdown.title" as const satisfies MessageKey;
 
 /** Token-usage-over-time chart copy keys. */
 export const MODEL_USAGE_CHART_KEYS = {
@@ -53,7 +59,8 @@ export const MODEL_USAGE_CHART_KEYS = {
 export const barTooltipMessage = (
   bar: Pick<TokenDayBar, "tokens">,
   dateLabel: string,
-): Message => msg("models.usage.barTooltip", { date: dateLabel, tokens: bar.tokens });
+): Message =>
+  msg("models.usage.barTooltip", { date: dateLabel, tokens: bar.tokens });
 
 /**
  * Model-share donut tooltip: `"{pct}% · {count} transform(s)"`. `pctLabel` is
@@ -70,5 +77,10 @@ export const donutTooltipMessage = (
  * `expanded` picks between two unrelated keys, `hiddenCount` is a plain
  * interpolated total, never pluralized.
  */
-export const showMoreMessage = (expanded: boolean, hiddenCount: number): Message =>
-  expanded ? msg("models.table.showLess") : msg("models.table.showMore", { count: hiddenCount });
+export const showMoreMessage = (
+  expanded: boolean,
+  hiddenCount: number,
+): Message =>
+  expanded
+    ? msg("models.table.showLess")
+    : msg("models.table.showMore", { count: hiddenCount });

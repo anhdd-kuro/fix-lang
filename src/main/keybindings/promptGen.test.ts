@@ -56,7 +56,9 @@ vi.mock("~/features/secretGuard/store/secretGuardStore", () => ({
 vi.mock("~/main/notifications/secretGuardDialog", () => ({
   confirmSecretSend: vi.fn(),
 }));
-vi.mock("../clipboard/clipboardChangeTracker", () => ({ clipboardAge: vi.fn() }));
+vi.mock("../clipboard/clipboardChangeTracker", () => ({
+  clipboardAge: vi.fn(),
+}));
 vi.mock("../notifications/confirmSelectionGuard", () => ({
   confirmSelectionGuard: vi.fn(),
 }));
@@ -98,7 +100,10 @@ import { syncHistory } from "~/features/history/main/history";
 import { secretGuardStore } from "~/features/secretGuard/store/secretGuardStore";
 import { getActiveApp } from "~/main/accessibility/activeApp";
 import { confirmSecretSend } from "~/main/notifications/secretGuardDialog";
-import { getHighlightedText, getHighlightedTextWithActiveApp } from "../../utils";
+import {
+  getHighlightedText,
+  getHighlightedTextWithActiveApp,
+} from "../../utils";
 import { generatePrompt } from "../ai.request";
 import { registerPromptGenShortcut } from "./promptGen";
 import { handleError, resetHotkeyThrottleForTests } from "./utils";
@@ -128,7 +133,9 @@ const defaultGuardSettings = (
 
 /** Registers the PromptGen shortcut and returns its hotkey handler. */
 const registerPromptGenHandler = (): (() => Promise<void>) => {
-  (keybindingStore.getKeyBindings as Mock).mockReturnValue({ promptGen: PROMPT_GEN_HOTKEY });
+  (keybindingStore.getKeyBindings as Mock).mockReturnValue({
+    promptGen: PROMPT_GEN_HOTKEY,
+  });
 
   registerPromptGenShortcut({} as BrowserWindow);
 
@@ -177,14 +184,16 @@ const setSecretGuardMode = (mode: "off" | "confirm" | "mask"): void => {
 
 /** Echoes back what the request was handed, so nothing can be asserted about a round trip that did not happen. */
 const mockPromptEcho = (): void => {
-  (generatePrompt as Mock).mockImplementation(async ({ text }: { text: string }) => ({
-    prompts: [`Prompt about: ${text}`],
-    promptTokens: 10,
-    completionTokens: 5,
-    model: "openai/gpt-4.1-mini",
-    provider: "openai",
-    resolvedModel: "openai/gpt-4.1-mini",
-  }));
+  (generatePrompt as Mock).mockImplementation(
+    async ({ text }: { text: string }) => ({
+      prompts: [`Prompt about: ${text}`],
+      promptTokens: 10,
+      completionTokens: 5,
+      model: "openai/gpt-4.1-mini",
+      provider: "openai",
+      resolvedModel: "openai/gpt-4.1-mini",
+    }),
+  );
 };
 
 const historyEntry = () =>
@@ -196,7 +205,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   resetHotkeyThrottleForTests();
   (globalShortcut.register as Mock).mockReturnValue(true);
-  (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(defaultGuardSettings());
+  (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
+    defaultGuardSettings(),
+  );
   (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue(null);
   setSecretGuardMode("confirm");
   (confirmSecretSend as Mock).mockResolvedValue(true);
@@ -212,7 +223,11 @@ beforeEach(() => {
 
 describe("promptGen selection read migration — one combined spawn", () => {
   it("never calls the old two-spawn pair (getActiveApp, getHighlightedText)", async () => {
-    mockSelection({ text: "some selected text", activeApp: null, changed: true });
+    mockSelection({
+      text: "some selected text",
+      activeApp: null,
+      changed: true,
+    });
 
     const handler = registerPromptGenHandler();
     await handler();
@@ -225,7 +240,11 @@ describe("promptGen selection read migration — one combined spawn", () => {
 
 describe("promptGen selection guards — allow", () => {
   it("runs generatePrompt, shows the PromptGen window, and writes history", async () => {
-    mockSelection({ text: "some selected text", activeApp: null, changed: true });
+    mockSelection({
+      text: "some selected text",
+      activeApp: null,
+      changed: true,
+    });
 
     const handler = registerPromptGenHandler();
     await handler();
@@ -244,11 +263,18 @@ describe("promptGen selection guards — allow", () => {
 
 describe("promptGen selection guards — confirm: stale-clipboard", () => {
   it("asks before generatePrompt, and dispatches nothing when declined", async () => {
-    mockSelection({ text: "a password copied 40 minutes ago", activeApp: null, changed: false });
+    mockSelection({
+      text: "a password copied 40 minutes ago",
+      activeApp: null,
+      changed: false,
+    });
     (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
       defaultGuardSettings({ clipboardMaxAgeSeconds: 5 }),
     );
-    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 600_000, origin: "change" });
+    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({
+      ms: 600_000,
+      origin: "change",
+    });
     (confirmSelectionGuard as Mock).mockResolvedValue(false);
 
     const handler = registerPromptGenHandler();
@@ -282,11 +308,18 @@ describe("promptGen selection guards — confirm: stale-clipboard", () => {
   });
 
   it("asks about a baseline-origin age even when the number is well under the limit", async () => {
-    mockSelection({ text: "a password copied before launch", activeApp: null, changed: false });
+    mockSelection({
+      text: "a password copied before launch",
+      activeApp: null,
+      changed: false,
+    });
     (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
       defaultGuardSettings({ clipboardMaxAgeSeconds: 5 }),
     );
-    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 12, origin: "baseline" });
+    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({
+      ms: 12,
+      origin: "baseline",
+    });
     (confirmSelectionGuard as Mock).mockResolvedValue(false);
 
     const handler = registerPromptGenHandler();
@@ -334,7 +367,9 @@ describe("promptGen selection guards — block: denied-app", () => {
       messageKey: "notifications.error.appNotAllowed.body",
       messageParams: { app: "1Password" },
     });
-    expect(reportedError.messageKey).not.toBe("notifications.error.noTextSelected.body");
+    expect(reportedError.messageKey).not.toBe(
+      "notifications.error.noTextSelected.body",
+    );
   });
 });
 
@@ -391,7 +426,10 @@ describe("promptGen selection guards — confirm: Send", () => {
       limit: 20_000,
     });
     expect(generatePrompt).toHaveBeenCalledTimes(1);
-    expect(generatePrompt).toHaveBeenCalledWith({ text: bigText, activeAppName: undefined });
+    expect(generatePrompt).toHaveBeenCalledWith({
+      text: bigText,
+      activeAppName: undefined,
+    });
     expect(showPromptGenWindow).toHaveBeenCalledTimes(1);
     expect(handleError).not.toHaveBeenCalled();
 
@@ -411,9 +449,15 @@ describe("promptGen selection guards — precedence", () => {
       changed: false,
     });
     (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
-      defaultGuardSettings({ clipboardMaxAgeSeconds: 5, maxSelectionChars: 20_000 }),
+      defaultGuardSettings({
+        clipboardMaxAgeSeconds: 5,
+        maxSelectionChars: 20_000,
+      }),
     );
-    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 600_000, origin: "change" });
+    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({
+      ms: 600_000,
+      origin: "change",
+    });
 
     const handler = registerPromptGenHandler();
     await handler();
@@ -432,7 +476,11 @@ describe("promptGen selection guards — precedence", () => {
 describe("promptGen secret guard — off", () => {
   it("sends the raw selection and never opens the dialog", async () => {
     setSecretGuardMode("off");
-    mockSelection({ text: SELECTION_WITH_SECRET, activeApp: null, changed: true });
+    mockSelection({
+      text: SELECTION_WITH_SECRET,
+      activeApp: null,
+      changed: true,
+    });
 
     const handler = registerPromptGenHandler();
     await handler();
@@ -447,7 +495,11 @@ describe("promptGen secret guard — off", () => {
 
 describe("promptGen secret guard — confirm, declined", () => {
   it("sends nothing, opens no window, writes no history, and raises no error toast", async () => {
-    mockSelection({ text: SELECTION_WITH_SECRET, activeApp: null, changed: true });
+    mockSelection({
+      text: SELECTION_WITH_SECRET,
+      activeApp: null,
+      changed: true,
+    });
     (confirmSecretSend as Mock).mockResolvedValue(false);
 
     const handler = registerPromptGenHandler();
@@ -462,7 +514,11 @@ describe("promptGen secret guard — confirm, declined", () => {
   });
 
   it("hides the spinner for exactly the dialog's lifetime", async () => {
-    mockSelection({ text: SELECTION_WITH_SECRET, activeApp: null, changed: true });
+    mockSelection({
+      text: SELECTION_WITH_SECRET,
+      activeApp: null,
+      changed: true,
+    });
     let spinnerDuringDialog: { shown: number; hidden: number } | null = null;
     (confirmSecretSend as Mock).mockImplementation(async () => {
       spinnerDuringDialog = {
@@ -483,7 +539,11 @@ describe("promptGen secret guard — confirm, declined", () => {
 
 describe("promptGen secret guard — confirm, Send anyway", () => {
   it("sends the RAW selection and re-shows the spinner", async () => {
-    mockSelection({ text: SELECTION_WITH_SECRET, activeApp: null, changed: true });
+    mockSelection({
+      text: SELECTION_WITH_SECRET,
+      activeApp: null,
+      changed: true,
+    });
 
     const handler = registerPromptGenHandler();
     await handler();
@@ -500,7 +560,11 @@ describe("promptGen secret guard — confirm, Send anyway", () => {
 describe("promptGen secret guard — mask degrades to mask-no-restore", () => {
   it("sends masked text, opens no dialog, and NEVER restores into the generated prompt", async () => {
     setSecretGuardMode("mask");
-    mockSelection({ text: SELECTION_WITH_SECRET, activeApp: null, changed: true });
+    mockSelection({
+      text: SELECTION_WITH_SECRET,
+      activeApp: null,
+      changed: true,
+    });
     mockPromptEcho();
 
     const handler = registerPromptGenHandler();
@@ -514,14 +578,20 @@ describe("promptGen secret guard — mask degrades to mask-no-restore", () => {
 
     // A prompt containing placeholders IS the correct artifact here: promptGen
     // produces a generated prompt, not a rewrite, and it never pastes.
-    const shown = (showPromptGenWindow as Mock).mock.calls[0][0] as { prompts: string[] };
+    const shown = (showPromptGenWindow as Mock).mock.calls[0][0] as {
+      prompts: string[];
+    };
     expect(shown.prompts[0]).toMatch(PLACEHOLDER_PATTERN);
     expect(shown.prompts[0]).not.toContain(OPENAI_KEY);
   });
 
   it("stores masked text on both sides of history", async () => {
     setSecretGuardMode("mask");
-    mockSelection({ text: SELECTION_WITH_SECRET, activeApp: null, changed: true });
+    mockSelection({
+      text: SELECTION_WITH_SECRET,
+      activeApp: null,
+      changed: true,
+    });
     mockPromptEcho();
 
     const handler = registerPromptGenHandler();

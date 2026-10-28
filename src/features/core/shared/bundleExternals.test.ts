@@ -19,7 +19,14 @@
  *   (c) the CLI's contract — which files get scanned, and the exit code.
  */
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -70,15 +77,15 @@ describe("scanBundleSource", () => {
 
   it("flags a require function bound from createRequire()", () => {
     expect(
-      details(
-        'const req = createRequire(import.meta.url);\nreq("left-pad");',
-      ),
+      details('const req = createRequire(import.meta.url);\nreq("left-pad");'),
     ).toEqual(["left-pad"]);
   });
 
   it("flags a require function bound from module.createRequire()", () => {
     expect(
-      details('var require$1 = module.createRequire(__filename);\nrequire$1("left-pad");'),
+      details(
+        'var require$1 = module.createRequire(__filename);\nrequire$1("left-pad");',
+      ),
     ).toEqual(["left-pad"]);
   });
 
@@ -151,7 +158,9 @@ describe("scanBundleSource", () => {
 
   it("does not treat an unrelated factory-shaped binding as a require source", () => {
     // Only a binding whose initializer actually names `createRequire` counts.
-    expect(kinds('const mk = require("node:module").createHash;\nmk("left-pad");')).toEqual([]);
+    expect(
+      kinds('const mk = require("node:module").createHash;\nmk("left-pad");'),
+    ).toEqual([]);
   });
 
   it("flags an aliased require identifier", () => {
@@ -164,9 +173,9 @@ describe("scanBundleSource", () => {
     // assignment arm of the binding walk. Deleting that arm used to leave the
     // whole suite green.
     expect(details('r = require;\nr("left-pad");')).toEqual(["left-pad"]);
-    expect(details('module.exports.x = 1;\nr = require;\nr.resolve("left-pad");')).toEqual([
-      "left-pad",
-    ]);
+    expect(
+      details('module.exports.x = 1;\nr = require;\nr.resolve("left-pad");'),
+    ).toEqual(["left-pad"]);
   });
 
   it("flags a createRequire factory aliased by bare reassignment", () => {
@@ -212,7 +221,8 @@ describe("scanBundleSource", () => {
     // worklist, so the bound below has room for a slow machine either way.
     const depth = 8_000;
     const lines = [`a0("left-pad");`];
-    for (let i = 0; i < depth; i += 1) lines.push(`var a${String(i)} = a${String(i + 1)};`);
+    for (let i = 0; i < depth; i += 1)
+      lines.push(`var a${String(i)} = a${String(i + 1)};`);
     lines.push(`var a${String(depth)} = require;`);
     const source = lines.join("\n");
 
@@ -257,7 +267,9 @@ describe("scanBundleSource", () => {
         ].join("\n"),
         "fixture.cjs",
       ),
-    ).toEqual([expect.objectContaining({ kind: "bare-specifier", detail: "left-pad" })]);
+    ).toEqual([
+      expect.objectContaining({ kind: "bare-specifier", detail: "left-pad" }),
+    ]);
   });
 
   it("does not leak a wrapper-parameter require alias into a sibling function", () => {
@@ -272,7 +284,9 @@ describe("scanBundleSource", () => {
         ].join("\n"),
         "fixture.cjs",
       ),
-    ).toEqual([expect.objectContaining({ kind: "bare-specifier", detail: "left-pad" })]);
+    ).toEqual([
+      expect.objectContaining({ kind: "bare-specifier", detail: "left-pad" }),
+    ]);
   });
 
   it("is unaffected when the sibling picks a name nothing else uses", () => {
@@ -317,15 +331,17 @@ describe("scanBundleSource", () => {
   });
 
   it("resolves a block-scoped require alias", () => {
-    expect(details('{ const r = require; r("left-pad"); }')).toEqual(["left-pad"]);
+    expect(details('{ const r = require; r("left-pad"); }')).toEqual([
+      "left-pad",
+    ]);
   });
 
   it("resolves an alias hoisted above its use inside a function", () => {
     // `var` hoists to the whole function scope, so the call sees the binding
     // even though the declaration is textually below it.
-    expect(details('function f() { r("left-pad"); var r = require; }')).toEqual([
-      "left-pad",
-    ]);
+    expect(details('function f() { r("left-pad"); var r = require; }')).toEqual(
+      ["left-pad"],
+    );
   });
 
   it("resolves a require alias inside a class method and an object method", () => {
@@ -359,7 +375,9 @@ describe("scanBundleSource", () => {
 
   it("does not flag a parameter that shadows an outer require alias", () => {
     expect(
-      kinds(["var r = require;", "const run = (r) => r(dynamicName);"].join("\n")),
+      kinds(
+        ["var r = require;", "const run = (r) => r(dynamicName);"].join("\n"),
+      ),
     ).toEqual([]);
   });
 
@@ -463,15 +481,21 @@ describe("scanBundleSource", () => {
   });
 
   it("flags a comma-operator-wrapped require alias", () => {
-    expect(details('var r = require;\n(0, r)("left-pad");')).toEqual(["left-pad"]);
+    expect(details('var r = require;\n(0, r)("left-pad");')).toEqual([
+      "left-pad",
+    ]);
   });
 
   it("flags a require alias bound through a comma operator", () => {
-    expect(details('var r = (0, require);\nr("left-pad");')).toEqual(["left-pad"]);
+    expect(details('var r = (0, require);\nr("left-pad");')).toEqual([
+      "left-pad",
+    ]);
   });
 
   it("flags a non-literal argument through a comma-operator callee", () => {
-    expect(kinds("(0, require)(computeName());")).toEqual(["non-literal-argument"]);
+    expect(kinds("(0, require)(computeName());")).toEqual([
+      "non-literal-argument",
+    ]);
   });
 
   it("does not flag an unrelated comma-operator callee", () => {
@@ -505,8 +529,12 @@ describe("scanBundleSource", () => {
     // so handling only the dotted `.resolve` was an inconsistency, not a
     // decision.
     expect(details('require["resolve"]("left-pad");')).toEqual(["left-pad"]);
-    expect(details('var r = require;\nr["resolve"]("left-pad");')).toEqual(["left-pad"]);
-    expect(details('(0, require["resolve"])("left-pad");')).toEqual(["left-pad"]);
+    expect(details('var r = require;\nr["resolve"]("left-pad");')).toEqual([
+      "left-pad",
+    ]);
+    expect(details('(0, require["resolve"])("left-pad");')).toEqual([
+      "left-pad",
+    ]);
   });
 
   it("does not flag an unrelated bracket-form .resolve()", () => {
@@ -522,7 +550,7 @@ describe("scanBundleSource", () => {
   });
 
   it("flags a non-literal argument through an aliased require", () => {
-    expect(kinds('var r = require;\nr(computeName());')).toEqual([
+    expect(kinds("var r = require;\nr(computeName());")).toEqual([
       "non-literal-argument",
     ]);
   });
@@ -640,7 +668,9 @@ describe("scanBundleSource", () => {
     // ordinary npm package that merely starts with the same letters.
     expect(details('require("electron/nope");')).toEqual(["electron/nope"]);
     expect(details('require("electron-store");')).toEqual(["electron-store"]);
-    expect(details('require("electron/main/extra");')).toEqual(["electron/main/extra"]);
+    expect(details('require("electron/main/extra");')).toEqual([
+      "electron/main/extra",
+    ]);
   });
 
   it("does not flag relative or absolute specifiers", () => {
@@ -703,7 +733,7 @@ describe("scanBundleSource", () => {
 
   it("reports the 1-based line of each violation", () => {
     const violations = scanBundleSource(
-      ['const a = 1;', 'require("left-pad");'].join("\n"),
+      ["const a = 1;", 'require("left-pad");'].join("\n"),
       "fixture.cjs",
     );
     expect(violations).toEqual([
@@ -828,7 +858,10 @@ describe("runBundleExternalsCheck", () => {
   });
 
   it("exits 0 on a clean tree", () => {
-    write("main/index.cjs", 'require("node:fs");\nrequire("./chunks/token.cjs");');
+    write(
+      "main/index.cjs",
+      'require("node:fs");\nrequire("./chunks/token.cjs");',
+    );
     write("preload/index.cjs", 'require("electron");');
     expect(run()).toBe(0);
     expect(out.join("\n")).toContain("main/index.cjs");
@@ -917,8 +950,13 @@ describe("check-bundle-externals CLI under bun", () => {
   };
 
   const runCli = (): { status: number | null; stdout: string } => {
-    const result = spawnSync("bun", ["run", cliPath, outDir], { encoding: "utf8" });
-    return { status: result.status, stdout: `${result.stdout}${result.stderr}` };
+    const result = spawnSync("bun", ["run", cliPath, outDir], {
+      encoding: "utf8",
+    });
+    return {
+      status: result.status,
+      stdout: `${result.stdout}${result.stderr}`,
+    };
   };
 
   beforeEach(() => {
@@ -939,7 +977,8 @@ describe("check-bundle-externals CLI under bun", () => {
     const shapes: Record<string, string> = {
       "main/bare.cjs": 'require("left-pad");',
       "main/aliased.cjs": 'var r = require;\nr("left-pad");',
-      "main/createRequireIife.cjs": 'createRequire(import.meta.url)("left-pad");',
+      "main/createRequireIife.cjs":
+        'createRequire(import.meta.url)("left-pad");',
       "main/createRequireBound.cjs":
         'const req = createRequire(import.meta.url);\nreq("left-pad");',
       "main/moduleRequire.cjs": 'module.require("left-pad");',
@@ -1017,7 +1056,10 @@ describe("check-bundle-externals CLI under bun", () => {
       ].join("\n"),
     );
     const { status, stdout } = runCli();
-    expect({ status, stdout }).toEqual({ status: 0, stdout: expect.stringContaining("OK") });
+    expect({ status, stdout }).toEqual({
+      status: 0,
+      stdout: expect.stringContaining("OK"),
+    });
   });
 
   it("exits 1 when out/ holds no bundles at all", () => {
@@ -1025,7 +1067,10 @@ describe("check-bundle-externals CLI under bun", () => {
   });
 
   it("exits 1 and names the file when a bundle cannot be scanned", () => {
-    write("main/broken.cjs", `var x = ${"(".repeat(100_000)}1${")".repeat(100_000)};`);
+    write(
+      "main/broken.cjs",
+      `var x = ${"(".repeat(100_000)}1${")".repeat(100_000)};`,
+    );
     const { status, stdout } = runCli();
     expect(status).toBe(1);
     expect(stdout).toContain("main/broken.cjs");
@@ -1058,7 +1103,9 @@ describe("check-bundle-externals CLI from a path containing spaces", () => {
     expect(root).toContain(" ");
 
     mkdirSync(path.join(root, "scripts"), { recursive: true });
-    mkdirSync(path.join(root, "src", "features", "core", "shared"), { recursive: true });
+    mkdirSync(path.join(root, "src", "features", "core", "shared"), {
+      recursive: true,
+    });
     mkdirSync(path.join(root, "out", "main"), { recursive: true });
 
     for (const relPath of [
@@ -1067,7 +1114,11 @@ describe("check-bundle-externals CLI from a path containing spaces", () => {
     ]) {
       copyFileSync(path.join(repoRoot, relPath), path.join(root, relPath));
     }
-    symlinkSync(path.join(repoRoot, "node_modules"), path.join(root, "node_modules"), "dir");
+    symlinkSync(
+      path.join(repoRoot, "node_modules"),
+      path.join(root, "node_modules"),
+      "dir",
+    );
   });
 
   afterEach(() => {
@@ -1083,11 +1134,18 @@ describe("check-bundle-externals CLI from a path containing spaces", () => {
       ["run", path.join(root, "scripts", "check-bundle-externals.ts")],
       { cwd: root, encoding: "utf8" },
     );
-    return { status: result.status, stdout: `${result.stdout}${result.stderr}` };
+    return {
+      status: result.status,
+      stdout: `${result.stdout}${result.stderr}`,
+    };
   };
 
   it("actually scans, and exits 1 on a violation", () => {
-    writeFileSync(path.join(root, "out", "main", "index.cjs"), 'require("left-pad");', "utf8");
+    writeFileSync(
+      path.join(root, "out", "main", "index.cjs"),
+      'require("left-pad");',
+      "utf8",
+    );
     const { status, stdout } = runCli();
     expect(status).toBe(1);
     expect(stdout).toContain("left-pad");
@@ -1096,7 +1154,11 @@ describe("check-bundle-externals CLI from a path containing spaces", () => {
   it("exits 0 on a clean tree, having reported the files it scanned", () => {
     // Pins that the 0 above is a real scan, not the silent no-op the old entry
     // guard produced — which also exited 0 but printed nothing.
-    writeFileSync(path.join(root, "out", "main", "index.cjs"), 'require("node:fs");', "utf8");
+    writeFileSync(
+      path.join(root, "out", "main", "index.cjs"),
+      'require("node:fs");',
+      "utf8",
+    );
     const { status, stdout } = runCli();
     expect(status).toBe(0);
     expect(stdout).toContain("index.cjs");

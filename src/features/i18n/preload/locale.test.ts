@@ -26,7 +26,9 @@ describe("locale preload boundary", () => {
   it("setLocale invokes set-locale with the requested locale", async () => {
     electronMocks.invoke.mockResolvedValueOnce({ success: true });
 
-    await expect(localeFeature.setLocale("ja")).resolves.toEqual({ success: true });
+    await expect(localeFeature.setLocale("ja")).resolves.toEqual({
+      success: true,
+    });
     expect(electronMocks.invoke).toHaveBeenCalledWith("set-locale", "ja");
   });
 
@@ -60,7 +62,10 @@ describe("locale preload boundary", () => {
     const callback = vi.fn();
     localeFeature.onLocaleChanged(callback);
 
-    expect(electronMocks.on).toHaveBeenCalledWith("locale-changed", expect.any(Function));
+    expect(electronMocks.on).toHaveBeenCalledWith(
+      "locale-changed",
+      expect.any(Function),
+    );
     const listener = electronMocks.on.mock.calls[0][1] as (
       event: unknown,
       locale: string,
@@ -77,6 +82,9 @@ describe("locale preload boundary", () => {
 
     unsubscribe();
 
-    expect(electronMocks.removeListener).toHaveBeenCalledWith("locale-changed", listener);
+    expect(electronMocks.removeListener).toHaveBeenCalledWith(
+      "locale-changed",
+      listener,
+    );
   });
 });

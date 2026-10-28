@@ -30,9 +30,12 @@ describe("withUserMetadata", () => {
     ["null", null],
     ["an empty string", ""],
     ["whitespace only", "  \n  "],
-  ])("returns the system prompt byte-identical for %s", (_label, directives) => {
-    expect(withUserMetadata("Fix grammar.", directives)).toBe("Fix grammar.");
-  });
+  ])(
+    "returns the system prompt byte-identical for %s",
+    (_label, directives) => {
+      expect(withUserMetadata("Fix grammar.", directives)).toBe("Fix grammar.");
+    },
+  );
 
   it("does not invent a Metadata context heading", () => {
     expect(withUserMetadata("Fix grammar.", DIRECTIVES)).not.toContain(

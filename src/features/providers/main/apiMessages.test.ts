@@ -43,11 +43,20 @@ const resolveBoth = (label: unknown): { en: string; ja: string } => {
   };
 };
 
-const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
+const handlers = new Map<
+  string,
+  (event: unknown, ...args: unknown[]) => unknown
+>();
 vi.mock("electron", () => ({
-  ipcMain: { handle: (channel: string, listener: (event: unknown, ...args: unknown[]) => unknown) => {
-    handlers.set(channel, listener);
-  }, on: vi.fn() },
+  ipcMain: {
+    handle: (
+      channel: string,
+      listener: (event: unknown, ...args: unknown[]) => unknown,
+    ) => {
+      handlers.set(channel, listener);
+    },
+    on: vi.fn(),
+  },
 }));
 
 const {
@@ -93,10 +102,13 @@ vi.mock("~/main/ai.request", () => ({
   fetchModelsForProviders: fetchModelsForProvidersMock,
 }));
 vi.mock("~/main/llm/models/discover", () => ({ probeOllama: probeOllamaMock }));
-vi.mock("~/main/llm/providers/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
+vi.mock("~/main/llm/providers/lmstudio/client", () => ({
+  probeLmStudio: probeLmStudioMock,
+}));
 vi.mock("~/main/keybindings", () => ({ reloadHotkeys: vi.fn() }));
 vi.mock("~/main/llm", () => ({
-  createOllamaClient: () => ({ pull: vi.fn(), delete: vi.fn(), chat: vi.fn() }), ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
+  createOllamaClient: () => ({ pull: vi.fn(), delete: vi.fn(), chat: vi.fn() }),
+  ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
 }));
 vi.mock("~/main/llm/models/compatibility", () => ({
   checkModelCompatibility: checkModelCompatibilityMock,
@@ -123,8 +135,9 @@ vi.mock("~/features/providers/store/apiStore", () => ({
   getCurrentProfileId: getCurrentProfileIdMock,
   getDefaultModelId: vi.fn(),
   getProfileSetting: getProfileSettingMock,
-    getProviderEndpoint: () => undefined,
-    sanitizeProviderEndpoints: (raw: unknown) => (raw && typeof raw === "object" ? raw : {}),
+  getProviderEndpoint: () => undefined,
+  sanitizeProviderEndpoints: (raw: unknown) =>
+    raw && typeof raw === "object" ? raw : {},
   resetCurrentProfileSettings: resetCurrentProfileSettingsMock,
   updateProfileSetting: updateProfileSettingMock,
   withoutProfileSecrets: vi.fn((profile: unknown) => profile),
@@ -158,7 +171,7 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     setProfileSecretMock.mockResolvedValue({ success: true });
     clearProfileSecretMock.mockResolvedValue({ success: true });
     probeOllamaMock.mockResolvedValue({ reachable: true, models: [] });
-  probeLmStudioMock.mockResolvedValue({ reachable: true, models: [] });
+    probeLmStudioMock.mockResolvedValue({ reachable: true, models: [] });
     fetchModelsForProvidersMock.mockResolvedValue({ models: [], errors: {} });
     connectProviderToActiveProfileMock.mockReturnValue({ id: "profile_1" });
     disconnectProviderFromActiveProfileMock.mockReturnValue(null);
@@ -167,7 +180,10 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
 
   it("set-api-key: a non-string key is a translatable 'Invalid key' Message", async () => {
     const handler = handlers.get("set-api-key");
-    const result = (await handler?.(undefined, 42)) as { success: boolean; error?: unknown };
+    const result = (await handler?.(undefined, 42)) as {
+      success: boolean;
+      error?: unknown;
+    };
 
     expect(result.success).toBe(false);
     const { en, ja } = resolveBoth(result.error);
@@ -215,10 +231,14 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     expect(result.success).toBe(false);
     const { en, ja } = resolveBoth(result.error);
     expect(en).toBe(
-      tEn("models.providerSetup.error.apiKeyRequiredFirst", { provider: "OpenAI" }),
+      tEn("models.providerSetup.error.apiKeyRequiredFirst", {
+        provider: "OpenAI",
+      }),
     );
     expect(ja).toBe(
-      tJa("models.providerSetup.error.apiKeyRequiredFirst", { provider: "OpenAI" }),
+      tJa("models.providerSetup.error.apiKeyRequiredFirst", {
+        provider: "OpenAI",
+      }),
     );
     expect(ja).not.toBe(en);
   });
@@ -248,10 +268,14 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     expect(result.success).toBe(false);
     const { en, ja } = resolveBoth(result.error);
     expect(en).toBe(
-      tEn("models.providerSetup.error.apiKeyRequired", { provider: "OpenRouter" }),
+      tEn("models.providerSetup.error.apiKeyRequired", {
+        provider: "OpenRouter",
+      }),
     );
     expect(ja).toBe(
-      tJa("models.providerSetup.error.apiKeyRequired", { provider: "OpenRouter" }),
+      tJa("models.providerSetup.error.apiKeyRequired", {
+        provider: "OpenRouter",
+      }),
     );
     expect(ja).not.toBe(en);
   });
@@ -298,7 +322,11 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
   });
 
   it("connect-provider: an unreachable Ollama daemon is a translatable Message", async () => {
-    probeOllamaMock.mockResolvedValue({ reachable: false, models: [], error: "ECONNREFUSED" });
+    probeOllamaMock.mockResolvedValue({
+      reachable: false,
+      models: [],
+      error: "ECONNREFUSED",
+    });
     const handler = handlers.get("connect-provider");
     const result = (await handler?.(undefined, { provider: "ollama" })) as {
       success: boolean;
@@ -402,10 +430,16 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
       error: "Active profile not found",
     });
     const handler = handlers.get("reset-profile-settings");
-    const result = (await handler?.(undefined)) as { success: boolean; error?: unknown };
+    const result = (await handler?.(undefined)) as {
+      success: boolean;
+      error?: unknown;
+    };
 
     expect(result.success).toBe(false);
-    expect(result.error).toEqual({ kind: "text", text: "Active profile not found" });
+    expect(result.error).toEqual({
+      kind: "text",
+      text: "Active profile not found",
+    });
     const { en, ja } = resolveBoth(result.error);
     expect(en).toBe("Active profile not found");
     expect(ja).toBe("Active profile not found");

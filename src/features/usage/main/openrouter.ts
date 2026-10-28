@@ -22,6 +22,6 @@ export const registerOpenRouterHandlers = (): void => {
     async (_event: Electron.IpcMainInvokeEvent, range: unknown) => {
       // Re-validate the range at the boundary (preload also guards).
       return client.getAnalytics(normalizeRange(range));
-    }
+    },
   );
 };

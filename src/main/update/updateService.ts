@@ -72,12 +72,18 @@ const RELEASE_NOTES_MAX_LENGTH = 12_000;
 // instead of freezing in whatever locale was active when this state was
 // published (see `~/features/update/shared/update.ts`'s `UpdateState.message`).
 const UPDATE_ERROR_MESSAGE: Message = msg("settings.updates.checkErrorMessage");
-const INSTALL_ERROR_MESSAGE: Message = msg("settings.updates.installErrorMessage");
+const INSTALL_ERROR_MESSAGE: Message = msg(
+  "settings.updates.installErrorMessage",
+);
 const INSTALL_INCOMPLETE_MESSAGE: Message = msg(
   "settings.updates.installIncompleteMessage",
 );
-const RESTART_ERROR_MESSAGE: Message = msg("settings.updates.restartErrorMessage");
-const DOWNLOAD_ERROR_MESSAGE: Message = msg("settings.updates.downloadErrorMessage");
+const RESTART_ERROR_MESSAGE: Message = msg(
+  "settings.updates.restartErrorMessage",
+);
+const DOWNLOAD_ERROR_MESSAGE: Message = msg(
+  "settings.updates.downloadErrorMessage",
+);
 
 /** How often a background upgrade is re-checked while the app is reopened. */
 const UPGRADE_POLL_INTERVAL_MS = 15_000;
@@ -205,7 +211,8 @@ const validateRelease = (value: unknown): ValidatedRelease | null => {
 
   const tagMatch = /^v(.+)$/.exec(value.tag_name);
   const version = tagMatch ? parseStableVersion(tagMatch[1]) : null;
-  const dmgSize = version === null ? null : expectedDmgSize(value.assets, version);
+  const dmgSize =
+    version === null ? null : expectedDmgSize(value.assets, version);
   if (!version || dmgSize === null) return null;
   // GitHub returns JSON null when a release has no notes.
   if (value.body != null && typeof value.body !== "string") return null;
@@ -240,7 +247,9 @@ export const createUpdateService = (
 ): UpdateService => {
   const currentVersion = options.getCurrentVersion();
   const supported =
-    options.isPackaged && options.platform === "darwin" && options.arch === "arm64";
+    options.isPackaged &&
+    options.platform === "darwin" &&
+    options.arch === "arm64";
   const canInstall = supported && (options.upgrader?.canInstall ?? false);
   const listeners = new Set<(state: UpdateState) => void>();
   const now = options.now ?? Date.now;
@@ -264,9 +273,7 @@ export const createUpdateService = (
   let state = withCanInstall({
     phase: supported ? "idle" : "unsupported",
     currentVersion,
-    ...(supported
-      ? {}
-      : { message: msg("settings.updates.unsupported") }),
+    ...(supported ? {} : { message: msg("settings.updates.unsupported") }),
   });
 
   const publish = (next: Omit<UpdateState, "canInstall">): void => {
@@ -474,7 +481,9 @@ export const createUpdateService = (
     refreshTap = true,
   ): Promise<string | null> => {
     try {
-      return (await options.upgrader?.getInstallableVersion(refreshTap)) ?? null;
+      return (
+        (await options.upgrader?.getInstallableVersion(refreshTap)) ?? null
+      );
     } catch (error) {
       options.onLog?.(
         "warn",
@@ -486,7 +495,10 @@ export const createUpdateService = (
 
   const fail = (error: unknown): void => {
     checking = false;
-    options.onLog?.("warn", `App update check failed (${safeErrorName(error)})`);
+    options.onLog?.(
+      "warn",
+      `App update check failed (${safeErrorName(error)})`,
+    );
     publish({
       phase: "error",
       currentVersion,
@@ -556,7 +568,8 @@ export const createUpdateService = (
           return;
         }
 
-        const pendingRelease = newerOnGitHub && release !== null ? release : null;
+        const pendingRelease =
+          newerOnGitHub && release !== null ? release : null;
         // Nothing installable, but a release does exist — say so rather than
         // claiming the app is current, and never offer an install button that
         // cannot work yet. The release page still can be opened, so point at

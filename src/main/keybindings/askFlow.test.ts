@@ -54,9 +54,13 @@ vi.mock("../webViewWindows/askResultWindow", () => ({
 }));
 vi.mock("./utils", () => ({ handleError: vi.fn() }));
 vi.mock("~/features/correction/store/outputModeStore", () => ({
-  outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("paste") },
+  outputModeStore: {
+    getCorrectionOutputMode: vi.fn().mockReturnValue("paste"),
+  },
 }));
-vi.mock("~/features/i18n/store/localeStore", () => ({ getLocale: vi.fn().mockReturnValue("en") }));
+vi.mock("~/features/i18n/store/localeStore", () => ({
+  getLocale: vi.fn().mockReturnValue("en"),
+}));
 // The secret gate itself (`runSecretGate`, `scanForSecrets`) stays REAL — a
 // mocked gate would let a call site that re-derived Ask's mask-degrades-to-
 // confirm policy pass.
@@ -158,7 +162,9 @@ const setSecretGuardMode = (mode: "off" | "confirm" | "mask"): void => {
 
 /** Every `logger.info` line the latency timer emitted, in order. */
 const latencyFinishCalls = () =>
-  (logger.info as Mock).mock.calls.filter(([scope]) => scope === "correction.latency");
+  (logger.info as Mock).mock.calls.filter(
+    ([scope]) => scope === "correction.latency",
+  );
 
 describe("runAskFlow", () => {
   beforeEach(() => {
@@ -495,8 +501,10 @@ describe("runAskFlow secret guard", () => {
       mainWindow: fakeMainWindow(),
     });
 
-    const gateCallOrder = (confirmSecretSend as Mock).mock.invocationCallOrder[0];
-    const timerCallOrder = (startLatencyTimer as Mock).mock.invocationCallOrder[0];
+    const gateCallOrder = (confirmSecretSend as Mock).mock
+      .invocationCallOrder[0];
+    const timerCallOrder = (startLatencyTimer as Mock).mock
+      .invocationCallOrder[0];
     expect(gateCallOrder).toBeDefined();
     expect(timerCallOrder).toBeDefined();
     // The whole point of the ordering: the gate resolves BEFORE the clock
@@ -535,7 +543,10 @@ describe("runAskFlow secret guard", () => {
       mainWindow: fakeMainWindow(),
     });
 
-    expect(fixGrammar).toHaveBeenCalledWith(`${question}\n\nApp locale: en`, "ask");
+    expect(fixGrammar).toHaveBeenCalledWith(
+      `${question}\n\nApp locale: en`,
+      "ask",
+    );
     const finishes = latencyFinishCalls();
     expect(finishes).toHaveLength(1);
     expect(finishes[0][2]).toMatchObject({ outcome: "delivered" });
@@ -606,12 +617,17 @@ describe("runAskFlow secret guard", () => {
     // A free-form answer rarely echoes placeholders back, so a restore would
     // fail on most requests and permanently divert Ask to the popup.
     expect(confirmSecretSend).toHaveBeenCalledTimes(1);
-    expect(fixGrammar).toHaveBeenCalledWith(`${question}\n\nApp locale: en`, "ask");
+    expect(fixGrammar).toHaveBeenCalledWith(
+      `${question}\n\nApp locale: en`,
+      "ask",
+    );
     const [sent] = (fixGrammar as Mock).mock.calls[0];
     expect(sent).not.toMatch(/FIXLANG_SECRET_/);
     expect(syncHistory).toHaveBeenCalledWith(
       expect.objectContaining({
-        entry: expect.objectContaining({ original: `${question}\n\nApp locale: en` }),
+        entry: expect.objectContaining({
+          original: `${question}\n\nApp locale: en`,
+        }),
       }),
     );
   });

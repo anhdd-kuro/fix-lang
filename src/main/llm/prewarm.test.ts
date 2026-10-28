@@ -20,14 +20,19 @@ import type { Model } from "~/features/providers/shared/providers";
 // ---------------------------------------------------------------------------
 // Mocks — hoisted above every import above by vitest's transform.
 // ---------------------------------------------------------------------------
-const { getCachedModelsMock, keepAliveFetchMock, getCurrentProfileIdMock, getProfileSecretMock, getApiKeyMock } =
-  vi.hoisted(() => ({
-    getCachedModelsMock: vi.fn<() => Model[]>(),
-    keepAliveFetchMock: vi.fn(),
-    getCurrentProfileIdMock: vi.fn<() => string>(),
-    getProfileSecretMock: vi.fn<() => Promise<string | null>>(),
-    getApiKeyMock: vi.fn<() => Promise<string | null>>(),
-  }));
+const {
+  getCachedModelsMock,
+  keepAliveFetchMock,
+  getCurrentProfileIdMock,
+  getProfileSecretMock,
+  getApiKeyMock,
+} = vi.hoisted(() => ({
+  getCachedModelsMock: vi.fn<() => Model[]>(),
+  keepAliveFetchMock: vi.fn(),
+  getCurrentProfileIdMock: vi.fn<() => string>(),
+  getProfileSecretMock: vi.fn<() => Promise<string | null>>(),
+  getApiKeyMock: vi.fn<() => Promise<string | null>>(),
+}));
 
 vi.mock("~/main/ai.request/shared", () => ({
   getCachedModels: getCachedModelsMock,
@@ -54,7 +59,9 @@ vi.mock("~/features/providers/store/apiKeyStore", () => ({
 const okWarmResponse = () => ({
   ok: true,
   status: 200,
-  arrayBuffer: vi.fn<() => Promise<ArrayBuffer>>().mockResolvedValue(new ArrayBuffer(0)),
+  arrayBuffer: vi
+    .fn<() => Promise<ArrayBuffer>>()
+    .mockResolvedValue(new ArrayBuffer(0)),
 });
 
 // ---------------------------------------------------------------------------
@@ -65,12 +72,19 @@ describe("resolveProviderForModelRef", () => {
   const models: Model[] = [
     { id: "gpt-4o", name: "GPT-4o", created: 0, provider: "openai" },
     { id: "openai/gpt-4o", name: "GPT-4o", created: 0, provider: "openrouter" },
-    { id: "llama3.2:3b", name: "Llama 3.2 3B", created: 0, local: { path: "/models/llama3.2" } },
+    {
+      id: "llama3.2:3b",
+      name: "Llama 3.2 3B",
+      created: 0,
+      local: { path: "/models/llama3.2" },
+    },
   ];
 
   it("resolves an explicit provider prefix against the cached model list", () => {
     expect(resolveProviderForModelRef("openai::gpt-4o", models)).toBe("openai");
-    expect(resolveProviderForModelRef("openrouter::openai/gpt-4o", models)).toBe("openrouter");
+    expect(
+      resolveProviderForModelRef("openrouter::openai/gpt-4o", models),
+    ).toBe("openrouter");
   });
 
   it("resolves a bare id by scanning provider order against the cache", () => {
@@ -78,13 +92,17 @@ describe("resolveProviderForModelRef", () => {
   });
 
   it("resolves a local provider ref (ollama) so callers can decide to skip it", () => {
-    expect(resolveProviderForModelRef("ollama::llama3.2:3b", models)).toBe("ollama");
+    expect(resolveProviderForModelRef("ollama::llama3.2:3b", models)).toBe(
+      "ollama",
+    );
   });
 
   it("falls back to the ref's own prefix when the model cache has no match yet", () => {
     // An explicit prefix names its provider even before that provider's model
     // list has ever been fetched — must not silently disable prewarming.
-    expect(resolveProviderForModelRef("openai::some-new-model", [])).toBe("openai");
+    expect(resolveProviderForModelRef("openai::some-new-model", [])).toBe(
+      "openai",
+    );
   });
 
   it("returns null for a bare id with no cache match and no prefix", () => {
@@ -119,7 +137,8 @@ describe("prewarmProviderConnection", () => {
     keepAliveFetchMock.mockResolvedValue(okWarmResponse());
 
     vi.resetModules();
-    prewarmProviderConnection = (await import("./prewarm")).prewarmProviderConnection;
+    prewarmProviderConnection = (await import("./prewarm"))
+      .prewarmProviderConnection;
   });
 
   it("is synchronous to call and never throws for a normal ref", () => {
@@ -176,7 +195,9 @@ describe("prewarmProviderConnection", () => {
 
     // Without this the connection stays outstanding and the real completion
     // opens a second one — the prewarm would hold a socket, not hand one over.
-    await vi.waitFor(() => expect(response.arrayBuffer).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() =>
+      expect(response.arrayBuffer).toHaveBeenCalledTimes(1),
+    );
   });
 
   it("skips local providers (Ollama) entirely — no fetch, loopback buys nothing", async () => {

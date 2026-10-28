@@ -16,7 +16,9 @@ vi.mock("~/features/providers/store/apiStore", () => apiStoreMocks);
 type Handler = (event: unknown, raw?: unknown) => unknown;
 
 const getHandler = (channel: string): Handler => {
-  const call = electronMocks.handle.mock.calls.find(([name]) => name === channel);
+  const call = electronMocks.handle.mock.calls.find(
+    ([name]) => name === channel,
+  );
   if (!call) throw new Error(`no handler registered for channel "${channel}"`);
   return call[1] as Handler;
 };

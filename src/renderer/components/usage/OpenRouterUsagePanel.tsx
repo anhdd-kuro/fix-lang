@@ -80,7 +80,9 @@ const Card = ({
   </div>
 );
 
-export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelProps) => {
+export const OpenRouterUsagePanel = ({
+  onOpenSettings,
+}: OpenRouterUsagePanelProps) => {
   const { t, formatNumber } = useI18n();
   const [range, setRange] = useState<OpenRouterRange>("7d");
   const { data, loading, hasKey, refresh } = useOpenRouterAnalytics(range);
@@ -225,7 +227,10 @@ export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelPro
               </div>
               <div className="text-xl font-semibold tabular-nums text-foreground">
                 {formatNumber(
-                  activity.data.rows.reduce((sum, row) => sum + row.promptTokens, 0),
+                  activity.data.rows.reduce(
+                    (sum, row) => sum + row.promptTokens,
+                    0,
+                  ),
                 )}
               </div>
             </div>
@@ -248,7 +253,10 @@ export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelPro
               </div>
               <div className="text-xl font-semibold tabular-nums text-foreground">
                 {formatNumber(
-                  activity.data.rows.reduce((sum, row) => sum + row.requests, 0),
+                  activity.data.rows.reduce(
+                    (sum, row) => sum + row.requests,
+                    0,
+                  ),
                 )}
               </div>
             </div>

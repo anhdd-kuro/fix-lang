@@ -9,7 +9,10 @@ import {
 } from "~/features/guards/shared/guardSettings";
 import { selectionGuardsFeature } from "./guards";
 
-const electronMocks = vi.hoisted(() => ({ invoke: vi.fn(), getPathForFile: vi.fn() }));
+const electronMocks = vi.hoisted(() => ({
+  invoke: vi.fn(),
+  getPathForFile: vi.fn(),
+}));
 
 vi.mock("electron", () => ({
   ipcRenderer: { invoke: electronMocks.invoke },
@@ -74,9 +77,13 @@ describe("selectionGuardsFeature preload boundary", () => {
     it("invokes set-selection-guards with a valid payload and returns the result", async () => {
       electronMocks.invoke.mockResolvedValue({ success: true });
 
-      const result = await selectionGuardsFeature.setSelectionGuards(validSettings);
+      const result =
+        await selectionGuardsFeature.setSelectionGuards(validSettings);
 
-      expect(electronMocks.invoke).toHaveBeenCalledWith("set-selection-guards", validSettings);
+      expect(electronMocks.invoke).toHaveBeenCalledWith(
+        "set-selection-guards",
+        validSettings,
+      );
       expect(result).toEqual({ success: true, error: undefined });
     });
 
@@ -86,15 +93,23 @@ describe("selectionGuardsFeature preload boundary", () => {
         error: { kind: "text", text: "nope" },
       });
 
-      const result = await selectionGuardsFeature.setSelectionGuards(validSettings);
+      const result =
+        await selectionGuardsFeature.setSelectionGuards(validSettings);
 
-      expect(result).toEqual({ success: false, error: { kind: "text", text: "nope" } });
+      expect(result).toEqual({
+        success: false,
+        error: { kind: "text", text: "nope" },
+      });
     });
 
     it("drops a malformed error field from main rather than passing it through", async () => {
-      electronMocks.invoke.mockResolvedValue({ success: false, error: "not a label" });
+      electronMocks.invoke.mockResolvedValue({
+        success: false,
+        error: "not a label",
+      });
 
-      const result = await selectionGuardsFeature.setSelectionGuards(validSettings);
+      const result =
+        await selectionGuardsFeature.setSelectionGuards(validSettings);
 
       expect(result).toEqual({ success: false, error: undefined });
     });
@@ -121,31 +136,43 @@ describe("selectionGuardsFeature preload boundary", () => {
       { ...validSettings, clipboardMaxAgeSeconds: 0.5 },
       { ...validSettings, maxSelectionChars: -20_000 },
       { ...validSettings, maxSelectionChars: 0.9 },
-    ])("rejects a value the normalizer would coerce to 0 (case %#): %j", async (payload) => {
-      const result = await selectionGuardsFeature.setSelectionGuards(payload);
+    ])(
+      "rejects a value the normalizer would coerce to 0 (case %#): %j",
+      async (payload) => {
+        const result = await selectionGuardsFeature.setSelectionGuards(payload);
 
-      expect(electronMocks.invoke).not.toHaveBeenCalled();
-      expect(result.success).toBe(false);
-    });
+        expect(electronMocks.invoke).not.toHaveBeenCalled();
+        expect(result.success).toBe(false);
+      },
+    );
 
     // The other half of f1: an explicit 0 is a deliberate disable and must
     // still be accepted through to the main process.
     it.each([
       { ...validSettings, clipboardMaxAgeSeconds: 0 },
       { ...validSettings, maxSelectionChars: 0 },
-    ])("still accepts an explicit 0 as a deliberate disable (case %#): %j", async (payload) => {
-      electronMocks.invoke.mockResolvedValue({ success: true });
+    ])(
+      "still accepts an explicit 0 as a deliberate disable (case %#): %j",
+      async (payload) => {
+        electronMocks.invoke.mockResolvedValue({ success: true });
 
-      const result = await selectionGuardsFeature.setSelectionGuards(payload);
+        const result = await selectionGuardsFeature.setSelectionGuards(payload);
 
-      expect(electronMocks.invoke).toHaveBeenCalledWith("set-selection-guards", payload);
-      expect(result).toEqual({ success: true, error: undefined });
-    });
+        expect(electronMocks.invoke).toHaveBeenCalledWith(
+          "set-selection-guards",
+          payload,
+        );
+        expect(result).toEqual({ success: true, error: undefined });
+      },
+    );
 
     // f2/f4: an entry the normalizer would silently drop, or a list longer
     // than the store will ever persist, must be refused here too.
     it.each([
-      { ...validSettings, deniedBundleIds: ["z".repeat(MAX_BUNDLE_ID_LENGTH + 1)] },
+      {
+        ...validSettings,
+        deniedBundleIds: ["z".repeat(MAX_BUNDLE_ID_LENGTH + 1)],
+      },
       { ...validSettings, deniedBundleIds: ["com.exampleapp"] },
       { ...validSettings, deniedBundleIds: ["   "] },
       {
@@ -155,12 +182,15 @@ describe("selectionGuardsFeature preload boundary", () => {
           (_, index) => `com.example.app${index}`,
         ),
       },
-    ])("rejects a deniedBundleIds payload the normalizer would change (case %#)", async (payload) => {
-      const result = await selectionGuardsFeature.setSelectionGuards(payload);
+    ])(
+      "rejects a deniedBundleIds payload the normalizer would change (case %#)",
+      async (payload) => {
+        const result = await selectionGuardsFeature.setSelectionGuards(payload);
 
-      expect(electronMocks.invoke).not.toHaveBeenCalled();
-      expect(result.success).toBe(false);
-    });
+        expect(electronMocks.invoke).not.toHaveBeenCalled();
+        expect(result.success).toBe(false);
+      },
+    );
   });
 
   describe("getRecentActiveApps", () => {
@@ -170,7 +200,9 @@ describe("selectionGuardsFeature preload boundary", () => {
 
       const result = await selectionGuardsFeature.getRecentActiveApps();
 
-      expect(electronMocks.invoke).toHaveBeenCalledWith("get-recent-active-apps");
+      expect(electronMocks.invoke).toHaveBeenCalledWith(
+        "get-recent-active-apps",
+      );
       expect(result).toEqual(apps);
     });
 
@@ -191,13 +223,16 @@ describe("selectionGuardsFeature preload boundary", () => {
       [{ name: 1, bundleId: null }], // non-string name
       [{ name: "Slack", bundleId: 1 }], // non-string, non-null bundleId
       "not-an-array",
-    ])("falls back to an empty list for a malformed main-process reply: %j", async (reply) => {
-      electronMocks.invoke.mockResolvedValue(reply);
+    ])(
+      "falls back to an empty list for a malformed main-process reply: %j",
+      async (reply) => {
+        electronMocks.invoke.mockResolvedValue(reply);
 
-      const result = await selectionGuardsFeature.getRecentActiveApps();
+        const result = await selectionGuardsFeature.getRecentActiveApps();
 
-      expect(result).toEqual([]);
-    });
+        expect(result).toEqual([]);
+      },
+    );
   });
 
   describe("getAppBundlePathForFile", () => {
@@ -228,7 +263,9 @@ describe("selectionGuardsFeature preload boundary", () => {
         throw new TypeError("not a File");
       });
 
-      expect(selectionGuardsFeature.getAppBundlePathForFile("nonsense")).toBeNull();
+      expect(
+        selectionGuardsFeature.getAppBundlePathForFile("nonsense"),
+      ).toBeNull();
     });
   });
 
@@ -241,9 +278,10 @@ describe("selectionGuardsFeature preload boundary", () => {
         "/Applications/Slack.app",
       ]);
 
-      expect(electronMocks.invoke).toHaveBeenCalledWith("resolve-app-bundle-ids", [
-        "/Applications/Slack.app",
-      ]);
+      expect(electronMocks.invoke).toHaveBeenCalledWith(
+        "resolve-app-bundle-ids",
+        ["/Applications/Slack.app"],
+      );
       expect(result).toEqual(reply);
     });
 
@@ -254,7 +292,10 @@ describe("selectionGuardsFeature preload boundary", () => {
       ["a non-array payload", "/Applications/Slack.app" as unknown as string[]],
       [
         "more paths than the deny-list can hold",
-        Array.from({ length: MAX_APP_BUNDLE_PATHS + 1 }, () => "/Applications/Slack.app"),
+        Array.from(
+          { length: MAX_APP_BUNDLE_PATHS + 1 },
+          () => "/Applications/Slack.app",
+        ),
       ],
     ])("rejects %s without invoking main", async (_label, payload) => {
       const result = await selectionGuardsFeature.resolveAppBundleIds(payload);

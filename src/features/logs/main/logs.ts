@@ -1,7 +1,10 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { app, BrowserWindow, clipboard, dialog, ipcMain } from "electron";
-import { LOG_QUERY_PAGE_SIZE, normalizeLogLevels } from "~/features/logs/shared/logging";
+import {
+  LOG_QUERY_PAGE_SIZE,
+  normalizeLogLevels,
+} from "~/features/logs/shared/logging";
 import { mainT } from "~/main/i18n";
 import { logService, logger } from "~/main/logging/logService";
 import type { LogQueryRequest } from "~/features/logs/shared/logging";

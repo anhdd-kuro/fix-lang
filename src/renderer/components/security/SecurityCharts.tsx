@@ -101,7 +101,11 @@ const useThemePaletteTick = (): number => {
   return tick;
 };
 
-const percentLabel = (value: number, total: number, formatNumber: (n: number) => string): string => {
+const percentLabel = (
+  value: number,
+  total: number,
+  formatNumber: (n: number) => string,
+): string => {
   if (total <= 0) {
     return formatNumber(0);
   }
@@ -165,7 +169,9 @@ const GuardMixDonut = ({
         {
           label: t(datasetKey),
           data: active.map((slice) => slice.value),
-          backgroundColor: active.map((_, index) => paletteColor(index, paletteTick)),
+          backgroundColor: active.map((_, index) =>
+            paletteColor(index, paletteTick),
+          ),
           borderColor: card,
           borderWidth: 2,
           hoverOffset: 6,
@@ -240,13 +246,19 @@ const GuardMixDonut = ({
           <Doughnut data={data} options={options} aria-label={ariaLabel} />
         </div>
       ) : (
-        <p className="py-6 text-center text-sm text-muted-foreground">{t(emptyKey)}</p>
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          {t(emptyKey)}
+        </p>
       )}
     </div>
   );
 };
 
-export const SecurityRulesBar = ({ rows }: { rows: readonly SecurityRuleRow[] }) => {
+export const SecurityRulesBar = ({
+  rows,
+}: {
+  rows: readonly SecurityRuleRow[];
+}) => {
   const paletteTick = useThemePaletteTick();
   const { t, tm, formatNumber } = useI18n();
 
@@ -256,7 +268,9 @@ export const SecurityRulesBar = ({ rows }: { rows: readonly SecurityRuleRow[] })
     const border = readCssColor("--border", "#e4e4e7");
     const card = readCssColor("--card", "#ffffff");
 
-    const labels = rows.map((row) => (row.labelKey === null ? row.ruleId : t(row.labelKey)));
+    const labels = rows.map((row) =>
+      row.labelKey === null ? row.ruleId : t(row.labelKey),
+    );
 
     const chartData: ChartData<"bar"> = {
       labels,

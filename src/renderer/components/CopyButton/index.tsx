@@ -56,27 +56,27 @@ const CopyButton: React.FC<{
     >
       {showLabel && <span className="whitespace-nowrap text-xs">{label}</span>}
       {hideIcon ? null : (
-      <span className={twJoin("relative block shrink-0", icon)}>
-        <ClipboardIcon
-          className={twJoin(
-            "absolute inset-0 size-full transition-all duration-300 ease-in-out",
-            variant === "primary"
-              ? "stroke-current"
-              : "stroke-muted-foreground",
-          )}
-          style={{
-            strokeDasharray: 50,
-            strokeDashoffset: copied ? -50 : 0,
-          }}
-        />
-        <CheckIcon
-          className="absolute inset-0 size-full stroke-success transition-all duration-300 ease-in-out"
-          style={{
-            strokeDasharray: 50,
-            strokeDashoffset: copied ? 0 : -50,
-          }}
-        />
-      </span>
+        <span className={twJoin("relative block shrink-0", icon)}>
+          <ClipboardIcon
+            className={twJoin(
+              "absolute inset-0 size-full transition-all duration-300 ease-in-out",
+              variant === "primary"
+                ? "stroke-current"
+                : "stroke-muted-foreground",
+            )}
+            style={{
+              strokeDasharray: 50,
+              strokeDashoffset: copied ? -50 : 0,
+            }}
+          />
+          <CheckIcon
+            className="absolute inset-0 size-full stroke-success transition-all duration-300 ease-in-out"
+            style={{
+              strokeDasharray: 50,
+              strokeDashoffset: copied ? 0 : -50,
+            }}
+          />
+        </span>
       )}
     </Button>
   );

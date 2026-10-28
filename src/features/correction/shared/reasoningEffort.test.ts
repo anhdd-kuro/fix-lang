@@ -31,19 +31,15 @@ describe("REASONING_EFFORT_SLIDER_STEPS mapping (None → Faster → Smarter)", 
   it("defaults to none", () => {
     expect(DEFAULT_REASONING_STEP_INDEX).toBe(0);
     expect(DEFAULT_REASONING_EFFORT).toBe("none");
-    expect(REASONING_EFFORT_SLIDER_STEPS[DEFAULT_REASONING_STEP_INDEX]).toBe("none");
+    expect(REASONING_EFFORT_SLIDER_STEPS[DEFAULT_REASONING_STEP_INDEX]).toBe(
+      "none",
+    );
   });
 });
 
 describe("sanitizeReasoningEffort / type guards", () => {
   it("accepts every AI SDK reasoning value", () => {
-    for (const value of [
-      "provider-default",
-      "none",
-      "low",
-      "medium",
-      "high",
-    ]) {
+    for (const value of ["provider-default", "none", "low", "medium", "high"]) {
       expect(isReasoningEffort(value)).toBe(true);
       expect(sanitizeReasoningEffort(value)).toBe(value);
     }
@@ -78,7 +74,11 @@ describe("sanitizeReasoningEffort / type guards", () => {
 
 describe("step index ↔ effort", () => {
   it("round-trips each slider step", () => {
-    for (let index = 0; index < REASONING_EFFORT_SLIDER_STEPS.length; index += 1) {
+    for (
+      let index = 0;
+      index < REASONING_EFFORT_SLIDER_STEPS.length;
+      index += 1
+    ) {
       const effort = stepIndexToReasoningEffort(index);
       expect(reasoningEffortToStepIndex(effort)).toBe(index);
       expect(effort).toBe(REASONING_EFFORT_SLIDER_STEPS[index]);

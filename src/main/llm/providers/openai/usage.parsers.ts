@@ -12,7 +12,11 @@
  * would put an estimate next to real billed dollars with nothing marking it as
  * one; that is deliberately not done here.
  */
-import type { UsageCostSlice, UsageDailyPoint, UsageModelRow } from "~/features/usage/shared/usage";
+import type {
+  UsageCostSlice,
+  UsageDailyPoint,
+  UsageModelRow,
+} from "~/features/usage/shared/usage";
 
 /** Independent per-card result — mirrors the OpenRouter parsers' contract. */
 export type CardResult<T> =
@@ -72,7 +76,9 @@ const bucketDay = (bucket: Record<string, unknown>): string | null => {
   return new Date(startTime * 1000).toISOString().slice(0, 10);
 };
 
-const resultsOf = (bucket: Record<string, unknown>): Record<string, unknown>[] =>
+const resultsOf = (
+  bucket: Record<string, unknown>,
+): Record<string, unknown>[] =>
   Array.isArray(bucket.results) ? bucket.results.filter(isRecord) : [];
 
 // ---------------------------------------------------------------------------
@@ -256,15 +262,13 @@ export const parseCompletionsUsage = (
       totalRequests += requests;
 
       if (day !== null) {
-        const point =
-          byDay.get(day) ??
-          {
-            date: day,
-            requests: 0,
-            inputTokens: 0,
-            outputTokens: 0,
-            costUsd: null,
-          };
+        const point = byDay.get(day) ?? {
+          date: day,
+          requests: 0,
+          inputTokens: 0,
+          outputTokens: 0,
+          costUsd: null,
+        };
         point.requests += requests;
         point.inputTokens += inputTokens;
         point.outputTokens += outputTokens;
@@ -277,15 +281,13 @@ export const parseCompletionsUsage = (
         // but it cannot become a per-model row.
         continue;
       }
-      const row =
-        byModel.get(model) ??
-        {
-          model,
-          requests: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          costUsd: null,
-        };
+      const row = byModel.get(model) ?? {
+        model,
+        requests: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        costUsd: null,
+      };
       row.requests += requests;
       row.inputTokens += inputTokens;
       row.outputTokens += outputTokens;

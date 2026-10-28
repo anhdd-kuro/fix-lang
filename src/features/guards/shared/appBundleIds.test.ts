@@ -26,7 +26,9 @@ describe("hasAppBundlePathShape", () => {
   });
 
   it("accepts a path containing spaces and quotes, which only a shell would choke on", () => {
-    expect(hasAppBundlePathShape("/Applications/My App's; Tool.app")).toBe(true);
+    expect(hasAppBundlePathShape("/Applications/My App's; Tool.app")).toBe(
+      true,
+    );
   });
 
   it.each([
@@ -35,7 +37,10 @@ describe("hasAppBundlePathShape", () => {
     ["undefined", undefined],
     ["an empty string", ""],
     ["a relative path", "Applications/Slack.app"],
-    ["a tilde path, which is not resolved anywhere", "~/Applications/Slack.app"],
+    [
+      "a tilde path, which is not resolved anywhere",
+      "~/Applications/Slack.app",
+    ],
     ["a non-.app file", "/Users/me/notes.txt"],
     ["a bare directory", "/Applications"],
     ["a NUL byte", "/Applications/Slack\u0000.app"],
@@ -53,7 +58,9 @@ describe("hasAppBundlePathShape", () => {
 
 describe("isAppBundleIdsResult", () => {
   it("accepts a success carrying ids", () => {
-    expect(isAppBundleIdsResult({ success: true, bundleIds: ["com.foo.bar"] })).toBe(true);
+    expect(
+      isAppBundleIdsResult({ success: true, bundleIds: ["com.foo.bar"] }),
+    ).toBe(true);
   });
 
   it("accepts a cancelled dialog — success with no ids", () => {
@@ -73,7 +80,10 @@ describe("isAppBundleIdsResult", () => {
     ["a string", "ok"],
     ["a success with no ids field", { success: true }],
     ["a success whose ids are not strings", { success: true, bundleIds: [1] }],
-    ["a success whose ids are not an array", { success: true, bundleIds: "com.foo.bar" }],
+    [
+      "a success whose ids are not an array",
+      { success: true, bundleIds: "com.foo.bar" },
+    ],
     ["a failure with no error", { success: false }],
     ["a failure whose error is not a Label", { success: false, error: "boom" }],
     ["a non-boolean success", { success: "true", bundleIds: [] }],

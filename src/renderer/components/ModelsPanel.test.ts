@@ -45,7 +45,10 @@ describe("ModelsPanel charts", () => {
       }),
       onThemeChanged: vi.fn(() => vi.fn()),
     };
-    Object.defineProperty(window, "electronAPI", { configurable: true, value: api });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: api,
+    });
 
     container = document.createElement("div");
     document.body.append(container);
@@ -90,7 +93,8 @@ describe("ModelsPanel charts", () => {
     ];
     await render(history);
 
-    const { createTranslator } = await import("~/features/i18n/shared/translate");
+    const { createTranslator } =
+      await import("~/features/i18n/shared/translate");
     const tEn = createTranslator("en");
     const tJa = createTranslator("ja");
 
@@ -103,6 +107,8 @@ describe("ModelsPanel charts", () => {
     await waitForUi();
 
     expect(container.textContent).toContain(tJa("models.breakdown.title"));
-    expect(tEn("models.breakdown.title")).not.toBe(tJa("models.breakdown.title"));
+    expect(tEn("models.breakdown.title")).not.toBe(
+      tJa("models.breakdown.title"),
+    );
   });
 });

@@ -4,7 +4,13 @@ import { redactLogContext } from "~/features/logs/shared/logging";
 import { registerAutocompleteHandlers } from "./ipc";
 import type { LogContext } from "~/features/logs/shared/logging";
 
-const { electronMocks, serviceMocks, usageStoreMocks, apiStoreMocks, loggerMock } = vi.hoisted(() => ({
+const {
+  electronMocks,
+  serviceMocks,
+  usageStoreMocks,
+  apiStoreMocks,
+  loggerMock,
+} = vi.hoisted(() => ({
   electronMocks: { handle: vi.fn(), on: vi.fn() },
   serviceMocks: {
     requestAutocompleteSuggestion: vi.fn(),
@@ -13,7 +19,13 @@ const { electronMocks, serviceMocks, usageStoreMocks, apiStoreMocks, loggerMock 
   // The cap is a PROFILE setting, not a module constant, so the handler has to
   // read it per call. A value no default could produce (42) proves the snapshot
   // came from the store rather than from a hardcoded copy.
-  apiStoreMocks: { getProfileSetting: vi.fn(() => ({ enabled: true, model: "", dailyCostCapUsd: 42 })) },
+  apiStoreMocks: {
+    getProfileSetting: vi.fn(() => ({
+      enabled: true,
+      model: "",
+      dailyCostCapUsd: 42,
+    })),
+  },
   usageStoreMocks: {
     getDay: vi.fn(),
     getMonth: vi.fn(),
@@ -35,7 +47,9 @@ vi.mock("~/main/logging/logService", () => ({ logger: loggerMock }));
 type Handler = (event: unknown, raw?: unknown) => unknown;
 
 const getHandler = (channel: string): Handler => {
-  const call = electronMocks.handle.mock.calls.find(([name]) => name === channel);
+  const call = electronMocks.handle.mock.calls.find(
+    ([name]) => name === channel,
+  );
   if (!call) throw new Error(`no handler registered for channel "${channel}"`);
   return call[1] as Handler;
 };
@@ -49,7 +63,12 @@ const getListener = (channel: string): Handler => {
 
 const eventFrom = (senderId: number) => ({ sender: { id: senderId } });
 
-const rollup = (date: string, requests: number, promptTokens: number, estimatedCostUsd: number) => ({
+const rollup = (
+  date: string,
+  requests: number,
+  promptTokens: number,
+  estimatedCostUsd: number,
+) => ({
   date,
   requests,
   responses: requests,
@@ -68,25 +87,37 @@ describe("registerAutocompleteHandlers", () => {
 
   describe("autocomplete-suggest", () => {
     it("derives sessionId from event.sender.id, never from the payload", async () => {
-      serviceMocks.requestAutocompleteSuggestion.mockResolvedValue({ requestId: 1, suggestion: null });
+      serviceMocks.requestAutocompleteSuggestion.mockResolvedValue({
+        requestId: 1,
+        suggestion: null,
+      });
 
       await getHandler("autocomplete-suggest")(
         eventFrom(7),
         // A malicious/buggy renderer naming a session that belongs to another
         // window. The handler must not forward it.
-        { requestId: 1, prefix: "prefix long enough", sessionId: "some-other-window" },
+        {
+          requestId: 1,
+          prefix: "prefix long enough",
+          sessionId: "some-other-window",
+        },
       );
 
       expect(serviceMocks.requestAutocompleteSuggestion).toHaveBeenCalledWith(
         expect.objectContaining({ sessionId: "7" }),
       );
-      expect(serviceMocks.requestAutocompleteSuggestion).not.toHaveBeenCalledWith(
+      expect(
+        serviceMocks.requestAutocompleteSuggestion,
+      ).not.toHaveBeenCalledWith(
         expect.objectContaining({ sessionId: "some-other-window" }),
       );
     });
 
     it("passes requestId, prefix and suffix through to the service", async () => {
-      serviceMocks.requestAutocompleteSuggestion.mockResolvedValue({ requestId: 9, suggestion: "text" });
+      serviceMocks.requestAutocompleteSuggestion.mockResolvedValue({
+        requestId: 9,
+        suggestion: "text",
+      });
 
       await getHandler("autocomplete-suggest")(eventFrom(3), {
         requestId: 9,
@@ -103,7 +134,10 @@ describe("registerAutocompleteHandlers", () => {
     });
 
     it("returns the service's reply", async () => {
-      serviceMocks.requestAutocompleteSuggestion.mockResolvedValue({ requestId: 5, suggestion: "ghost" });
+      serviceMocks.requestAutocompleteSuggestion.mockResolvedValue({
+        requestId: 5,
+        suggestion: "ghost",
+      });
 
       const reply = await getHandler("autocomplete-suggest")(eventFrom(1), {
         requestId: 5,
@@ -114,7 +148,10 @@ describe("registerAutocompleteHandlers", () => {
     });
 
     it("falls back to safe values for a malformed payload instead of throwing", async () => {
-      serviceMocks.requestAutocompleteSuggestion.mockResolvedValue({ requestId: 0, suggestion: null });
+      serviceMocks.requestAutocompleteSuggestion.mockResolvedValue({
+        requestId: 0,
+        suggestion: null,
+      });
 
       await getHandler("autocomplete-suggest")(eventFrom(2), "not an object");
 
@@ -135,7 +172,10 @@ describe("registerAutocompleteHandlers", () => {
     it.each([NaN, Infinity, -Infinity])(
       "replaces a non-finite requestId with 0: %p",
       async (requestId) => {
-        serviceMocks.requestAutocompleteSuggestion.mockResolvedValue({ requestId: 0, suggestion: null });
+        serviceMocks.requestAutocompleteSuggestion.mockResolvedValue({
+          requestId: 0,
+          suggestion: null,
+        });
 
         await getHandler("autocomplete-suggest")(eventFrom(1), {
           requestId,
@@ -156,7 +196,10 @@ describe("registerAutocompleteHandlers", () => {
     it.each([42, null, {}, ["a"], true])(
       "drops a non-string suffix rather than forwarding it: %p",
       async (suffix) => {
-        serviceMocks.requestAutocompleteSuggestion.mockResolvedValue({ requestId: 1, suggestion: null });
+        serviceMocks.requestAutocompleteSuggestion.mockResolvedValue({
+          requestId: 1,
+          suggestion: null,
+        });
 
         await getHandler("autocomplete-suggest")(eventFrom(1), {
           requestId: 1,
@@ -257,10 +300,16 @@ describe("registerAutocompleteHandlers", () => {
       };
 
       const lateReport = (overrides: Record<string, unknown> = {}): unknown =>
-        report({ reason: "reply-too-late", requestId: 4, prefixLength: 39, ...overrides });
+        report({
+          reason: "reply-too-late",
+          requestId: 4,
+          prefixLength: 39,
+          ...overrides,
+        });
 
       const lateContext = (): LogContext =>
-        (loggerMock.warn.mock.calls[0]?.[2] ?? loggerMock.debug.mock.calls[0]?.[2]) as LogContext;
+        (loggerMock.warn.mock.calls[0]?.[2] ??
+          loggerMock.debug.mock.calls[0]?.[2]) as LogContext;
 
       beforeEach(() => {
         serviceMocks.takeAutocompleteResolution.mockReturnValue(RESOLUTION);
@@ -286,7 +335,10 @@ describe("registerAutocompleteHandlers", () => {
       it("looks the reply up under the sender's session and the reported id", () => {
         send(lateReport({ requestId: 9 }));
 
-        expect(serviceMocks.takeAutocompleteResolution).toHaveBeenCalledWith("1", 9);
+        expect(serviceMocks.takeAutocompleteResolution).toHaveBeenCalledWith(
+          "1",
+          9,
+        );
       });
 
       /**
@@ -308,7 +360,9 @@ describe("registerAutocompleteHandlers", () => {
         (requestId) => {
           send(lateReport({ requestId }));
 
-          expect(serviceMocks.takeAutocompleteResolution).not.toHaveBeenCalled();
+          expect(
+            serviceMocks.takeAutocompleteResolution,
+          ).not.toHaveBeenCalled();
           expect(loggerMock.debug).not.toHaveBeenCalled();
           expect(loggerMock.warn).not.toHaveBeenCalled();
         },
@@ -344,13 +398,18 @@ describe("registerAutocompleteHandlers", () => {
 
         expect(loggerMock.debug).toHaveBeenCalledOnce();
         expect(loggerMock.warn).toHaveBeenCalledOnce();
-        expect(loggerMock.warn.mock.calls[0]?.[2]).toMatchObject({ suppressedInMain: 3 });
+        expect(loggerMock.warn.mock.calls[0]?.[2]).toMatchObject({
+          suppressedInMain: 3,
+        });
       });
 
       it("throttles like every other reason, so a stuck model cannot flood the log", () => {
         for (let i = 0; i < 50; i += 1) send(lateReport());
 
-        expect(loggerMock.debug.mock.calls.length + loggerMock.warn.mock.calls.length).toBe(1);
+        expect(
+          loggerMock.debug.mock.calls.length +
+            loggerMock.warn.mock.calls.length,
+        ).toBe(1);
       });
 
       /**
@@ -362,8 +421,13 @@ describe("registerAutocompleteHandlers", () => {
 
         send(lateReport({ model: typed, provider: typed, latencyMs: 1 }));
 
-        expect(JSON.stringify(loggerMock.debug.mock.calls)).not.toContain(typed);
-        expect(lateContext()).toMatchObject({ model: "ornith-1.0-35b", latencyMs: 24484 });
+        expect(JSON.stringify(loggerMock.debug.mock.calls)).not.toContain(
+          typed,
+        );
+        expect(lateContext()).toMatchObject({
+          model: "ornith-1.0-35b",
+          latencyMs: 24484,
+        });
       });
 
       it("emits only context keys that survive the real redactor", () => {
@@ -499,7 +563,13 @@ describe("registerAutocompleteHandlers", () => {
      * metric that way (`selectionPoll`). Run the real redactor, not an eyeball.
      */
     it("emits only context keys that survive the real redactor", () => {
-      send(report({ reason: "caret-moved", prefixLength: 31, suppressedSincePrevious: 2 }));
+      send(
+        report({
+          reason: "caret-moved",
+          prefixLength: 31,
+          suppressedSincePrevious: 2,
+        }),
+      );
 
       expect(redactLogContext(loggedContext())).toEqual(loggedContext());
     });
@@ -513,7 +583,14 @@ describe("registerAutocompleteHandlers", () => {
     it("never logs typed text, even when the renderer sends some", () => {
       const typed = "my private unsent sentence";
 
-      send(report({ prefix: typed, suffix: typed, suggestion: typed, text: typed }));
+      send(
+        report({
+          prefix: typed,
+          suffix: typed,
+          suggestion: typed,
+          text: typed,
+        }),
+      );
 
       const serialized = JSON.stringify(loggerMock.debug.mock.calls);
       expect(serialized).not.toContain(typed);
@@ -547,12 +624,17 @@ describe("registerAutocompleteHandlers", () => {
 
     it("reads the series from getDays, not from the single-day rollup", async () => {
       const today = rollup("2026-07-31", 3, 10, 0.01);
-      const series = [rollup("2026-07-30", 7, 60, 0.04), rollup("2026-07-29", 2, 20, 0.01)];
+      const series = [
+        rollup("2026-07-30", 7, 60, 0.04),
+        rollup("2026-07-29", 2, 20, 0.01),
+      ];
       usageStoreMocks.getDay.mockReturnValue(today);
       usageStoreMocks.getMonth.mockReturnValue(today);
       usageStoreMocks.getDays.mockReturnValue(series);
 
-      const snapshot = (await getHandler("autocomplete-usage")(undefined)) as { days: unknown };
+      const snapshot = (await getHandler("autocomplete-usage")(undefined)) as {
+        days: unknown;
+      };
 
       expect(snapshot.days).toEqual(series);
     });

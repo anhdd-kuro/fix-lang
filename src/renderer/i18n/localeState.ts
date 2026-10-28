@@ -13,7 +13,12 @@
  * never diverges from what main actually holds.
  */
 
-import { DEFAULT_LOCALE, LOCALE_META, type Locale, type TextDirection } from "~/features/i18n/shared/registry";
+import {
+  DEFAULT_LOCALE,
+  LOCALE_META,
+  type Locale,
+  type TextDirection,
+} from "~/features/i18n/shared/registry";
 
 // ---------------------------------------------------------------------------
 // State + reducer
@@ -55,10 +60,15 @@ export const INITIAL_LOCALE_STATE: LocaleState = {
  *  - `setLocaleRejected` — main rejected a `setLocale` request; the state is
  *    returned unchanged (same reference) so it never diverges from main.
  */
-export const localeReducer = (state: LocaleState, action: LocaleAction): LocaleState => {
+export const localeReducer = (
+  state: LocaleState,
+  action: LocaleAction,
+): LocaleState => {
   switch (action.type) {
     case "resolved":
-      return state.status === "ready" ? state : { locale: action.locale, status: "ready" };
+      return state.status === "ready"
+        ? state
+        : { locale: action.locale, status: "ready" };
     case "broadcast":
       return { locale: action.locale, status: "ready" };
     case "setLocaleRejected":
@@ -76,7 +86,9 @@ export type DocumentLocaleAttrs = {
 };
 
 /** `document.documentElement.lang` / `.dir` values for a given locale. */
-export const documentAttrsForLocale = (locale: Locale): DocumentLocaleAttrs => ({
+export const documentAttrsForLocale = (
+  locale: Locale,
+): DocumentLocaleAttrs => ({
   lang: locale,
   dir: LOCALE_META[locale].dir,
 });
@@ -93,7 +105,9 @@ export type LocaleBridge = {
 };
 
 /** Resolves the initial locale from the bridge into a `resolved` action. */
-export const resolveInitialLocale = async (bridge: LocaleBridge): Promise<LocaleAction> => {
+export const resolveInitialLocale = async (
+  bridge: LocaleBridge,
+): Promise<LocaleAction> => {
   const { locale } = await bridge.getLocale();
   return { type: "resolved", locale };
 };

@@ -42,7 +42,10 @@ import {
   MAX_DENIED_BUNDLE_IDS,
   normalizeBundleId,
 } from "~/features/guards/shared/guardSettings";
-import { DEFAULT_SECRET_GUARD_SETTINGS, SECRET_GUARD_MODES } from "~/features/secretGuard/shared/secretGuardSettings";
+import {
+  DEFAULT_SECRET_GUARD_SETTINGS,
+  SECRET_GUARD_MODES,
+} from "~/features/secretGuard/shared/secretGuardSettings";
 import {
   SECRET_GUARD_LIMITATION_KEYS,
   resolveSecurityView,
@@ -55,9 +58,17 @@ import { Button } from "../Button";
 import { Checkbox } from "../Checkbox";
 import { Input } from "../Input";
 import { SegmentedControl } from "../SegmentedControl";
-import { plainStatus, resolveStatus, wrappedError, type StatusDescriptor } from "../statusDescriptor";
+import {
+  plainStatus,
+  resolveStatus,
+  wrappedError,
+  type StatusDescriptor,
+} from "../statusDescriptor";
 import type { SelectionGuardSettings } from "~/features/guards/shared/guardSettings";
-import type { SecretGuardMode, SecretGuardSettings } from "~/features/secretGuard/shared/secretGuardSettings";
+import type {
+  SecretGuardMode,
+  SecretGuardSettings,
+} from "~/features/secretGuard/shared/secretGuardSettings";
 import type { ActiveApp } from "~/main/accessibility/activeApp";
 
 type LoadState =
@@ -76,7 +87,9 @@ type LoadState =
  * see the comment above that handler for why arrival order must not decide
  * what the user is told.
  */
-type PersistResult = { success: true } | { success: false; error: StatusDescriptor };
+type PersistResult =
+  | { success: true }
+  | { success: false; error: StatusDescriptor };
 
 /**
  * `derivesFromBase: false` marks a write whose payload does not read the
@@ -185,39 +198,45 @@ export const SettingSecurity = () => {
    * stays revoked and the next write refuses rather than persisting a whole
    * object built around that phantom.
    */
-  const reconcileGuardFromStore = async (): Promise<SelectionGuardSettings | null> => {
-    try {
-      const stored = await window.electronAPI.getSelectionGuards();
-      latestGuardSettingsRef.current = stored;
-      guardBaseTrustedRef.current = true;
-      setState((current) =>
-        current.status === "ready" ? { ...current, guardSettings: stored } : current,
-      );
-      return stored;
-    } catch {
-      // The write error is already being reported; a failed re-read must not
-      // replace it with a second, less useful message — but it must not be
-      // mistaken for a recovery either.
-      guardBaseTrustedRef.current = false;
-      return null;
-    }
-  };
+  const reconcileGuardFromStore =
+    async (): Promise<SelectionGuardSettings | null> => {
+      try {
+        const stored = await window.electronAPI.getSelectionGuards();
+        latestGuardSettingsRef.current = stored;
+        guardBaseTrustedRef.current = true;
+        setState((current) =>
+          current.status === "ready"
+            ? { ...current, guardSettings: stored }
+            : current,
+        );
+        return stored;
+      } catch {
+        // The write error is already being reported; a failed re-read must not
+        // replace it with a second, less useful message — but it must not be
+        // mistaken for a recovery either.
+        guardBaseTrustedRef.current = false;
+        return null;
+      }
+    };
 
   /** Secret-guard counterpart of `reconcileGuardFromStore` — see its doc comment. */
-  const reconcileSecretFromStore = async (): Promise<SecretGuardSettings | null> => {
-    try {
-      const stored = await window.electronAPI.getSecretGuardSettings();
-      latestSecretSettingsRef.current = stored;
-      secretBaseTrustedRef.current = true;
-      setState((current) =>
-        current.status === "ready" ? { ...current, secretSettings: stored } : current,
-      );
-      return stored;
-    } catch {
-      secretBaseTrustedRef.current = false;
-      return null;
-    }
-  };
+  const reconcileSecretFromStore =
+    async (): Promise<SecretGuardSettings | null> => {
+      try {
+        const stored = await window.electronAPI.getSecretGuardSettings();
+        latestSecretSettingsRef.current = stored;
+        secretBaseTrustedRef.current = true;
+        setState((current) =>
+          current.status === "ready"
+            ? { ...current, secretSettings: stored }
+            : current,
+        );
+        return stored;
+      } catch {
+        secretBaseTrustedRef.current = false;
+        return null;
+      }
+    };
 
   const clearSaveStatusTimeout = (): void => {
     if (saveStatusTimeoutRef.current !== null) {
@@ -233,7 +252,8 @@ export const SettingSecurity = () => {
     setSaveStatus(status);
   };
 
-  const resolve = (status: StatusDescriptor | null): string => resolveStatus(status, t, tm, tl);
+  const resolve = (status: StatusDescriptor | null): string =>
+    resolveStatus(status, t, tm, tl);
 
   useEffect(() => {
     let cancelled = false;
@@ -249,7 +269,12 @@ export const SettingSecurity = () => {
         if (!cancelled) {
           latestGuardSettingsRef.current = guardSettings;
           latestSecretSettingsRef.current = secretSettings;
-          setState({ status: "ready", guardSettings, secretSettings, recentApps });
+          setState({
+            status: "ready",
+            guardSettings,
+            secretSettings,
+            recentApps,
+          });
         }
       } catch {
         if (!cancelled) {
@@ -266,23 +291,38 @@ export const SettingSecurity = () => {
 
   const flashSaved = (): void => {
     setStatus(plainStatus("security.saved"));
-    saveStatusTimeoutRef.current = window.setTimeout(() => setStatus(null), 2000);
+    saveStatusTimeoutRef.current = window.setTimeout(
+      () => setStatus(null),
+      2000,
+    );
   };
 
   const view = useMemo(
     () =>
       state.status === "ready"
-        ? resolveSecurityView(state.guardSettings, state.secretSettings, state.recentApps)
+        ? resolveSecurityView(
+            state.guardSettings,
+            state.secretSettings,
+            state.recentApps,
+          )
         : null,
     [state],
   );
 
   if (state.status === "loading") {
-    return <p className="p-4 text-sm text-muted-foreground">{t("security.loading")}</p>;
+    return (
+      <p className="p-4 text-sm text-muted-foreground">
+        {t("security.loading")}
+      </p>
+    );
   }
 
   if (state.status === "error" || view === null) {
-    return <p className="p-4 text-sm text-muted-foreground">{t("security.error.loadFailed")}</p>;
+    return (
+      <p className="p-4 text-sm text-muted-foreground">
+        {t("security.error.loadFailed")}
+      </p>
+    );
   }
 
   const { guardSettings, secretSettings } = state;
@@ -304,57 +344,63 @@ export const SettingSecurity = () => {
     update: (base: SelectionGuardSettings) => SelectionGuardSettings | null,
     options: WriteOptions = {},
   ): Promise<PersistResult | null> => {
-    const task = guardWriteChainRef.current.then(async (): Promise<PersistResult | null> => {
-      // An untrusted base means an earlier failure's re-read also failed. Try
-      // once more rather than persisting a whole object built around a value
-      // the store already rejected; if that read fails too, refuse the write.
-      const base = guardBaseTrustedRef.current
-        ? latestGuardSettingsRef.current ?? guardSettings
-        : await reconcileGuardFromStore();
-      if (base === null && options.derivesFromBase !== false) {
-        return { success: false, error: plainStatus("security.saveError") };
-      }
-
-      // A pure updater over plain objects should not throw, but if one ever
-      // does, the queue must report it rather than reject this task — the
-      // callers are fire-and-forget, so a rejection would surface as an
-      // unhandled one AND leave the claimed status line silent.
-      let next: SelectionGuardSettings | null;
-      try {
-        next = update(base ?? defaultGuardSettings());
-      } catch {
-        return { success: false, error: plainStatus("security.saveError") };
-      }
-      if (next === null) return null;
-
-      latestGuardSettingsRef.current = next;
-      setState((current) =>
-        current.status === "ready" ? { ...current, guardSettings: next } : current,
-      );
-
-      try {
-        const result = await window.electronAPI.setSelectionGuards(next);
-        if (result.success) {
-          // A successful setter is itself authoritative: the store now holds
-          // `next`, which is what the ref holds. Trust revoked by an earlier
-          // failure is therefore earned back here, without a read — otherwise
-          // Restore defaults could succeed against an unreadable store and
-          // still leave every subsequent edit refused.
-          guardBaseTrustedRef.current = true;
-          return { success: true };
+    const task = guardWriteChainRef.current.then(
+      async (): Promise<PersistResult | null> => {
+        // An untrusted base means an earlier failure's re-read also failed. Try
+        // once more rather than persisting a whole object built around a value
+        // the store already rejected; if that read fails too, refuse the write.
+        const base = guardBaseTrustedRef.current
+          ? (latestGuardSettingsRef.current ?? guardSettings)
+          : await reconcileGuardFromStore();
+        if (base === null && options.derivesFromBase !== false) {
+          return { success: false, error: plainStatus("security.saveError") };
         }
-        guardBaseTrustedRef.current = false;
-        await reconcileGuardFromStore();
-        return {
-          success: false,
-          error: result.error ? wrappedError(result.error) : plainStatus("security.saveError"),
-        };
-      } catch {
-        guardBaseTrustedRef.current = false;
-        await reconcileGuardFromStore();
-        return { success: false, error: plainStatus("security.saveError") };
-      }
-    });
+
+        // A pure updater over plain objects should not throw, but if one ever
+        // does, the queue must report it rather than reject this task — the
+        // callers are fire-and-forget, so a rejection would surface as an
+        // unhandled one AND leave the claimed status line silent.
+        let next: SelectionGuardSettings | null;
+        try {
+          next = update(base ?? defaultGuardSettings());
+        } catch {
+          return { success: false, error: plainStatus("security.saveError") };
+        }
+        if (next === null) return null;
+
+        latestGuardSettingsRef.current = next;
+        setState((current) =>
+          current.status === "ready"
+            ? { ...current, guardSettings: next }
+            : current,
+        );
+
+        try {
+          const result = await window.electronAPI.setSelectionGuards(next);
+          if (result.success) {
+            // A successful setter is itself authoritative: the store now holds
+            // `next`, which is what the ref holds. Trust revoked by an earlier
+            // failure is therefore earned back here, without a read — otherwise
+            // Restore defaults could succeed against an unreadable store and
+            // still leave every subsequent edit refused.
+            guardBaseTrustedRef.current = true;
+            return { success: true };
+          }
+          guardBaseTrustedRef.current = false;
+          await reconcileGuardFromStore();
+          return {
+            success: false,
+            error: result.error
+              ? wrappedError(result.error)
+              : plainStatus("security.saveError"),
+          };
+        } catch {
+          guardBaseTrustedRef.current = false;
+          await reconcileGuardFromStore();
+          return { success: false, error: plainStatus("security.saveError") };
+        }
+      },
+    );
     // The chain must never reject, or one thrown write would wedge the queue
     // shut for the rest of the session.
     guardWriteChainRef.current = task.then(
@@ -369,46 +415,52 @@ export const SettingSecurity = () => {
     update: (base: SecretGuardSettings) => SecretGuardSettings | null,
     options: WriteOptions = {},
   ): Promise<PersistResult | null> => {
-    const task = secretWriteChainRef.current.then(async (): Promise<PersistResult | null> => {
-      const base = secretBaseTrustedRef.current
-        ? latestSecretSettingsRef.current ?? secretSettings
-        : await reconcileSecretFromStore();
-      if (base === null && options.derivesFromBase !== false) {
-        return { success: false, error: plainStatus("security.saveError") };
-      }
-
-      let next: SecretGuardSettings | null;
-      try {
-        next = update(base ?? DEFAULT_SECRET_GUARD_SETTINGS);
-      } catch {
-        return { success: false, error: plainStatus("security.saveError") };
-      }
-      if (next === null) return null;
-
-      latestSecretSettingsRef.current = next;
-      setState((current) =>
-        current.status === "ready" ? { ...current, secretSettings: next } : current,
-      );
-
-      try {
-        const result = await window.electronAPI.setSecretGuardSettings(next);
-        if (result.success) {
-          // See `runGuardWrite` — a successful setter re-earns trust.
-          secretBaseTrustedRef.current = true;
-          return { success: true };
+    const task = secretWriteChainRef.current.then(
+      async (): Promise<PersistResult | null> => {
+        const base = secretBaseTrustedRef.current
+          ? (latestSecretSettingsRef.current ?? secretSettings)
+          : await reconcileSecretFromStore();
+        if (base === null && options.derivesFromBase !== false) {
+          return { success: false, error: plainStatus("security.saveError") };
         }
-        secretBaseTrustedRef.current = false;
-        await reconcileSecretFromStore();
-        return {
-          success: false,
-          error: result.error ? wrappedError(result.error) : plainStatus("security.saveError"),
-        };
-      } catch {
-        secretBaseTrustedRef.current = false;
-        await reconcileSecretFromStore();
-        return { success: false, error: plainStatus("security.saveError") };
-      }
-    });
+
+        let next: SecretGuardSettings | null;
+        try {
+          next = update(base ?? DEFAULT_SECRET_GUARD_SETTINGS);
+        } catch {
+          return { success: false, error: plainStatus("security.saveError") };
+        }
+        if (next === null) return null;
+
+        latestSecretSettingsRef.current = next;
+        setState((current) =>
+          current.status === "ready"
+            ? { ...current, secretSettings: next }
+            : current,
+        );
+
+        try {
+          const result = await window.electronAPI.setSecretGuardSettings(next);
+          if (result.success) {
+            // See `runGuardWrite` — a successful setter re-earns trust.
+            secretBaseTrustedRef.current = true;
+            return { success: true };
+          }
+          secretBaseTrustedRef.current = false;
+          await reconcileSecretFromStore();
+          return {
+            success: false,
+            error: result.error
+              ? wrappedError(result.error)
+              : plainStatus("security.saveError"),
+          };
+        } catch {
+          secretBaseTrustedRef.current = false;
+          await reconcileSecretFromStore();
+          return { success: false, error: plainStatus("security.saveError") };
+        }
+      },
+    );
     secretWriteChainRef.current = task.then(
       () => undefined,
       () => undefined,
@@ -457,7 +509,9 @@ export const SettingSecurity = () => {
   // edit made while an app resolution is still pending must carry that
   // deny-list forward, or persisting the whole object here would erase the app
   // the user just blocked.
-  const handleClipboardAgeChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleClipboardAgeChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ): void => {
     const raw = Number(event.target.value);
     persistGuardUpdate((base) => ({
       ...base,
@@ -467,7 +521,9 @@ export const SettingSecurity = () => {
     }));
   };
 
-  const handleSelectionSizeChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleSelectionSizeChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ): void => {
     const raw = Number(event.target.value);
     persistGuardUpdate((base) => ({
       ...base,
@@ -579,7 +635,8 @@ export const SettingSecurity = () => {
         // edits, and must not overwrite what they reported.
         await addDeniedBundleIds(result.bundleIds, ownsStatus);
       } catch {
-        if (ownsStatus()) setStatus(plainStatus("security.deniedApps.dropError"));
+        if (ownsStatus())
+          setStatus(plainStatus("security.deniedApps.dropError"));
       }
     })();
   };
@@ -621,7 +678,8 @@ export const SettingSecurity = () => {
         // user made while it was in flight.
         await addDeniedBundleIds(result.bundleIds, ownsStatus);
       } catch {
-        if (ownsStatus()) setStatus(plainStatus("security.deniedApps.dropError"));
+        if (ownsStatus())
+          setStatus(plainStatus("security.deniedApps.dropError"));
       }
     })();
   };
@@ -668,7 +726,9 @@ export const SettingSecurity = () => {
     void (async () => {
       const [guardResult, secretResult] = await Promise.all([
         runGuardWrite(() => defaultGuardSettings(), { derivesFromBase: false }),
-        runSecretWrite(() => ({ ...DEFAULT_SECRET_GUARD_SETTINGS }), { derivesFromBase: false }),
+        runSecretWrite(() => ({ ...DEFAULT_SECRET_GUARD_SETTINGS }), {
+          derivesFromBase: false,
+        }),
       ]);
 
       if (!ownsStatus()) return;
@@ -709,7 +769,8 @@ export const SettingSecurity = () => {
         // and inputs inside this section would strobe the highlight off and on.
         // Only a leave that actually exits the section counts.
         onDragLeave={(event) => {
-          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+          if (event.currentTarget.contains(event.relatedTarget as Node | null))
+            return;
           setIsDropTarget(false);
         }}
         onDrop={handleAppDrop}
@@ -717,10 +778,14 @@ export const SettingSecurity = () => {
         <h2 className="text-base font-semibold text-foreground">
           {t("security.deniedApps.title")}
         </h2>
-        <p className="text-sm text-muted-foreground">{t("security.deniedApps.description")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("security.deniedApps.description")}
+        </p>
 
         {view.deniedApps.deniedBundleIds.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{resolve(view.deniedApps.listHint)}</p>
+          <p className="text-sm text-muted-foreground">
+            {resolve(view.deniedApps.listHint)}
+          </p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {view.deniedApps.deniedBundleIds.map((bundleId) => (
@@ -732,7 +797,9 @@ export const SettingSecurity = () => {
                 <Button
                   type="button"
                   variant="ghost"
-                  aria-label={t("security.deniedApps.removeLabel", { app: bundleId })}
+                  aria-label={t("security.deniedApps.removeLabel", {
+                    app: bundleId,
+                  })}
                   onClick={() => handleRemoveDeniedApp(bundleId)}
                   className="px-1 py-0 text-xs leading-none"
                 >
@@ -754,7 +821,13 @@ export const SettingSecurity = () => {
             aria-label={t("security.deniedApps.addLabel")}
             className="min-w-48 flex-1"
           />
-          <Button type="button" variant="secondary" disabled={!canAddBundleId} onClick={handleAddDeniedApp} className="shrink-0 rounded px-3 py-2 text-sm font-semibold">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!canAddBundleId}
+            onClick={handleAddDeniedApp}
+            className="shrink-0 rounded px-3 py-2 text-sm font-semibold"
+          >
             {t("security.deniedApps.addLabel")}
           </Button>
           <Button
@@ -767,7 +840,9 @@ export const SettingSecurity = () => {
           </Button>
         </div>
 
-        <p className={`text-sm ${isDropTarget ? "text-primary" : "text-muted-foreground"}`}>
+        <p
+          className={`text-sm ${isDropTarget ? "text-primary" : "text-muted-foreground"}`}
+        >
           {t("security.deniedApps.dropHint")}
         </p>
 
@@ -776,7 +851,9 @@ export const SettingSecurity = () => {
             {t("security.deniedApps.recentHeading")}
           </h3>
           {view.deniedApps.recentApps.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{resolve(view.deniedApps.recentHint)}</p>
+            <p className="text-sm text-muted-foreground">
+              {resolve(view.deniedApps.recentHint)}
+            </p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {view.deniedApps.recentApps.map((chip, index) => (
@@ -803,7 +880,10 @@ export const SettingSecurity = () => {
           {t("security.clipboardAge.title")}
         </h2>
         <div className="flex flex-col gap-1">
-          <label htmlFor="security-clipboard-age" className="text-sm text-card-foreground">
+          <label
+            htmlFor="security-clipboard-age"
+            className="text-sm text-card-foreground"
+          >
             {t("security.clipboardAge.limitLabel")}
           </label>
           <div className="flex items-center gap-2">
@@ -820,7 +900,9 @@ export const SettingSecurity = () => {
             </span>
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">{resolve(view.clipboardAge.hint)}</p>
+        <p className="text-sm text-muted-foreground">
+          {resolve(view.clipboardAge.hint)}
+        </p>
       </section>
 
       {/* 3. Large selections */}
@@ -829,7 +911,10 @@ export const SettingSecurity = () => {
           {t("security.selectionSize.title")}
         </h2>
         <div className="flex flex-col gap-1">
-          <label htmlFor="security-selection-size" className="text-sm text-card-foreground">
+          <label
+            htmlFor="security-selection-size"
+            className="text-sm text-card-foreground"
+          >
             {t("security.selectionSize.limitLabel")}
           </label>
           <div className="flex items-center gap-2">
@@ -846,7 +931,9 @@ export const SettingSecurity = () => {
             </span>
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">{resolve(view.selectionSize.hint)}</p>
+        <p className="text-sm text-muted-foreground">
+          {resolve(view.selectionSize.hint)}
+        </p>
       </section>
 
       {/* 4. Secret guard */}
@@ -854,10 +941,14 @@ export const SettingSecurity = () => {
         <h2 className="text-base font-semibold text-foreground">
           {t("security.secretGuard.title")}
         </h2>
-        <p className="text-sm text-muted-foreground">{t("security.secretGuard.description")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("security.secretGuard.description")}
+        </p>
 
         <div className="flex flex-col gap-1">
-          <span className="text-sm text-card-foreground">{t("security.secretGuard.mode.label")}</span>
+          <span className="text-sm text-card-foreground">
+            {t("security.secretGuard.mode.label")}
+          </span>
           {/* `SegmentedControl` is a flex row; in this `flex-col` parent it
               would stretch to the panel width and leave the three options
               floating in a bar of empty background. `self-start` sizes it to
@@ -876,7 +967,9 @@ export const SettingSecurity = () => {
           />
         </div>
         {view.secretGuard.maskHint && (
-          <p className="text-sm text-muted-foreground">{resolve(view.secretGuard.maskHint)}</p>
+          <p className="text-sm text-muted-foreground">
+            {resolve(view.secretGuard.maskHint)}
+          </p>
         )}
 
         <Checkbox
@@ -885,7 +978,9 @@ export const SettingSecurity = () => {
           label={t("security.secretGuard.highEntropy.label")}
           className="text-card-foreground"
         />
-        <p className="text-sm text-muted-foreground">{t("security.secretGuard.highEntropy.hint")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("security.secretGuard.highEntropy.hint")}
+        </p>
 
         {/* One bullet per claim rather than one paragraph: this copy is
             load-bearing (it once shipped saying masking meant "nothing is

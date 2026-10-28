@@ -113,13 +113,16 @@ const normalizeRollup = (date: string, raw: unknown): AutocompleteDayRollup => {
    * consistent — the same values, a fixed point, whether or not a write has
    * persisted them yet.
    */
-  const coverageWasNeverRecorded = !isFiniteNumber(record.responses) && requests > 0;
+  const coverageWasNeverRecorded =
+    !isFiniteNumber(record.responses) && requests > 0;
   const sumOrDropped = (value: unknown): number =>
     coverageWasNeverRecorded ? 0 : finiteOr(value, 0);
   return {
     date: typeof record.date === "string" ? record.date : date,
     requests,
-    responses: coverageWasNeverRecorded ? requests : finiteOr(record.responses, 0),
+    responses: coverageWasNeverRecorded
+      ? requests
+      : finiteOr(record.responses, 0),
     tokenlessResponses: finiteOr(
       record.tokenlessResponses,
       coverageWasNeverRecorded ? requests : 0,
@@ -227,16 +230,23 @@ class AutocompleteUsageStore {
    * direct-OpenAI requests — which `computeCost` refuses to price — reported
    * `$0.00`, a false zero indistinguishable from a day that cost nothing.
    */
-  recordUsage(delta: AutocompleteUsageDelta, now = new Date()): AutocompleteDayRollup {
-    const tokensMissing = delta.promptTokens === null || delta.completionTokens === null;
+  recordUsage(
+    delta: AutocompleteUsageDelta,
+    now = new Date(),
+  ): AutocompleteDayRollup {
+    const tokensMissing =
+      delta.promptTokens === null || delta.completionTokens === null;
     return this.updateDay(now, (current) => ({
       ...current,
       responses: current.responses + 1,
       tokenlessResponses: current.tokenlessResponses + (tokensMissing ? 1 : 0),
-      unpricedResponses: current.unpricedResponses + (delta.estimatedCostUsd === null ? 1 : 0),
+      unpricedResponses:
+        current.unpricedResponses + (delta.estimatedCostUsd === null ? 1 : 0),
       promptTokens: current.promptTokens + (delta.promptTokens ?? 0),
-      completionTokens: current.completionTokens + (delta.completionTokens ?? 0),
-      estimatedCostUsd: current.estimatedCostUsd + (delta.estimatedCostUsd ?? 0),
+      completionTokens:
+        current.completionTokens + (delta.completionTokens ?? 0),
+      estimatedCostUsd:
+        current.estimatedCostUsd + (delta.estimatedCostUsd ?? 0),
     }));
   }
 
@@ -259,7 +269,8 @@ class AutocompleteUsageStore {
           // Every coverage counter sums, which is what keeps a month that mixes
           // priced and unpriced days readable as exactly that, instead of
           // collapsing into whichever half happened to be knowable.
-          tokenlessResponses: total.tokenlessResponses + rollup.tokenlessResponses,
+          tokenlessResponses:
+            total.tokenlessResponses + rollup.tokenlessResponses,
           unpricedResponses: total.unpricedResponses + rollup.unpricedResponses,
           promptTokens: total.promptTokens + rollup.promptTokens,
           completionTokens: total.completionTokens + rollup.completionTokens,
@@ -279,7 +290,9 @@ class AutocompleteUsageStore {
    * migrated file has no order at all; the reader owns the guarantee.
    */
   getDays(): AutocompleteDayRollup[] {
-    return Object.values(this.readDays()).sort((a, b) => (a.date < b.date ? 1 : -1));
+    return Object.values(this.readDays()).sort((a, b) =>
+      a.date < b.date ? 1 : -1,
+    );
   }
 }
 

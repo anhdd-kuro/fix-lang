@@ -3,9 +3,20 @@
  * @description Verifies shared AI request logs never expose prompt or response content.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeAIRequest, makeOpenAIAIRequest, makeRemoteAIRequest } from "./shared";
-const { createOpenAIMock, generateTextMock, getProfileSecretMock, notificationShowMock } = vi.hoisted(() => ({
-  createOpenAIMock: vi.fn(() => ({ chat: vi.fn(() => ({ provider: "openai" })) })),
+import {
+  makeAIRequest,
+  makeOpenAIAIRequest,
+  makeRemoteAIRequest,
+} from "./shared";
+const {
+  createOpenAIMock,
+  generateTextMock,
+  getProfileSecretMock,
+  notificationShowMock,
+} = vi.hoisted(() => ({
+  createOpenAIMock: vi.fn(() => ({
+    chat: vi.fn(() => ({ provider: "openai" })),
+  })),
   generateTextMock: vi.fn(),
   getProfileSecretMock: vi.fn(),
   notificationShowMock: vi.fn(),
@@ -63,7 +74,9 @@ vi.mock("~/features/providers/store/apiStore", () => ({
     provider === "ollama"
       ? model.provider === "ollama" || model.local !== undefined
       : model.provider === provider ||
-        (provider === "openrouter" && model.provider === undefined && !model.local),
+        (provider === "openrouter" &&
+          model.provider === undefined &&
+          !model.local),
 }));
 
 vi.mock("~/features/providers/store/profileSecretStore", () => ({

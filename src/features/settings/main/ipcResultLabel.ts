@@ -30,5 +30,8 @@ export const wrapStoreResult = <T extends { success: boolean; error?: string }>(
   result: T,
 ): Omit<T, "error"> & { error?: Label } => {
   const { error, ...rest } = result;
-  return { ...rest, ...(error !== undefined ? { error: textLabel(error) } : {}) };
+  return {
+    ...rest,
+    ...(error !== undefined ? { error: textLabel(error) } : {}),
+  };
 };

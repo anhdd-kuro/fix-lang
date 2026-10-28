@@ -6,10 +6,7 @@
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import {
-  THEME_JSON_DIR,
-  TM_THEMES_GITHUB_DIR,
-} from "./themes-paths";
+import { THEME_JSON_DIR, TM_THEMES_GITHUB_DIR } from "./themes-paths";
 
 type GitHubContentEntry = {
   name: string;

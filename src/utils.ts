@@ -1,6 +1,9 @@
 import { exec, execSync } from "child_process";
 import { clipboard, dialog, shell } from "electron";
-import { logActiveAppRead, parseActiveApp } from "~/main/accessibility/activeApp";
+import {
+  logActiveAppRead,
+  parseActiveApp,
+} from "~/main/accessibility/activeApp";
 import { isKeystrokePermissionDenied } from "~/main/accessibility/keystrokePermission";
 import {
   beginSelfManagedRead,
@@ -44,7 +47,8 @@ export const promptAccessibilityPermission = async (): Promise<void> => {
   if (process.platform !== "darwin") return;
 
   const now = Date.now();
-  if (now - lastAccessibilityPromptAt < ACCESSIBILITY_PROMPT_THROTTLE_MS) return;
+  if (now - lastAccessibilityPromptAt < ACCESSIBILITY_PROMPT_THROTTLE_MS)
+    return;
   lastAccessibilityPromptAt = now;
 
   const { response } = await dialog.showMessageBox({
@@ -61,7 +65,7 @@ export const promptAccessibilityPermission = async (): Promise<void> => {
   if (response === 0) {
     // Open Accessibility Settings
     shell.openExternal(
-      "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
     );
   }
 };
@@ -370,10 +374,14 @@ export const getHighlightedTextWithActiveApp = async (
   observeNow(previousClipboardContent);
   beginSelfManagedRead();
 
-  logger.debug("clipboard.copy", "Sending copy keystroke with frontmost-app read", {
-    previousLength: previousClipboardContent.length,
-    concurrentOps: clipboardOperationsInFlight,
-  });
+  logger.debug(
+    "clipboard.copy",
+    "Sending copy keystroke with frontmost-app read",
+    {
+      previousLength: previousClipboardContent.length,
+      concurrentOps: clipboardOperationsInFlight,
+    },
+  );
 
   try {
     // Before the script, not after: the keystroke it sends is the thing whose

@@ -40,7 +40,10 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
 
   try {
     const modelId = options.model as string;
-    const openai = createOpenAI({ apiKey: apiKey.trim(), fetch: keepAliveFetch });
+    const openai = createOpenAI({
+      apiKey: apiKey.trim(),
+      fetch: keepAliveFetch,
+    });
     const conversation = toConversation(rawMessages);
     const request = () =>
       generateText({
@@ -66,7 +69,9 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
 
     const reasoningTexts = responses
       .map((response) => response.reasoningText)
-      .filter((text): text is string => typeof text === "string" && text.length > 0);
+      .filter(
+        (text): text is string => typeof text === "string" && text.length > 0,
+      );
     return {
       content: responses.map((response) => response.text),
       prompts: responses.map((response) => response.text),

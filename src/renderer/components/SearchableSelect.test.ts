@@ -8,7 +8,10 @@ import {
   matchesSearch,
   withDefaultComponents,
 } from "./SearchableSelect";
-import type { SearchableSelectProps, SearchableOption } from "./SearchableSelect";
+import type {
+  SearchableSelectProps,
+  SearchableOption,
+} from "./SearchableSelect";
 import type { GroupHeadingProps, GroupBase } from "react-select";
 
 const option = (value: string, label = value) => ({ value, label });
@@ -26,7 +29,9 @@ describe("matchesSearch", () => {
   });
 
   it("matches against the label as well as the value", () => {
-    expect(matchesSearch(option("m-1", "Claude Opus 4.5"), "opus45")).toBe(true);
+    expect(matchesSearch(option("m-1", "Claude Opus 4.5"), "opus45")).toBe(
+      true,
+    );
   });
 
   it("never filters out an option with no searchable text at all", () => {
@@ -42,17 +47,23 @@ describe("matchesSearch", () => {
 
   it("filters grouped options exactly as it filters flat ones", () => {
     const grouped: GroupBase<SearchableOption>[] = [
-      { label: "OpenAI", options: [option("openai::gpt-5-mini", "gpt-5-mini")] },
-      { label: "Ollama", options: [option("ollama::llama3.2:3b", "llama3.2:3b")] },
+      {
+        label: "OpenAI",
+        options: [option("openai::gpt-5-mini", "gpt-5-mini")],
+      },
+      {
+        label: "Ollama",
+        options: [option("ollama::llama3.2:3b", "llama3.2:3b")],
+      },
     ];
     const flat = grouped.flatMap((group) => group.options);
 
     expect(flat.filter((entry) => matchesSearch(entry, "gpt 5"))).toEqual([
       grouped[0]?.options[0],
     ]);
-    expect(grouped[1]?.options.some((entry) => matchesSearch(entry, "gpt 5"))).toBe(
-      false,
-    );
+    expect(
+      grouped[1]?.options.some((entry) => matchesSearch(entry, "gpt 5")),
+    ).toBe(false);
   });
 });
 
@@ -60,7 +71,10 @@ describe("grouped options", () => {
   it("accepts a mixed flat/grouped array", () => {
     const options: SearchableSelectProps<SearchableOption>["options"] = [
       option("flat-1"),
-      { label: "OpenAI", options: [option("openai::gpt-5-mini", "gpt-5-mini")] },
+      {
+        label: "OpenAI",
+        options: [option("openai::gpt-5-mini", "gpt-5-mini")],
+      },
     ];
 
     const markup = renderToStaticMarkup(
@@ -85,9 +99,11 @@ describe("DefaultGroupHeading", () => {
     >;
 
   it("renders the group label", () => {
-    expect(renderToStaticMarkup(createElement(DefaultGroupHeading, headingProps("OpenAI")))).toContain(
-      "OpenAI",
-    );
+    expect(
+      renderToStaticMarkup(
+        createElement(DefaultGroupHeading, headingProps("OpenAI")),
+      ),
+    ).toContain("OpenAI");
   });
 
   it("renders nothing for an empty label — the inherit group has no heading", () => {
@@ -135,7 +151,9 @@ describe("open menu", () => {
     await act(async () => {
       target
         .querySelector('[class*="-control"]')
-        ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+        ?.dispatchEvent(
+          new MouseEvent("mousedown", { bubbles: true, button: 0 }),
+        );
     });
     return target;
   };
@@ -180,7 +198,9 @@ describe("open menu", () => {
 
     expect(menu).toBeDefined();
     expect(message).toBeDefined();
-    expect(getComputedStyle(menu as HTMLElement).backgroundColor).toBe("var(--popover)");
+    expect(getComputedStyle(menu as HTMLElement).backgroundColor).toBe(
+      "var(--popover)",
+    );
     expect(getComputedStyle(message as HTMLElement).color).toBe(
       "var(--popover-foreground)",
     );
@@ -194,7 +214,9 @@ describe("withDefaultComponents", () => {
 
   it("lets a caller's own GroupHeading win", () => {
     const Custom = () => null;
-    expect(withDefaultComponents({ GroupHeading: Custom }).GroupHeading).toBe(Custom);
+    expect(withDefaultComponents({ GroupHeading: Custom }).GroupHeading).toBe(
+      Custom,
+    );
   });
 
   it("keeps the caller's other sub-components", () => {

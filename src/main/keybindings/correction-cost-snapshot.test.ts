@@ -21,7 +21,11 @@ vi.mock("electron", () => ({
     show = vi.fn();
   },
   ipcMain: { handle: vi.fn(), on: vi.fn() },
-  app: { getPath: vi.fn().mockReturnValue("/tmp"), getLocale: vi.fn().mockReturnValue("en-US"), getSystemLocale: vi.fn().mockReturnValue("en-US") },
+  app: {
+    getPath: vi.fn().mockReturnValue("/tmp"),
+    getLocale: vi.fn().mockReturnValue("en-US"),
+    getSystemLocale: vi.fn().mockReturnValue("en-US"),
+  },
 }));
 vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
@@ -36,13 +40,16 @@ vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
 });
 vi.mock("~/features/correction/store/keybindingStore", () => ({
   keybindingStore: {
-    getKeyBindings: vi
-      .fn()
-      .mockReturnValue({ promptGen: "Control+Shift+P", profileSwitch: "Control+Shift+S" }),
+    getKeyBindings: vi.fn().mockReturnValue({
+      promptGen: "Control+Shift+P",
+      profileSwitch: "Control+Shift+S",
+    }),
   },
 }));
 vi.mock("~/features/correction/store/outputModeStore", () => ({
-  outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("popup") },
+  outputModeStore: {
+    getCorrectionOutputMode: vi.fn().mockReturnValue("popup"),
+  },
 }));
 vi.mock("../../utils", () => ({
   getHighlightedTextWithActiveApp: vi
@@ -62,7 +69,9 @@ vi.mock("../webViewWindows", () => ({
 vi.mock("../webViewWindows/correctionResultWindow", () => ({
   showCorrectionResultWindow: vi.fn(),
 }));
-vi.mock("../webViewWindows/askInputWindow", () => ({ showAskInputWindow: vi.fn() }));
+vi.mock("../webViewWindows/askInputWindow", () => ({
+  showAskInputWindow: vi.fn(),
+}));
 vi.mock("./askFlow", () => ({ runAskFlow: vi.fn() }));
 vi.mock("./askEnvironment", () => ({
   resolveAskEnvironment: vi.fn().mockResolvedValue({
@@ -73,7 +82,9 @@ vi.mock("./askEnvironment", () => ({
     timeZone: "Asia/Tokyo",
     recentTransforms: [],
   }),
-  buildAskDirectives: vi.fn().mockReturnValue("App locale: en\nSystem language: en-US"),
+  buildAskDirectives: vi
+    .fn()
+    .mockReturnValue("App locale: en\nSystem language: en-US"),
 }));
 vi.mock("./utils", () => ({
   checkShortcut: vi.fn(),
@@ -83,7 +94,9 @@ vi.mock("./utils", () => ({
 }));
 // `notifications/error` reaches `overlay.html?asset`, which vite cannot parse
 // as JS under vitest. Stub that leaf so `LocalizedError` stays real.
-vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({ showErrorPopup: vi.fn() }));
+vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
+  showErrorPopup: vi.fn(),
+}));
 import { syncHistory } from "~/features/history/main/history";
 import { getProfileSetting } from "~/features/providers/store/apiStore";
 import { fixGrammar } from "../ai.request";

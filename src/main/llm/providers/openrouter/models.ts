@@ -20,17 +20,21 @@ export const normalizeOpenRouterModels = (data: unknown): Model[] => {
     if (!candidate || typeof candidate !== "object") return [];
     const raw = candidate as Partial<Model>;
     if (!raw.id || typeof raw.id !== "string") return [];
-    return [{
-      ...raw,
-      id: raw.id,
-      name: typeof raw.name === "string" ? raw.name : raw.id,
-      created: typeof raw.created === "number" ? raw.created : 0,
-      provider: "openrouter",
-    } satisfies Model];
+    return [
+      {
+        ...raw,
+        id: raw.id,
+        name: typeof raw.name === "string" ? raw.name : raw.id,
+        created: typeof raw.created === "number" ? raw.created : 0,
+        provider: "openrouter",
+      } satisfies Model,
+    ];
   });
 };
 
-export const fetchOpenRouterModels = async (apiKey: string): Promise<Model[]> => {
+export const fetchOpenRouterModels = async (
+  apiKey: string,
+): Promise<Model[]> => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -40,7 +44,9 @@ export const fetchOpenRouterModels = async (apiKey: string): Promise<Model[]> =>
       signal: controller.signal,
     });
     if (!response.ok) {
-      throw new Error(`API returned ${response.status}: ${response.statusText}`);
+      throw new Error(
+        `API returned ${response.status}: ${response.statusText}`,
+      );
     }
     const payload = (await response.json()) as { data?: unknown };
     return normalizeOpenRouterModels(payload.data);

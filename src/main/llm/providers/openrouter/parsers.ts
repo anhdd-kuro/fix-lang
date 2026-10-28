@@ -167,7 +167,7 @@ export type Activity = {
 export const parseActivity = (
   json: unknown,
   range: "7d" | "30d",
-  now: Date = new Date()
+  now: Date = new Date(),
 ): CardResult<Activity> => {
   const data = unwrapData(json);
   if (!Array.isArray(data)) {
@@ -201,30 +201,27 @@ export const parseActivity = (
     // A row kept for the model table but missing a date can't join the daily
     // series; it is counted once, in the aggregate it can actually belong to.
     if (rawDate !== null) {
-      const day =
-        byDay.get(rawDate) ??
-        {
-          date: rawDate,
-          requests: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          costUsd: 0,
-        };
+      const day = byDay.get(rawDate) ?? {
+        date: rawDate,
+        requests: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        costUsd: 0,
+      };
       day.requests += asNumber(raw.requests) ?? 0;
       day.inputTokens += asNumber(raw.prompt_tokens) ?? 0;
       day.outputTokens += asNumber(raw.completion_tokens) ?? 0;
-      day.costUsd = (day.costUsd ?? 0) + (asNumber(raw.usage) ?? asNumber(raw.cost) ?? 0);
+      day.costUsd =
+        (day.costUsd ?? 0) + (asNumber(raw.usage) ?? asNumber(raw.cost) ?? 0);
       byDay.set(rawDate, day);
     }
-    const acc =
-      byModel.get(model) ??
-      {
-        model,
-        requests: 0,
-        promptTokens: 0,
-        completionTokens: 0,
-        costUsd: 0,
-      };
+    const acc = byModel.get(model) ?? {
+      model,
+      requests: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      costUsd: 0,
+    };
     acc.requests += asNumber(raw.requests) ?? 0;
     acc.promptTokens += asNumber(raw.prompt_tokens) ?? 0;
     acc.completionTokens += asNumber(raw.completion_tokens) ?? 0;
@@ -233,7 +230,9 @@ export const parseActivity = (
   }
 
   const rows = [...byModel.values()].sort((a, b) => b.requests - a.requests);
-  const daily = [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date));
+  const daily = [...byDay.values()].sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
   return { ok: true, data: { range, rows, daily } };
 };
 
@@ -265,7 +264,7 @@ export type EnabledKeys = {
  * `{ data: [...] }` or a bare array.
  */
 export const parseProvisioningKeys = (
-  json: unknown
+  json: unknown,
 ): CardResult<EnabledKeys> => {
   const data = unwrapData(json);
   if (!Array.isArray(data)) {

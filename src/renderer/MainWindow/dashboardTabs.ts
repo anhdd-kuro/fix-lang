@@ -43,7 +43,7 @@ export const DASHBOARD_TABS: readonly DashboardTabMeta[] = [
 
 /** Default active tab index — Overview (analytics landing view). */
 export const DEFAULT_DASHBOARD_TAB_INDEX = DASHBOARD_TABS.findIndex(
-  (t) => t.id === "overview"
+  (t) => t.id === "overview",
 );
 
 /** Clamp an arbitrary index into the valid tab range (defensive). */
@@ -87,7 +87,7 @@ export const deriveAvailableFilters = (
  */
 export const applyPresetFilter = (
   entries: HistoryEntry[],
-  activeFilter: string | null
+  activeFilter: string | null,
 ): HistoryEntry[] =>
   activeFilter === null
     ? entries
@@ -99,7 +99,7 @@ export const applyPresetFilter = (
  */
 export const toggleFilter = (
   current: string | null,
-  clicked: string
+  clicked: string,
 ): string | null => (current === clicked ? null : clicked);
 
 /**
@@ -113,7 +113,7 @@ export const toggleFilter = (
  * Extracted from the TrashButton handler so the bucket selection is testable.
  */
 export const bucketsForClear = (
-  activeFilter: string | null
+  activeFilter: string | null,
 ): ("corrections" | "promptGen")[] =>
   activeFilter === null
     ? ["corrections", "promptGen"]

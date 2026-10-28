@@ -4,9 +4,15 @@
  */
 import { app, BrowserWindow } from "electron";
 import { sanitizeEnabledProviders } from "~/features/providers/shared/providers";
-import { getProfileSetting, getProviderEndpoint } from "~/features/providers/store/apiStore";
+import {
+  getProfileSetting,
+  getProviderEndpoint,
+} from "~/features/providers/store/apiStore";
 import { getActiveProfileSecret } from "~/features/providers/store/profileSecretStore";
-import { fetchAvailableModels, getCachedModels } from "~/main/ai.request/shared";
+import {
+  fetchAvailableModels,
+  getCachedModels,
+} from "~/main/ai.request/shared";
 import { probeLmStudio } from "~/main/llm/providers/lmstudio/client";
 import { probeOllama } from "./discover";
 import type { Model, ProviderId } from "~/features/providers/store/apiStore";
@@ -49,7 +55,7 @@ export function startModelMonitoring(): void {
     // Set up periodic checks
     modelCheckInterval = setInterval(
       () => void checkForModelChanges(),
-      CONFIG.CHECK_INTERVAL
+      CONFIG.CHECK_INTERVAL,
     );
   }, CONFIG.INITIAL_DELAY);
 
@@ -87,8 +93,12 @@ function getMainWindow(): BrowserWindow | null {
 }
 
 const connectedLocalProviders = (): ProviderId[] => {
-  const enabled = sanitizeEnabledProviders(getProfileSetting("enabledProviders"));
-  return enabled.filter((provider) => provider === "ollama" || provider === "lmstudio");
+  const enabled = sanitizeEnabledProviders(
+    getProfileSetting("enabledProviders"),
+  );
+  return enabled.filter(
+    (provider) => provider === "ollama" || provider === "lmstudio",
+  );
 };
 
 type LocalProbeResult = {
@@ -180,23 +190,20 @@ export async function checkForModelChanges(): Promise<void> {
     consecutiveFailures += 1;
     console.error(
       `Error checking for model changes (failure ${consecutiveFailures}/${CONFIG.MAX_FAILURES}):`,
-      error
+      error,
     );
 
     // If we've had too many failures, adjust the check interval
-    if (
-      consecutiveFailures >= CONFIG.MAX_FAILURES &&
-      modelCheckInterval
-    ) {
+    if (consecutiveFailures >= CONFIG.MAX_FAILURES && modelCheckInterval) {
       console.log(
         `Too many consecutive failures, extending check interval to ${
           CONFIG.EXTENDED_INTERVAL / 1000 / 60
-        } minutes`
+        } minutes`,
       );
       clearInterval(modelCheckInterval);
       modelCheckInterval = setInterval(
         () => void checkForModelChanges(),
-        CONFIG.EXTENDED_INTERVAL
+        CONFIG.EXTENDED_INTERVAL,
       );
     }
   }
@@ -208,24 +215,24 @@ export async function checkForModelChanges(): Promise<void> {
  */
 function detectModelChanges(
   storedModels: Model[],
-  currentModels: Model[]
+  currentModels: Model[],
 ): { hasChanges: boolean; added: Model[]; removed: Model[] } {
   // Create maps for faster lookups
   const storedModelMap = new Map(
-    storedModels.map((model) => [model.id, model])
+    storedModels.map((model) => [model.id, model]),
   );
   const currentModelMap = new Map(
-    currentModels.map((model) => [model.id, model])
+    currentModels.map((model) => [model.id, model]),
   );
 
   // Find models that were added (exist in current but not in stored)
   const added: Model[] = currentModels.filter(
-    (model) => !storedModelMap.has(model.id)
+    (model) => !storedModelMap.has(model.id),
   );
 
   // Find models that were removed (exist in stored but not in current)
   const removed: Model[] = storedModels.filter(
-    (model) => !currentModelMap.has(model.id)
+    (model) => !currentModelMap.has(model.id),
   );
 
   // Also check for path changes in models that exist in both sets

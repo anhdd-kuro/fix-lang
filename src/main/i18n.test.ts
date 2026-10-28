@@ -28,13 +28,13 @@ describe("mainT", () => {
     refreshMainLocale();
   });
 
-  it("returns English text under locale \"en\"", () => {
+  it('returns English text under locale "en"', () => {
     localeStoreMocks.getLocale.mockReturnValue("en");
 
     expect(mainT("common.save")).toBe(tEn("common.save"));
   });
 
-  it("returns Japanese text under locale \"ja\"", () => {
+  it('returns Japanese text under locale "ja"', () => {
     localeStoreMocks.getLocale.mockReturnValue("ja");
 
     expect(mainT("common.save")).toBe(tJa("common.save"));
@@ -60,7 +60,11 @@ describe("mainT", () => {
       mainT("notifications.correction.resultTitle", {
         presetName: "日本語プロファイル",
       }),
-    ).toBe(tEn("notifications.correction.resultTitle", { presetName: "日本語プロファイル" }));
+    ).toBe(
+      tEn("notifications.correction.resultTitle", {
+        presetName: "日本語プロファイル",
+      }),
+    );
   });
 });
 

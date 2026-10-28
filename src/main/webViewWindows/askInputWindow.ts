@@ -41,7 +41,8 @@ const WINDOW_WIDTH = 620;
  */
 const WINDOW_HEIGHT = 380;
 
-const resolveWindowHeight = (_payload: AskInputPayload): number => WINDOW_HEIGHT;
+const resolveWindowHeight = (_payload: AskInputPayload): number =>
+  WINDOW_HEIGHT;
 
 /** Called with the submitted question text. */
 export type AskInputSubmitHandler = (question: string) => void;

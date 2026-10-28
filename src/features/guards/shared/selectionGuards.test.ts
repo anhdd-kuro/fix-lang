@@ -18,7 +18,10 @@ const SETTINGS: SelectionGuardSettings = {
   deniedBundleIds: [...DEFAULT_DENIED_BUNDLE_IDS],
 };
 
-const app = (bundleId: string | null, name = "Some App"): ActiveApp => ({ name, bundleId });
+const app = (bundleId: string | null, name = "Some App"): ActiveApp => ({
+  name,
+  bundleId,
+});
 
 /** A measured age — the clipboard was seen changing this long ago. */
 const changedAgo = (ms: number): ClipboardAge => ({ ms, origin: "change" });
@@ -26,7 +29,9 @@ const changedAgo = (ms: number): ClipboardAge => ({ ms, origin: "change" });
 /** A lower bound — the text was already there when FixLang first looked. */
 const seenAgo = (ms: number): ClipboardAge => ({ ms, origin: "baseline" });
 
-const evaluate = (overrides: Partial<Parameters<typeof evaluateSelectionGuards>[0]>) =>
+const evaluate = (
+  overrides: Partial<Parameters<typeof evaluateSelectionGuards>[0]>,
+) =>
   evaluateSelectionGuards({
     text: "hello",
     changed: false,
@@ -76,11 +81,18 @@ describe("evaluateSelectionGuards — clipboard age", () => {
   });
 
   it("allows at the exact age boundary and confirms one millisecond past it", () => {
-    const settings: SelectionGuardSettings = { ...SETTINGS, clipboardMaxAgeSeconds: 5 };
-    expect(evaluate({ changed: false, age: changedAgo(5_000), settings })).toEqual({
+    const settings: SelectionGuardSettings = {
+      ...SETTINGS,
+      clipboardMaxAgeSeconds: 5,
+    };
+    expect(
+      evaluate({ changed: false, age: changedAgo(5_000), settings }),
+    ).toEqual({
       kind: "allow",
     });
-    expect(evaluate({ changed: false, age: changedAgo(5_001), settings })).toEqual({
+    expect(
+      evaluate({ changed: false, age: changedAgo(5_001), settings }),
+    ).toEqual({
       kind: "confirm",
       reason: "stale-clipboard",
       ageMs: 5_001,
@@ -95,16 +107,27 @@ describe("evaluateSelectionGuards — clipboard age", () => {
    * clear it by doing the one thing that ought to clear it.
    */
   it("never returns a block verdict for either age reason", () => {
-    expect(evaluate({ changed: false, age: changedAgo(999_999) }).kind).toBe("confirm");
-    expect(evaluate({ changed: false, age: seenAgo(999_999) }).kind).toBe("confirm");
+    expect(evaluate({ changed: false, age: changedAgo(999_999) }).kind).toBe(
+      "confirm",
+    );
+    expect(evaluate({ changed: false, age: seenAgo(999_999) }).kind).toBe(
+      "confirm",
+    );
   });
 
   it("allows any age when the age limit is disabled (<= 0)", () => {
-    const settings: SelectionGuardSettings = { ...SETTINGS, clipboardMaxAgeSeconds: 0 };
-    expect(evaluate({ changed: false, age: changedAgo(999_999), settings })).toEqual({
+    const settings: SelectionGuardSettings = {
+      ...SETTINGS,
+      clipboardMaxAgeSeconds: 0,
+    };
+    expect(
+      evaluate({ changed: false, age: changedAgo(999_999), settings }),
+    ).toEqual({
       kind: "allow",
     });
-    expect(evaluate({ changed: false, age: seenAgo(999_999), settings })).toEqual({
+    expect(
+      evaluate({ changed: false, age: seenAgo(999_999), settings }),
+    ).toEqual({
       kind: "allow",
     });
   });
@@ -124,12 +147,16 @@ describe("evaluateSelectionGuards — deny-list", () => {
       ...SETTINGS,
       deniedBundleIds: ["  Com.1Password.1Password  "],
     };
-    expect(evaluate({ activeApp: app("com.1password.1password"), settings })).toEqual({
+    expect(
+      evaluate({ activeApp: app("com.1password.1password"), settings }),
+    ).toEqual({
       kind: "block",
       reason: "denied-app",
       bundleId: "com.1password.1password",
     });
-    expect(evaluate({ activeApp: app("  COM.1PASSWORD.1PASSWORD  "), settings })).toEqual({
+    expect(
+      evaluate({ activeApp: app("  COM.1PASSWORD.1PASSWORD  "), settings }),
+    ).toEqual({
       kind: "block",
       reason: "denied-app",
       bundleId: "com.1password.1password",
@@ -137,12 +164,20 @@ describe("evaluateSelectionGuards — deny-list", () => {
   });
 
   it("allows an app not on the deny-list", () => {
-    const settings: SelectionGuardSettings = { ...SETTINGS, deniedBundleIds: ["com.example.denied"] };
-    expect(evaluate({ activeApp: app("com.example.allowed"), settings })).toEqual({ kind: "allow" });
+    const settings: SelectionGuardSettings = {
+      ...SETTINGS,
+      deniedBundleIds: ["com.example.denied"],
+    };
+    expect(
+      evaluate({ activeApp: app("com.example.allowed"), settings }),
+    ).toEqual({ kind: "allow" });
   });
 
   it("agrees with the exported isBundleIdDenied predicate on a non-canonical bundle id", () => {
-    const settings: SelectionGuardSettings = { ...SETTINGS, deniedBundleIds: ["com.foo.bar"] };
+    const settings: SelectionGuardSettings = {
+      ...SETTINGS,
+      deniedBundleIds: ["com.foo.bar"],
+    };
     const nonCanonical = "com.Foo.Bar ";
 
     expect(isBundleIdDenied(nonCanonical, settings.deniedBundleIds)).toBe(true);
@@ -156,12 +191,18 @@ describe("evaluateSelectionGuards — deny-list", () => {
 
 describe("evaluateSelectionGuards — size cap", () => {
   it("allows text at or under the limit", () => {
-    const settings: SelectionGuardSettings = { ...SETTINGS, maxSelectionChars: 5 };
+    const settings: SelectionGuardSettings = {
+      ...SETTINGS,
+      maxSelectionChars: 5,
+    };
     expect(evaluate({ text: "hello", settings })).toEqual({ kind: "allow" });
   });
 
   it("confirms text over the limit", () => {
-    const settings: SelectionGuardSettings = { ...SETTINGS, maxSelectionChars: 4 };
+    const settings: SelectionGuardSettings = {
+      ...SETTINGS,
+      maxSelectionChars: 4,
+    };
     expect(evaluate({ text: "hello", settings })).toEqual({
       kind: "confirm",
       reason: "large-selection",
@@ -171,8 +212,13 @@ describe("evaluateSelectionGuards — size cap", () => {
   });
 
   it("allows any length when the size cap is disabled (<= 0)", () => {
-    const settings: SelectionGuardSettings = { ...SETTINGS, maxSelectionChars: 0 };
-    expect(evaluate({ text: "x".repeat(50_000), settings })).toEqual({ kind: "allow" });
+    const settings: SelectionGuardSettings = {
+      ...SETTINGS,
+      maxSelectionChars: 0,
+    };
+    expect(evaluate({ text: "x".repeat(50_000), settings })).toEqual({
+      kind: "allow",
+    });
   });
 });
 
@@ -191,7 +237,11 @@ describe("evaluateSelectionGuards — precedence", () => {
         activeApp: app("com.example.denied"),
         settings,
       }),
-    ).toEqual({ kind: "block", reason: "denied-app", bundleId: "com.example.denied" });
+    ).toEqual({
+      kind: "block",
+      reason: "denied-app",
+      bundleId: "com.example.denied",
+    });
   });
 
   it("a stale clipboard wins over an oversized selection, so only ONE dialog is ever raised", () => {
@@ -208,6 +258,11 @@ describe("evaluateSelectionGuards — precedence", () => {
         activeApp: null,
         settings,
       }),
-    ).toEqual({ kind: "confirm", reason: "stale-clipboard", ageMs: 999_999, limitMs: 5_000 });
+    ).toEqual({
+      kind: "confirm",
+      reason: "stale-clipboard",
+      ageMs: 999_999,
+      limitMs: 5_000,
+    });
   });
 });

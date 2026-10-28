@@ -73,7 +73,10 @@ describe("confirmSelectionGuard", () => {
   });
 
   it("never references showMessageBoxSync in source, and the mocked dialog exposes no such method", () => {
-    const source = readFileSync(path.join(__dirname, "confirmSelectionGuard.ts"), "utf8");
+    const source = readFileSync(
+      path.join(__dirname, "confirmSelectionGuard.ts"),
+      "utf8",
+    );
     expect(source).not.toMatch(/showMessageBoxSync/);
     expect(
       (electron.dialog as { showMessageBoxSync?: unknown }).showMessageBoxSync,
@@ -96,7 +99,9 @@ describe("confirmSelectionGuard", () => {
     expect(await confirmSelectionGuard(LARGE_SELECTION)).toBe(false);
 
     const options = showMessageBoxMock.mock.calls[0][0];
-    const sendIndex = options.buttons.findIndex((label: string) => /send/i.test(label));
+    const sendIndex = options.buttons.findIndex((label: string) =>
+      /send/i.test(label),
+    );
     expect(sendIndex).toBeGreaterThan(-1);
     expect(sendIndex).not.toBe(options.cancelId);
 
@@ -154,7 +159,9 @@ describe("confirmSelectionGuard", () => {
     await confirmSelectionGuard(STALE_CLIPBOARD);
     await confirmSelectionGuard(UNKNOWN_AGE);
 
-    const [large, stale, unknown] = showMessageBoxMock.mock.calls.map(([options]) => options);
+    const [large, stale, unknown] = showMessageBoxMock.mock.calls.map(
+      ([options]) => options,
+    );
     const titles = [large.title, stale.title, unknown.title];
     expect(new Set(titles).size).toBe(3);
     const messages = [large.message, stale.message, unknown.message];

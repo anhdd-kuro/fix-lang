@@ -91,7 +91,9 @@ const usageSnapshot = (
 const baseElectronAPI = (
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> => ({
-  getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+  getAutocompleteSettings: vi
+    .fn()
+    .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
   setAutocompleteSettings: vi.fn().mockResolvedValue({ success: true }),
   getAutocompleteUsage: vi.fn().mockResolvedValue(usageSnapshot()),
   onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
@@ -113,7 +115,10 @@ describe("SettingAutocomplete", () => {
   let root: Root;
 
   const mount = async (api: Record<string, unknown>) => {
-    Object.defineProperty(window, "electronAPI", { configurable: true, value: api });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: api,
+    });
 
     container = document.createElement("div");
     document.body.append(container);
@@ -162,10 +167,14 @@ describe("SettingAutocomplete", () => {
     container.querySelector<HTMLElement>(`p[title="${title}"]`);
 
   it("round-trips the enabled checkbox", async () => {
-    const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
+    const setAutocompleteSettings = vi
+      .fn()
+      .mockResolvedValue({ success: true });
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi
+          .fn()
+          .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
         setAutocompleteSettings,
       }),
     );
@@ -212,9 +221,11 @@ describe("SettingAutocomplete", () => {
     it("uses shared Input chrome matching General API key", async () => {
       await mount(
         baseElectronAPI({
-          getAutocompleteSettings: vi
-            .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+          getAutocompleteSettings: vi.fn().mockResolvedValue({
+            enabled: true,
+            model: "",
+            dailyCostCapUsd: 5,
+          }),
         }),
       );
 
@@ -229,12 +240,16 @@ describe("SettingAutocomplete", () => {
     });
 
     it("shows the stored cap and persists a new one on blur", async () => {
-      const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
+      const setAutocompleteSettings = vi
+        .fn()
+        .mockResolvedValue({ success: true });
       await mount(
         baseElectronAPI({
-          getAutocompleteSettings: vi
-            .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+          getAutocompleteSettings: vi.fn().mockResolvedValue({
+            enabled: true,
+            model: "",
+            dailyCostCapUsd: 5,
+          }),
           setAutocompleteSettings,
         }),
       );
@@ -256,12 +271,16 @@ describe("SettingAutocomplete", () => {
      * nothing" and turns the feature off with nothing on screen to say why.
      */
     it("writes nothing while the field is mid-edit", async () => {
-      const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
+      const setAutocompleteSettings = vi
+        .fn()
+        .mockResolvedValue({ success: true });
       await mount(
         baseElectronAPI({
-          getAutocompleteSettings: vi
-            .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+          getAutocompleteSettings: vi.fn().mockResolvedValue({
+            enabled: true,
+            model: "",
+            dailyCostCapUsd: 5,
+          }),
           setAutocompleteSettings,
         }),
       );
@@ -273,12 +292,16 @@ describe("SettingAutocomplete", () => {
     });
 
     it("reverts to the stored cap when the field is left empty", async () => {
-      const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
+      const setAutocompleteSettings = vi
+        .fn()
+        .mockResolvedValue({ success: true });
       await mount(
         baseElectronAPI({
-          getAutocompleteSettings: vi
-            .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+          getAutocompleteSettings: vi.fn().mockResolvedValue({
+            enabled: true,
+            model: "",
+            dailyCostCapUsd: 5,
+          }),
           setAutocompleteSettings,
         }),
       );
@@ -292,12 +315,16 @@ describe("SettingAutocomplete", () => {
     // Clamped rather than refused, matching the store: `clearInvalidConfig`
     // makes a rejecting schema a config-wipe, so the range is enforced here.
     it("clamps a cap beyond the maximum instead of storing it", async () => {
-      const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
+      const setAutocompleteSettings = vi
+        .fn()
+        .mockResolvedValue({ success: true });
       await mount(
         baseElectronAPI({
-          getAutocompleteSettings: vi
-            .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+          getAutocompleteSettings: vi.fn().mockResolvedValue({
+            enabled: true,
+            model: "",
+            dailyCostCapUsd: 5,
+          }),
           setAutocompleteSettings,
         }),
       );
@@ -315,9 +342,11 @@ describe("SettingAutocomplete", () => {
     it("warns that a zero cap blocks every suggestion", async () => {
       await mount(
         baseElectronAPI({
-          getAutocompleteSettings: vi
-            .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 0 }),
+          getAutocompleteSettings: vi.fn().mockResolvedValue({
+            enabled: true,
+            model: "",
+            dailyCostCapUsd: 0,
+          }),
         }),
       );
 
@@ -329,9 +358,11 @@ describe("SettingAutocomplete", () => {
     it("says nothing about a zero cap when one is set", async () => {
       await mount(
         baseElectronAPI({
-          getAutocompleteSettings: vi
-            .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+          getAutocompleteSettings: vi.fn().mockResolvedValue({
+            enabled: true,
+            model: "",
+            dailyCostCapUsd: 5,
+          }),
         }),
       );
 
@@ -355,10 +386,14 @@ describe("SettingAutocomplete", () => {
   });
 
   it("round-trips the model picker", async () => {
-    const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
+    const setAutocompleteSettings = vi
+      .fn()
+      .mockResolvedValue({ success: true });
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi
+          .fn()
+          .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
         setAutocompleteSettings,
       }),
     );
@@ -430,7 +465,9 @@ describe("SettingAutocomplete", () => {
   it('shows "Same as Ask AI" for the empty inherit sentinel instead of a blank picker', async () => {
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi
+          .fn()
+          .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
       }),
     );
 
@@ -565,8 +602,12 @@ describe("SettingAutocomplete", () => {
       }),
     );
 
-    expect(container.textContent).toContain(tEn("settings.autocomplete.usage.today"));
-    expect(container.textContent).toContain(tEn("settings.autocomplete.usage.month"));
+    expect(container.textContent).toContain(
+      tEn("settings.autocomplete.usage.today"),
+    );
+    expect(container.textContent).toContain(
+      tEn("settings.autocomplete.usage.month"),
+    );
     expect(container.textContent).toContain(
       tEn("settings.autocomplete.usage.requests_other", { count: 5 }),
     );
@@ -648,15 +689,21 @@ describe("SettingAutocomplete", () => {
       }),
     );
 
-    expect(container.textContent).toContain(tEn("overview.value.estimatedCostNa"));
+    expect(container.textContent).toContain(
+      tEn("overview.value.estimatedCostNa"),
+    );
     expect(container.textContent).not.toContain("$0.00");
   });
 
   it("reverts the checkbox and shows an error when the write is guard-rejected", async () => {
-    const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: false });
+    const setAutocompleteSettings = vi
+      .fn()
+      .mockResolvedValue({ success: false });
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi
+          .fn()
+          .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
         setAutocompleteSettings,
       }),
     );
@@ -685,13 +732,17 @@ describe("SettingAutocomplete", () => {
   // promise instead. Both leave the store unwritten, so both must revert —
   // pinning only the returned half lets the whole `catch` body be deleted.
   it("reverts the checkbox and shows an error when the write throws", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     const setAutocompleteSettings = vi
       .fn()
       .mockRejectedValue(new Error("ipc channel closed"));
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi
+          .fn()
+          .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
         setAutocompleteSettings,
       }),
     );
@@ -724,7 +775,9 @@ describe("SettingAutocomplete", () => {
       .mockRejectedValue(new Error("ipc channel closed"));
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi
+          .fn()
+          .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
         setAutocompleteSettings,
       }),
     );

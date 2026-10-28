@@ -60,8 +60,7 @@ const createService = (
     getLatestRelease: vi
       .fn<() => Promise<unknown>>()
       .mockImplementation(
-        overrides.getLatestRelease ??
-          (() => Promise.resolve(stableRelease())),
+        overrides.getLatestRelease ?? (() => Promise.resolve(stableRelease())),
       ),
   };
   const startUpgrade = vi.fn(overrides.startUpgrade);
@@ -215,8 +214,7 @@ describe("unsigned GitHub update service", () => {
     async (currentVersion, releaseVersion, expectedPhase) => {
       const { service } = createService({
         currentVersion,
-        getLatestRelease: () =>
-          Promise.resolve(stableRelease(releaseVersion)),
+        getLatestRelease: () => Promise.resolve(stableRelease(releaseVersion)),
       });
 
       await service.checkForUpdates();
@@ -321,9 +319,9 @@ describe("Homebrew one-click install", () => {
   const INSTALL_ERROR = msg("settings.updates.installErrorMessage");
 
   it("advertises one-click install only for a cask-managed app", () => {
-    expect(createService({ canInstall: true }).service.getState().canInstall).toBe(
-      true,
-    );
+    expect(
+      createService({ canInstall: true }).service.getState().canInstall,
+    ).toBe(true);
     expect(createService().service.getState().canInstall).toBe(false);
   });
 
@@ -359,7 +357,9 @@ describe("Homebrew one-click install", () => {
   });
 
   it("refuses to install when no checked release is available", async () => {
-    const { service, startUpgrade, quitApp } = createService({ canInstall: true });
+    const { service, startUpgrade, quitApp } = createService({
+      canInstall: true,
+    });
 
     await expect(service.installUpdate()).resolves.toEqual({
       success: false,
@@ -416,7 +416,9 @@ describe("Homebrew one-click install", () => {
   });
 
   it("starts the upgrade only once while it is running", async () => {
-    const { service, startUpgrade, quitApp } = createService({ canInstall: true });
+    const { service, startUpgrade, quitApp } = createService({
+      canInstall: true,
+    });
     await service.checkForUpdates();
 
     const first = service.installUpdate();
@@ -612,7 +614,8 @@ describe("checking against Homebrew rather than GitHub", () => {
     const { service } = createService({
       canInstall: true,
       installableVersion: "0.2.0",
-      getLatestRelease: () => Promise.reject(new Error("/Users/kuro/token abc")),
+      getLatestRelease: () =>
+        Promise.reject(new Error("/Users/kuro/token abc")),
       onLog,
     });
 
@@ -627,8 +630,13 @@ describe("Homebrew tap lag", () => {
   it("refuses to quit for a version the tap cannot install yet", async () => {
     // The check itself normally blocks this; the gate still guards the case
     // where brew could not answer then but answers with an older cask now.
-    const { service, startUpgrade, pendingInstall, quitApp, getInstallableVersion } =
-      createService({ canInstall: true, installableVersion: null });
+    const {
+      service,
+      startUpgrade,
+      pendingInstall,
+      quitApp,
+      getInstallableVersion,
+    } = createService({ canInstall: true, installableVersion: null });
     await service.checkForUpdates();
     getInstallableVersion.mockResolvedValueOnce("0.1.0");
 
@@ -901,9 +909,7 @@ describe("reopening during a background upgrade", () => {
  * happens after the quit.
  */
 describe("downloading before quitting", () => {
-  const ready = async (
-    overrides: Parameters<typeof createService>[0] = {},
-  ) => {
+  const ready = async (overrides: Parameters<typeof createService>[0] = {}) => {
     const harness = createService({ canInstall: true, ...overrides });
     await harness.service.checkForUpdates();
     return harness;

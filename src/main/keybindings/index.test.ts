@@ -47,7 +47,9 @@ describe("reloadHotkeys", () => {
     (globalShortcut.unregisterAll as Mock).mockImplementation(() =>
       order.push("unregisterAll"),
     );
-    (registerCorrectionShortcut as Mock).mockImplementation(() => order.push("register"));
+    (registerCorrectionShortcut as Mock).mockImplementation(() =>
+      order.push("register"),
+    );
     (rearmCancelAcceleratorForActiveCombo as Mock).mockImplementation(() =>
       order.push("rearm"),
     );

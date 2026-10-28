@@ -8,7 +8,10 @@ import {
   isReasoningEffort,
   type ReasoningEffort,
 } from "~/features/correction/shared/reasoningEffort";
-import { isProviderId, type ProviderId } from "~/features/providers/shared/providers";
+import {
+  isProviderId,
+  type ProviderId,
+} from "~/features/providers/shared/providers";
 
 /** One message as sent to (or returned from) the model. */
 export type HistorySessionMessage = {
@@ -38,7 +41,9 @@ export type HistorySessionData = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const asSessionMessage = (value: unknown): HistorySessionMessage | undefined => {
+const asSessionMessage = (
+  value: unknown,
+): HistorySessionMessage | undefined => {
   if (!isRecord(value) || typeof value.role !== "string") {
     return undefined;
   }

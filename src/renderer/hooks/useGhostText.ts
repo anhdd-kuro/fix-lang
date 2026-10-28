@@ -377,7 +377,10 @@ export const useGhostText = ({
       anchorRef.current = anchor;
 
       const prefix = rawPrefix.slice(-MAX_PREFIX_CHARS_SENT);
-      const suffix = text.slice(selectionStart, selectionStart + MAX_SUFFIX_CHARS_SENT);
+      const suffix = text.slice(
+        selectionStart,
+        selectionStart + MAX_SUFFIX_CHARS_SENT,
+      );
 
       debounceTimerRef.current = setTimeout(() => {
         debounceTimerRef.current = undefined;
@@ -398,7 +401,10 @@ export const useGhostText = ({
         // is indistinguishable from every other silent path this file now
         // reports. The Ask window's payload arriving proves the preload loaded,
         // so the reporting method below is reachable even when this one is not.
-        if (typeof window.electronAPI?.requestAutocompleteSuggestion !== "function") {
+        if (
+          typeof window.electronAPI?.requestAutocompleteSuggestion !==
+          "function"
+        ) {
           reportSkip("bridge-unavailable", prefix.length);
           invalidate();
           return;

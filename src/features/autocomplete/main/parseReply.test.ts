@@ -16,14 +16,18 @@ const suggestionFor = (raw: unknown): string | null => {
 
 describe("parseAutocompleteReply", () => {
   it("reads the suggestion out of a well-formed reply", () => {
-    expect(parseAutocompleteReply('{"suggestion":" over the lazy dog."}')).toEqual({
+    expect(
+      parseAutocompleteReply('{"suggestion":" over the lazy dog."}'),
+    ).toEqual({
       ok: true,
       suggestion: " over the lazy dog.",
     });
   });
 
   it("accepts the pretty-printed form a model may emit", () => {
-    expect(parseAutocompleteReply('{\n  "suggestion": " over the lazy dog."\n}')).toEqual({
+    expect(
+      parseAutocompleteReply('{\n  "suggestion": " over the lazy dog."\n}'),
+    ).toEqual({
       ok: true,
       suggestion: " over the lazy dog.",
     });
@@ -34,11 +38,16 @@ describe("parseAutocompleteReply", () => {
    * longer contains an English sentence about outputting nothing.
    */
   it("accepts an empty string as the answer, and it is still an answer", () => {
-    expect(parseAutocompleteReply('{"suggestion":""}')).toEqual({ ok: true, suggestion: "" });
+    expect(parseAutocompleteReply('{"suggestion":""}')).toEqual({
+      ok: true,
+      suggestion: "",
+    });
   });
 
   it("ignores fields it was not asked for", () => {
-    expect(parseAutocompleteReply('{"suggestion":" tail","confidence":0.9}')).toEqual({
+    expect(
+      parseAutocompleteReply('{"suggestion":" tail","confidence":0.9}'),
+    ).toEqual({
       ok: true,
       suggestion: " tail",
     });
@@ -60,9 +69,15 @@ describe("parseAutocompleteReply", () => {
     it.each([
       ["with a language tag", '```json\n{"suggestion":" tail"}\n```'],
       ["with no language tag", '```\n{"suggestion":" tail"}\n```'],
-      ["with padding inside the fence", '```json\n\n  {"suggestion":" tail"}  \n\n```'],
+      [
+        "with padding inside the fence",
+        '```json\n\n  {"suggestion":" tail"}  \n\n```',
+      ],
     ])("is unwrapped %s", (_description, raw) => {
-      expect(parseAutocompleteReply(raw)).toEqual({ ok: true, suggestion: " tail" });
+      expect(parseAutocompleteReply(raw)).toEqual({
+        ok: true,
+        suggestion: " tail",
+      });
     });
   });
 
@@ -101,7 +116,10 @@ describe("parseAutocompleteReply", () => {
       // does to a model that would not stop, and a partial suggestion is worse
       // than none: it would be inserted verbatim on Tab.
       ["a truncated envelope", '{"suggestion":" over the lazy do'],
-      ["an envelope missing its closing brace", '{"suggestion":" over the lazy dog."'],
+      [
+        "an envelope missing its closing brace",
+        '{"suggestion":" over the lazy dog."',
+      ],
       ["a truncated fenced envelope", '```json\n{"suggestion":" over the la'],
       ["prose before the object", 'Sure! {"suggestion":" tail"}'],
       ["prose after the object", '{"suggestion":" tail"} Hope that helps!'],
@@ -154,7 +172,9 @@ describe("parseAutocompleteReply", () => {
    */
   describe("what survives the parse still has to be sanitized", () => {
     it("strips control characters smuggled through a unicode escape", () => {
-      expect(suggestionFor('{"suggestion":"safe\\u0000\\u0007text"}')).toBe("safetext");
+      expect(suggestionFor('{"suggestion":"safe\\u0000\\u0007text"}')).toBe(
+        "safetext",
+      );
     });
 
     it("strips a carriage return that would become a phantom line break", () => {
@@ -168,13 +188,17 @@ describe("parseAutocompleteReply", () => {
      * pointing at a URL the model chose.
      */
     it("strips markdown image syntax", () => {
-      expect(suggestionFor('{"suggestion":" and here ![alt](https://example.com/x.png) it is"}')).toBe(
-        " and here  it is",
-      );
+      expect(
+        suggestionFor(
+          '{"suggestion":" and here ![alt](https://example.com/x.png) it is"}',
+        ),
+      ).toBe(" and here  it is");
     });
 
     it("yields nothing when the suggestion was only an image", () => {
-      expect(suggestionFor('{"suggestion":"![](https://example.com/x.png)"}')).toBeNull();
+      expect(
+        suggestionFor('{"suggestion":"![](https://example.com/x.png)"}'),
+      ).toBeNull();
     });
   });
 
@@ -207,6 +231,8 @@ describe("parseAutocompleteReply", () => {
   it("measures the cut after JSON unescaping, not on the raw reply", () => {
     const escaped = "\\\\".repeat(300);
 
-    expect(suggestionFor(`{"suggestion":"${escaped}"}`)).toHaveLength(MAX_SUGGESTION_CHARS);
+    expect(suggestionFor(`{"suggestion":"${escaped}"}`)).toHaveLength(
+      MAX_SUGGESTION_CHARS,
+    );
   });
 });

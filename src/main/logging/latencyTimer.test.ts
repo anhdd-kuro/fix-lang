@@ -44,7 +44,9 @@ describe("startLatencyTimer", () => {
     // apart from a copied selection. `clipboardRead` was exactly that mistake:
     // it persisted as "[REDACTED]", destroying the metric with no error. The
     // REAL redactor runs here on purpose — the mocked logger above skips it.
-    const phases = Object.fromEntries(LATENCY_PHASE_NAMES.map((phase) => [phase, 1]));
+    const phases = Object.fromEntries(
+      LATENCY_PHASE_NAMES.map((phase) => [phase, 1]),
+    );
     expect(redactLogContext({ phases })).toEqual({ phases });
   });
 
@@ -115,7 +117,10 @@ describe("startLatencyTimer", () => {
     timer.finish({ outcome: "failed" });
 
     expect(infoMock).toHaveBeenCalledTimes(1);
-    expect(infoMock.mock.calls[0][2]).toMatchObject({ outcome: "delivered", totalMs: 100 });
+    expect(infoMock.mock.calls[0][2]).toMatchObject({
+      outcome: "delivered",
+      totalMs: 100,
+    });
   });
 
   it("keeps phases separate per timer — concurrent presses must not share state", () => {
@@ -135,8 +140,12 @@ describe("startLatencyTimer", () => {
     first.finish({ outcome: "delivered" });
     second.finish({ outcome: "delivered" });
 
-    expect(infoMock.mock.calls[0][2]).toMatchObject({ phases: { aiRequest: 10 } });
-    expect(infoMock.mock.calls[1][2]).toMatchObject({ phases: { aiRequest: 999 } });
+    expect(infoMock.mock.calls[0][2]).toMatchObject({
+      phases: { aiRequest: 10 },
+    });
+    expect(infoMock.mock.calls[1][2]).toMatchObject({
+      phases: { aiRequest: 999 },
+    });
   });
 
   it("defaults to Date.now when no clock is injected", () => {

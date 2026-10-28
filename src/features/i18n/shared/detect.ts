@@ -11,7 +11,8 @@ import { DEFAULT_LOCALE, LOCALE_CODES, type Locale } from "./registry";
 
 /** Narrow an unknown value to a supported locale code. */
 export const isLocale = (value: unknown): value is Locale =>
-  typeof value === "string" && (LOCALE_CODES as readonly string[]).includes(value);
+  typeof value === "string" &&
+  (LOCALE_CODES as readonly string[]).includes(value);
 
 /**
  * Normalizes a raw locale tag to a supported locale.

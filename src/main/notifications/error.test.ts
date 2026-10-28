@@ -21,7 +21,9 @@ const {
     failNextDelivery: false,
     isReady: true,
     readyListener: undefined as (() => void) | undefined,
-    failedListener: undefined as ((event: unknown, error: string) => void) | undefined,
+    failedListener: undefined as
+      | ((event: unknown, error: string) => void)
+      | undefined,
   },
   showErrorPopupMock: vi.fn(),
   localeStoreMocks: { getLocale: vi.fn() },
@@ -92,17 +94,26 @@ describe("showNotificationWithFallback", () => {
   });
 
   it("shows a desktop notification with the given title and body", () => {
-    showNotificationWithFallback({ title: "Result not pasted", body: "Review it first." });
+    showNotificationWithFallback({
+      title: "Result not pasted",
+      body: "Review it first.",
+    });
 
     expect(notificationConstructorMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Result not pasted", body: "Review it first." }),
+      expect.objectContaining({
+        title: "Result not pasted",
+        body: "Review it first.",
+      }),
     );
     expect(notificationShowMock).toHaveBeenCalledOnce();
     expect(showErrorPopupMock).not.toHaveBeenCalled();
   });
 
   it("falls back to the in-app popup when delivery fails on the unsigned-app path", () => {
-    showNotificationWithFallback({ title: "Result not pasted", body: "Review it first." });
+    showNotificationWithFallback({
+      title: "Result not pasted",
+      body: "Review it first.",
+    });
     notificationState.failedListener?.({}, "Application is not code signed");
 
     expect(showErrorPopupMock).toHaveBeenCalledWith("Review it first.");
@@ -111,7 +122,10 @@ describe("showNotificationWithFallback", () => {
   it("falls back to the in-app popup when constructing the notification throws", () => {
     notificationState.failNextDelivery = true;
 
-    showNotificationWithFallback({ title: "Result not pasted", body: "Review it first." });
+    showNotificationWithFallback({
+      title: "Result not pasted",
+      body: "Review it first.",
+    });
 
     expect(notificationShowMock).not.toHaveBeenCalled();
     expect(showErrorPopupMock).toHaveBeenCalledWith("Review it first.");
@@ -120,7 +134,9 @@ describe("showNotificationWithFallback", () => {
   it("omits urgency entirely rather than passing undefined when none is given", () => {
     showNotificationWithFallback({ title: "T", body: "B" });
 
-    expect(Object.keys(notificationConstructorMock.mock.calls[0][0])).not.toContain("urgency");
+    expect(
+      Object.keys(notificationConstructorMock.mock.calls[0][0]),
+    ).not.toContain("urgency");
   });
 });
 
@@ -300,7 +316,9 @@ describe("showErrorNotification", () => {
       showErrorNotification(error);
 
       expect(notificationConstructorMock).toHaveBeenCalledWith(
-        expect.objectContaining({ body: tJa("notifications.error.noProfilesAvailable.body") }),
+        expect.objectContaining({
+          body: tJa("notifications.error.noProfilesAvailable.body"),
+        }),
       );
     });
   });
@@ -349,7 +367,9 @@ describe("showErrorNotification", () => {
       const error = new AccessibilityPermissionError();
 
       expect(error).toBeInstanceOf(LocalizedError);
-      expect(error.messageKey).toBe("notifications.error.accessibilityDenied.body");
+      expect(error.messageKey).toBe(
+        "notifications.error.accessibilityDenied.body",
+      );
     });
   });
 
@@ -384,7 +404,9 @@ describe("showErrorNotification", () => {
     // The AI SDK re-wraps the underlying fetch rejection, so the abort is not
     // the outermost error by the time a provider `catch` sees it.
     it("stays silent for an abort wrapped by another error", () => {
-      const wrapped = new Error("Failed to get a response.", { cause: abortError() });
+      const wrapped = new Error("Failed to get a response.", {
+        cause: abortError(),
+      });
 
       showErrorNotification(wrapped);
 

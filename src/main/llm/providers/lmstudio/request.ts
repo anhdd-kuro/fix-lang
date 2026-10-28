@@ -10,7 +10,10 @@ import {
   buildLmStudioBaseUrl,
   resolveLmStudioEndpoint,
 } from "~/features/providers/shared/lmstudioEndpoint";
-import { getCurrentProfileId, getProviderEndpoint } from "~/features/providers/store/apiStore";
+import {
+  getCurrentProfileId,
+  getProviderEndpoint,
+} from "~/features/providers/store/apiStore";
 import { getProfileSecret } from "~/features/providers/store/profileSecretStore";
 import {
   sumTokenField,
@@ -64,7 +67,9 @@ export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {
 
     const reasoningTexts = responses
       .map((response) => response.reasoningText)
-      .filter((text): text is string => typeof text === "string" && text.length > 0);
+      .filter(
+        (text): text is string => typeof text === "string" && text.length > 0,
+      );
     return {
       content: responses.map((response) => response.text),
       prompts: responses.map((response) => response.text),
@@ -77,7 +82,11 @@ export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("makeLmStudioAIRequest error:", error);
-    notifyRequestError(options, error, "Failed to get a response from LM Studio.");
+    notifyRequestError(
+      options,
+      error,
+      "Failed to get a response from LM Studio.",
+    );
     throw error;
   }
 };

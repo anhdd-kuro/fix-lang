@@ -5,9 +5,7 @@
 import { BrowserWindow, ipcMain, Notification } from "electron";
 import { DEFAULT_KEY_BINDINGS } from "~/const";
 import { normalizeCorrectionOutputMode } from "~/features/correction/shared/outputMode";
-import {
-  sanitizeReasoningEffort,
-} from "~/features/correction/shared/reasoningEffort";
+import { sanitizeReasoningEffort } from "~/features/correction/shared/reasoningEffort";
 import { keybindingStore } from "~/features/correction/store/keybindingStore";
 import { outputModeStore } from "~/features/correction/store/outputModeStore";
 import { messageLabel } from "~/features/i18n/shared/message";
@@ -17,7 +15,10 @@ import {
   hasProvisioningKey,
   setProvisioningKey,
 } from "~/features/providers/store/provisioningKeyStore";
-import { exceptionLabel, wrapStoreResult } from "~/features/settings/main/ipcResultLabel";
+import {
+  exceptionLabel,
+  wrapStoreResult,
+} from "~/features/settings/main/ipcResultLabel";
 import { reloadHotkeys, unregisterHotkeys } from "~/main/keybindings";
 import { buildSettingsSavedNotification } from "./settingsNotifications";
 import type { KeyBindings } from "~/features/providers/store/apiStore";
@@ -31,7 +32,8 @@ export const registerSettingsHandlers = () => {
   );
 
   ipcMain.handle("get-default-reasoning-effort", async () => {
-    const { getDefaultReasoningEffort } = await import("~/features/providers/store/apiStore");
+    const { getDefaultReasoningEffort } =
+      await import("~/features/providers/store/apiStore");
     return getDefaultReasoningEffort();
   });
 
@@ -45,7 +47,8 @@ export const registerSettingsHandlers = () => {
           error: messageLabel("settings.general.reasoning.invalid"),
         };
       }
-      const { updateProfileSetting } = await import("~/features/providers/store/apiStore");
+      const { updateProfileSetting } =
+        await import("~/features/providers/store/apiStore");
       const result = updateProfileSetting("defaultReasoningEffort", effort);
       if (!result.success) return wrapStoreResult(result);
       return { success: true, effort };

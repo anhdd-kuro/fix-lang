@@ -21,7 +21,10 @@
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolveOutDir, runBundleExternalsCheck } from "../src/features/core/shared/bundleExternals";
+import {
+  resolveOutDir,
+  runBundleExternalsCheck,
+} from "../src/features/core/shared/bundleExternals";
 
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const outDirArg = process.argv[2];

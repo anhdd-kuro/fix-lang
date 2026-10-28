@@ -7,10 +7,19 @@
  */
 import React, { useState, useEffect } from "react";
 import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboValidation";
-import { messageLabel, msg, type Message } from "~/features/i18n/shared/message";
+import {
+  messageLabel,
+  msg,
+  type Message,
+} from "~/features/i18n/shared/message";
 import { Button } from "./Button";
 import { Input } from "./Input";
-import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
+import {
+  plainStatus,
+  wrappedError,
+  resolveStatus,
+  type StatusDescriptor,
+} from "./statusDescriptor";
 import { validateHotkeys } from "./validateHotkeys";
 import { useI18n } from "../i18n/useI18n";
 import type { KeyBindings } from "~/features/providers/store/apiStore";
@@ -49,9 +58,9 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
   const [status, setStatus] = useState<StatusDescriptor | null>(null);
   // Separate from `status` text so styling never depends on matching an
   // English prefix — `status` itself is always already localized.
-  const [statusKind, setStatusKind] = useState<"idle" | "error" | "applying" | "success">(
-    "idle",
-  );
+  const [statusKind, setStatusKind] = useState<
+    "idle" | "error" | "applying" | "success"
+  >("idle");
   // Locale-free descriptor for the ONE error the mount effect below can
   // produce (`getKeyBindings()` rejecting). Kept separate from `status` (set
   // by `handleApply` below, an event handler — safe to resolve via `t()`

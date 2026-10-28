@@ -33,7 +33,9 @@ describe("keepAliveFetch", () => {
       throw new Error("Expected an ephemeral TCP server address");
     }
 
-    const response = await keepAliveFetch(`http://127.0.0.1:${String(address.port)}`);
+    const response = await keepAliveFetch(
+      `http://127.0.0.1:${String(address.port)}`,
+    );
 
     expect(response.status).toBe(200);
     await expect(response.text()).resolves.toBe("ok");

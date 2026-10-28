@@ -68,7 +68,9 @@ describe("parseKeyUsage", () => {
   });
 
   it("limitReached true when remaining <= 0", () => {
-    const r = parseKeyUsage({ data: { usage: 10, limit: 10, limit_remaining: 0 } });
+    const r = parseKeyUsage({
+      data: { usage: 10, limit: 10, limit_remaining: 0 },
+    });
     expect(r.ok && r.data.limitReached).toBe(true);
   });
 
@@ -91,9 +93,30 @@ describe("parseActivity", () => {
   const NOW = new Date("2024-06-20T10:00:00Z");
   const rows = {
     data: [
-      { date: "2024-06-20", model: "openai/gpt-4o", requests: 3, prompt_tokens: 100, completion_tokens: 50, usage: 0.01 },
-      { date: "2024-06-19", model: "openai/gpt-4o", requests: 2, prompt_tokens: 80, completion_tokens: 40, usage: 0.008 },
-      { date: "2024-06-01", model: "anthropic/claude", requests: 5, prompt_tokens: 500, completion_tokens: 200, usage: 0.05 },
+      {
+        date: "2024-06-20",
+        model: "openai/gpt-4o",
+        requests: 3,
+        prompt_tokens: 100,
+        completion_tokens: 50,
+        usage: 0.01,
+      },
+      {
+        date: "2024-06-19",
+        model: "openai/gpt-4o",
+        requests: 2,
+        prompt_tokens: 80,
+        completion_tokens: 40,
+        usage: 0.008,
+      },
+      {
+        date: "2024-06-01",
+        model: "anthropic/claude",
+        requests: 5,
+        prompt_tokens: 500,
+        completion_tokens: 200,
+        usage: 0.05,
+      },
     ],
   };
 
@@ -124,7 +147,7 @@ describe("parseActivity", () => {
     const mixed = parseActivity(
       { data: [{ model: "m", requests: 1 }, null, 42, { date: "x" }] },
       "30d",
-      NOW
+      NOW,
     );
     expect(mixed.ok).toBe(true);
     if (mixed.ok) {
@@ -143,7 +166,13 @@ describe("parseProvisioningKeys", () => {
   it("lists enabled keys with name + usage, ignoring disabled ones", () => {
     const r = parseProvisioningKeys({
       data: [
-        { name: "prod", usage: 12.5, limit: 100, limit_remaining: 87.5, disabled: false },
+        {
+          name: "prod",
+          usage: 12.5,
+          limit: 100,
+          limit_remaining: 87.5,
+          disabled: false,
+        },
         { label: "fallback-label", usage: 3 }, // enabled; name falls back to label
         { name: "off", usage: 99, disabled: true },
         { name: "mid", usage: 8, limit: 8, limit_remaining: 0 },

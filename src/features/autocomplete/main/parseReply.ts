@@ -63,7 +63,9 @@ export const AUTOCOMPLETE_REPLY_FIELD = "suggestion";
  * silent. The caller must be able to tell those apart; collapsing both to
  * `null` would hide a broken model behind an ordinary quiet moment.
  */
-export type AutocompleteReplyParse = { ok: true; suggestion: string } | { ok: false };
+export type AutocompleteReplyParse =
+  | { ok: true; suggestion: string }
+  | { ok: false };
 
 const REFUSED: AutocompleteReplyParse = { ok: false };
 
@@ -85,7 +87,9 @@ const unwrapFence = (text: string): string => {
  * string is well formed, and decodes to one invisible byte), which is why
  * parsing happens first and sanitising second.
  */
-export const parseAutocompleteReply = (raw: unknown): AutocompleteReplyParse => {
+export const parseAutocompleteReply = (
+  raw: unknown,
+): AutocompleteReplyParse => {
   if (typeof raw !== "string") return REFUSED;
 
   const candidate = unwrapFence(raw.trim());
@@ -99,7 +103,8 @@ export const parseAutocompleteReply = (raw: unknown): AutocompleteReplyParse => 
   }
 
   // An array is `typeof "object"` too, and `null` most of all.
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return REFUSED;
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+    return REFUSED;
 
   const value = (parsed as Record<string, unknown>)[AUTOCOMPLETE_REPLY_FIELD];
   // A number, an object, an array or `null` is not a suggestion. Only a string

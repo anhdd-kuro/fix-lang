@@ -10,19 +10,28 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeLocalAIRequest } from "./request";
 
-const { chatMock, abortMock, createOllamaClientMock, getLocalModelsMock, notifyRequestErrorMock } =
-  vi.hoisted(() => ({
-    chatMock: vi.fn(),
-    abortMock: vi.fn(),
-    createOllamaClientMock: vi.fn(),
-    getLocalModelsMock: vi.fn(),
-    notifyRequestErrorMock: vi.fn(),
-  }));
+const {
+  chatMock,
+  abortMock,
+  createOllamaClientMock,
+  getLocalModelsMock,
+  notifyRequestErrorMock,
+} = vi.hoisted(() => ({
+  chatMock: vi.fn(),
+  abortMock: vi.fn(),
+  createOllamaClientMock: vi.fn(),
+  getLocalModelsMock: vi.fn(),
+  notifyRequestErrorMock: vi.fn(),
+}));
 
 vi.mock("./client", () => ({ createOllamaClient: createOllamaClientMock }));
-vi.mock("~/main/llm/models/discover", () => ({ getLocalModels: getLocalModelsMock }));
+vi.mock("~/main/llm/models/discover", () => ({
+  getLocalModels: getLocalModelsMock,
+}));
 // Pulls in Electron otherwise.
-vi.mock("~/main/notifications/error", () => ({ notifyRequestError: notifyRequestErrorMock }));
+vi.mock("~/main/notifications/error", () => ({
+  notifyRequestError: notifyRequestErrorMock,
+}));
 vi.mock("~/features/providers/store/apiStore", () => ({
   getProviderEndpoint: () => ({ host: "127.0.0.1", port: 11434 }),
 }));
@@ -60,7 +69,10 @@ describe("makeLocalAIRequest", () => {
     });
     getLocalModelsMock.mockResolvedValue([{ id: MODEL }]);
     chatMock.mockResolvedValue(chatResponse());
-    createOllamaClientMock.mockReturnValue({ chat: chatMock, abort: abortMock });
+    createOllamaClientMock.mockReturnValue({
+      chat: chatMock,
+      abort: abortMock,
+    });
   });
 
   /**
@@ -88,22 +100,25 @@ describe("makeLocalAIRequest", () => {
       ["omits them", {}],
       ["sends a non-number", { prompt_eval_count: "42", eval_count: null }],
       ["sends NaN", { prompt_eval_count: Number.NaN, eval_count: Number.NaN }],
-    ])("reports null, never 0, when the daemon %s", async (_case, overrides) => {
-      chatMock.mockResolvedValue({
-        message: { content: " over the lazy dog." },
-        total_duration: 1_000,
-        ...overrides,
-      });
+    ])(
+      "reports null, never 0, when the daemon %s",
+      async (_case, overrides) => {
+        chatMock.mockResolvedValue({
+          message: { content: " over the lazy dog." },
+          total_duration: 1_000,
+          ...overrides,
+        });
 
-      const response = await request();
+        const response = await request();
 
-      expect(response.promptTokens).toBeNull();
-      expect(response.completionTokens).toBeNull();
-      // Spelled out: `0` is the value that made this unmeasured response read as
-      // a measured zero all the way to the Analytics card.
-      expect(response.promptTokens).not.toBe(0);
-      expect(response.completionTokens).not.toBe(0);
-    });
+        expect(response.promptTokens).toBeNull();
+        expect(response.completionTokens).toBeNull();
+        // Spelled out: `0` is the value that made this unmeasured response read as
+        // a measured zero all the way to the Analytics card.
+        expect(response.promptTokens).not.toBe(0);
+        expect(response.completionTokens).not.toBe(0);
+      },
+    );
 
     /**
      * The predicate every consumer uses, applied to what this module returns.
@@ -126,7 +141,9 @@ describe("makeLocalAIRequest", () => {
     // A prompt served entirely from Ollama's cache genuinely evaluates zero
     // prompt tokens. That zero IS the measurement and must not become N/A.
     it("keeps a genuinely reported zero as zero", async () => {
-      chatMock.mockResolvedValue(chatResponse({ prompt_eval_count: 0, eval_count: 12 }));
+      chatMock.mockResolvedValue(
+        chatResponse({ prompt_eval_count: 0, eval_count: 12 }),
+      );
 
       const response = await request();
 
@@ -184,7 +201,9 @@ describe("makeLocalAIRequest", () => {
     };
 
     it("never calls the client", async () => {
-      await expect(request({ abortSignal: alreadyAborted() })).rejects.toThrow();
+      await expect(
+        request({ abortSignal: alreadyAborted() }),
+      ).rejects.toThrow();
 
       expect(chatMock).not.toHaveBeenCalled();
     });
@@ -195,7 +214,9 @@ describe("makeLocalAIRequest", () => {
      * both silent, and it matches on the name.
      */
     it("rejects with an abort-shaped error", async () => {
-      await expect(request({ abortSignal: alreadyAborted() })).rejects.toMatchObject({
+      await expect(
+        request({ abortSignal: alreadyAborted() }),
+      ).rejects.toMatchObject({
         name: "AbortError",
       });
     });

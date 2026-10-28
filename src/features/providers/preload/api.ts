@@ -7,7 +7,10 @@ import { isProviderId } from "~/features/providers/shared/providers";
 import { asLabel } from "~/features/settings/preload/ipcLabel";
 import type { ProviderStates } from "~/features/providers/main/api";
 import type { Model, ProviderId } from "~/features/providers/shared/providers";
-import type { ClearedModelRefs, Profile } from "~/features/providers/store/apiStore";
+import type {
+  ClearedModelRefs,
+  Profile,
+} from "~/features/providers/store/apiStore";
 
 /** No `modelId`: connecting a provider must not seed a default model over the user's existing choice. */
 export type ProviderConnectInput = {
@@ -31,7 +34,9 @@ export type ProviderConnectInput = {
   projectId?: string;
 };
 
-export const isProviderConnectInput = (value: unknown): value is ProviderConnectInput => {
+export const isProviderConnectInput = (
+  value: unknown,
+): value is ProviderConnectInput => {
   if (typeof value !== "object" || value === null) return false;
   const input = value as Record<string, unknown>;
   const hostOk = input.host === undefined || typeof input.host === "string";
@@ -42,7 +47,8 @@ export const isProviderConnectInput = (value: unknown): value is ProviderConnect
   return (
     isProviderId(input.provider) &&
     (input.apiKey === undefined || typeof input.apiKey === "string") &&
-    (input.provisioningKey === undefined || typeof input.provisioningKey === "string") &&
+    (input.provisioningKey === undefined ||
+      typeof input.provisioningKey === "string") &&
     (input.secretKey === undefined || typeof input.secretKey === "string") &&
     (input.region === undefined || typeof input.region === "string") &&
     (input.projectId === undefined || typeof input.projectId === "string") &&
@@ -67,7 +73,12 @@ export const apiFeature = {
   /** Returns masked credential state for one staged provider. */
   getProviderSecretStatus: async (
     provider: ProviderId,
-  ): Promise<{ apiKeySet: boolean; provisioningKeySet: boolean; accessKeySet?: boolean; secretKeySet?: boolean }> => {
+  ): Promise<{
+    apiKeySet: boolean;
+    provisioningKeySet: boolean;
+    accessKeySet?: boolean;
+    secretKeySet?: boolean;
+  }> => {
     if (!isProviderId(provider)) {
       return { apiKeySet: false, provisioningKeySet: false };
     }
@@ -82,7 +93,10 @@ export const apiFeature = {
     setup: ProviderConnectInput,
   ): Promise<{ success: boolean; models?: Model[]; error?: Label }> => {
     if (!isProviderConnectInput(setup)) {
-      return { success: false, error: messageLabel("models.providerSetup.error.invalidSetup") };
+      return {
+        success: false,
+        error: messageLabel("models.providerSetup.error.invalidSetup"),
+      };
     }
     const result = await ipcRenderer.invoke("fetch-provider-models", setup);
     return { ...result, error: asLabel(result?.error) };
@@ -101,7 +115,10 @@ export const apiFeature = {
     error?: Label;
   }> => {
     if (!isProviderConnectInput(input)) {
-      return { success: false, error: messageLabel("models.providerSetup.error.invalidSetup") };
+      return {
+        success: false,
+        error: messageLabel("models.providerSetup.error.invalidSetup"),
+      };
     }
     const result = await ipcRenderer.invoke("connect-provider", input);
     if (result?.success) ipcRenderer.send("settings-updated");
@@ -125,7 +142,10 @@ export const apiFeature = {
     error?: Label;
   }> => {
     if (!isProviderId(provider)) {
-      return { success: false, error: messageLabel("models.providerSetup.error.invalidSetup") };
+      return {
+        success: false,
+        error: messageLabel("models.providerSetup.error.invalidSetup"),
+      };
     }
     const result = await ipcRenderer.invoke("disconnect-provider", provider);
     if (result?.success) ipcRenderer.send("settings-updated");
@@ -143,7 +163,7 @@ export const apiFeature = {
    * `success: true` as "everything refreshed".
    */
   fetchAIModels: async (
-    refetch?: boolean
+    refetch?: boolean,
   ): Promise<{
     success: boolean;
     models?: Model[];
@@ -162,7 +182,10 @@ export const apiFeature = {
     modelId: string,
   ): Promise<{ success: boolean; error?: Label }> => {
     if (typeof modelId !== "string") {
-      return { success: false, error: messageLabel("models.select.error.modelNotAvailableForProvider") };
+      return {
+        success: false,
+        error: messageLabel("models.select.error.modelNotAvailableForProvider"),
+      };
     }
     const result = await ipcRenderer.invoke("set-selected-model", modelId);
     // Gated on success: `settings-updated` triggers a network fan-out across
@@ -198,7 +221,10 @@ export const apiFeature = {
     key: string,
   ): Promise<{ success: boolean; error?: Label }> => {
     if (typeof key !== "string") {
-      return { success: false, error: messageLabel("models.providerSetup.error.invalidApiKeyInput") };
+      return {
+        success: false,
+        error: messageLabel("models.providerSetup.error.invalidApiKeyInput"),
+      };
     }
     const result = await ipcRenderer.invoke("set-api-key", key);
     return { ...result, error: asLabel(result?.error) };
@@ -228,9 +254,13 @@ export const apiFeature = {
    */
   setFeatureModel: async (
     feature: string,
-    model: string
+    model: string,
   ): Promise<{ success: boolean; error?: Label }> => {
-    const result = await ipcRenderer.invoke("set-feature-model", feature, model);
+    const result = await ipcRenderer.invoke(
+      "set-feature-model",
+      feature,
+      model,
+    );
     return { ...result, error: asLabel(result?.error) };
   },
 
@@ -258,7 +288,7 @@ export const apiFeature = {
    * @returns A promise that resolves with status of the pull operation
    */
   pullLocalModel: async (
-    modelName: string
+    modelName: string,
   ): Promise<{ success: boolean; error?: string }> => {
     return await ipcRenderer.invoke("pull-local-model", modelName);
   },
@@ -269,7 +299,7 @@ export const apiFeature = {
    * @returns A promise that resolves with status of the delete operation
    */
   deleteLocalModel: async (
-    modelName: string
+    modelName: string,
   ): Promise<{ success: boolean; error?: string }> => {
     return await ipcRenderer.invoke("delete-local-model", modelName);
   },
@@ -300,7 +330,7 @@ export const apiFeature = {
    * @returns A promise that resolves with compatibility information
    */
   checkModelCompatibility: async (
-    modelName: string
+    modelName: string,
   ): Promise<{
     success: boolean;
     compatibility?: {
@@ -317,7 +347,10 @@ export const apiFeature = {
     };
     error?: Label;
   }> => {
-    const result = await ipcRenderer.invoke("check-model-compatibility", modelName);
+    const result = await ipcRenderer.invoke(
+      "check-model-compatibility",
+      modelName,
+    );
     return { ...result, error: asLabel(result?.error) };
   },
 };

@@ -15,5 +15,5 @@ ReactDOM.createRoot(rootElement).render(
     <I18nProvider>
       <App />
     </I18nProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

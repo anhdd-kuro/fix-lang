@@ -22,9 +22,9 @@ describe("buildAutocompletePrompt", () => {
    * label has to cue a brace instead.
    */
   it("does not end on a prose cue", () => {
-    expect(buildAutocompletePrompt({ prefix: "Hello wor" }).userPrompt).not.toContain(
-      "Continuation:",
-    );
+    expect(
+      buildAutocompletePrompt({ prefix: "Hello wor" }).userPrompt,
+    ).not.toContain("Continuation:");
   });
 
   it("omits the suffix section when the caret is at the end", () => {
@@ -44,9 +44,9 @@ describe("buildAutocompletePrompt", () => {
   });
 
   it("treats an empty suffix the same as no suffix", () => {
-    expect(buildAutocompletePrompt({ prefix: "a", suffix: "" }).userPrompt).toBe(
-      buildAutocompletePrompt({ prefix: "a" }).userPrompt,
-    );
+    expect(
+      buildAutocompletePrompt({ prefix: "a", suffix: "" }).userPrompt,
+    ).toBe(buildAutocompletePrompt({ prefix: "a" }).userPrompt);
   });
 
   describe("windowing", () => {
@@ -99,7 +99,9 @@ describe("buildAutocompletePrompt", () => {
       });
 
       expect(userPrompt).toContain("Deployment slips to Friday.");
-      expect(userPrompt).toContain("Context the user attached (selected text):");
+      expect(userPrompt).toContain(
+        "Context the user attached (selected text):",
+      );
       expect(contextLength).toBe("Deployment slips to Friday.".length);
     });
 
@@ -116,7 +118,9 @@ describe("buildAutocompletePrompt", () => {
         context: { text: "Older clipboard text.", source: "clipboard" },
       });
 
-      expect(userPrompt).toContain("Context the user attached (from clipboard):");
+      expect(userPrompt).toContain(
+        "Context the user attached (from clipboard):",
+      );
       expect(userPrompt).not.toContain("selected text");
     });
 
@@ -170,23 +174,26 @@ describe("buildAutocompletePrompt", () => {
     it.each([
       ["no context field at all", undefined],
       ["an empty passage", { text: "", source: "selection" } as const],
-    ])("builds the pre-context prompt unchanged for %s", (_description, context) => {
-      const withoutContext = buildAutocompletePrompt({
-        prefix: "Hello wor",
-        suffix: " and goodbye",
-      });
-      const built = buildAutocompletePrompt({
-        prefix: "Hello wor",
-        suffix: " and goodbye",
-        context,
-      });
+    ])(
+      "builds the pre-context prompt unchanged for %s",
+      (_description, context) => {
+        const withoutContext = buildAutocompletePrompt({
+          prefix: "Hello wor",
+          suffix: " and goodbye",
+        });
+        const built = buildAutocompletePrompt({
+          prefix: "Hello wor",
+          suffix: " and goodbye",
+          context,
+        });
 
-      expect(built.userPrompt).toBe(withoutContext.userPrompt);
-      expect(built.userPrompt).toBe(
-        "Text before the caret:\nHello wor\n\nText after the caret:\n and goodbye\n\nJSON:",
-      );
-      expect(built.contextLength).toBe(0);
-    });
+        expect(built.userPrompt).toBe(withoutContext.userPrompt);
+        expect(built.userPrompt).toBe(
+          "Text before the caret:\nHello wor\n\nText after the caret:\n and goodbye\n\nJSON:",
+        );
+        expect(built.contextLength).toBe(0);
+      },
+    );
 
     // Two identical questions asked over different selections must not be able
     // to serve each other's cached suggestion, and the cache key is hashed from
@@ -218,10 +225,11 @@ describe("buildAutocompletePrompt", () => {
     ].join("\n");
 
     it("carries the block on the system prompt, labelled as background", () => {
-      const { systemPrompt, userPrompt, environmentLength } = buildAutocompletePrompt({
-        prefix: "how do I say thi",
-        environment: ENVIRONMENT,
-      });
+      const { systemPrompt, userPrompt, environmentLength } =
+        buildAutocompletePrompt({
+          prefix: "how do I say thi",
+          environment: ENVIRONMENT,
+        });
 
       expect(systemPrompt).toContain("Keyboard input source: Japanese");
       expect(systemPrompt).toContain(
@@ -243,7 +251,9 @@ describe("buildAutocompletePrompt", () => {
         context: { text: "Attached passage.", source: "selection" },
       });
 
-      expect(systemPrompt.startsWith("Reply with one JSON object only:")).toBe(true);
+      expect(systemPrompt.startsWith("Reply with one JSON object only:")).toBe(
+        true,
+      );
       expect(systemPrompt.endsWith('{"suggestion":""}')).toBe(true);
       expect(systemPrompt.indexOf("App locale: en")).toBeLessThan(
         systemPrompt.lastIndexOf('{"suggestion":""}'),
@@ -291,7 +301,8 @@ describe("buildAutocompletePrompt", () => {
      */
     it("changes the system prompt when only the environment changes", () => {
       const build = (environment: string) =>
-        buildAutocompletePrompt({ prefix: "what about thi", environment }).systemPrompt;
+        buildAutocompletePrompt({ prefix: "what about thi", environment })
+          .systemPrompt;
 
       expect(build(ENVIRONMENT)).not.toBe(
         build(ENVIRONMENT.replace("Japanese", "ABC")),
@@ -306,19 +317,22 @@ describe("buildAutocompletePrompt", () => {
     it.each([
       ["no environment field at all", undefined],
       ["an empty environment", ""],
-    ])("builds the pre-environment prompts unchanged for %s", (_description, environment) => {
-      const built = buildAutocompletePrompt({
-        prefix: "Hello wor",
-        suffix: " and goodbye",
-        environment,
-      });
+    ])(
+      "builds the pre-environment prompts unchanged for %s",
+      (_description, environment) => {
+        const built = buildAutocompletePrompt({
+          prefix: "Hello wor",
+          suffix: " and goodbye",
+          environment,
+        });
 
-      expect(built.userPrompt).toBe(
-        "Text before the caret:\nHello wor\n\nText after the caret:\n and goodbye\n\nJSON:",
-      );
-      expect(built.systemPrompt).toBe(AUTOCOMPLETE_SYSTEM_PROMPT);
-      expect(built.environmentLength).toBe(0);
-    });
+        expect(built.userPrompt).toBe(
+          "Text before the caret:\nHello wor\n\nText after the caret:\n and goodbye\n\nJSON:",
+        );
+        expect(built.systemPrompt).toBe(AUTOCOMPLETE_SYSTEM_PROMPT);
+        expect(built.environmentLength).toBe(0);
+      },
+    );
   });
 
   // A trailing space decides whether the model continues the current word or
@@ -340,14 +354,23 @@ describe("buildAutocompletePrompt", () => {
     // without it: the suggestion is inserted into a plain textarea verbatim.
     it.each([
       ["states the JSON envelope", /\{"suggestion":/],
-      ["names the one field the parser reads", /"suggestion" holds only the continuation/],
+      [
+        "names the one field the parser reads",
+        /"suggestion" holds only the continuation/,
+      ],
       ["forbids repeating the given text", /never any of the input text/],
       ["forbids markdown and fences", /No markdown, no code fences/],
       ["forbids commentary", /no commentary/],
       ["allows continuing mid-word", /mid-word/],
       ["bounds the length with a number", /never emit more than 15 words/],
-      ["marks context blocks as background", /Context blocks are background only/],
-      ["declines with an empty string rather than with prose", /\{"suggestion":""\}/],
+      [
+        "marks context blocks as background",
+        /Context blocks are background only/,
+      ],
+      [
+        "declines with an empty string rather than with prose",
+        /\{"suggestion":""\}/,
+      ],
     ])("%s", (_description, marker) => {
       expect(AUTOCOMPLETE_SYSTEM_PROMPT).toMatch(marker);
     });
@@ -362,8 +385,12 @@ describe("buildAutocompletePrompt", () => {
      */
     it("puts the mid-word rule before the fall-back phrase rule", () => {
       const rules = AUTOCOMPLETE_SYSTEM_PROMPT.split("\n");
-      const wordRuleIndex = rules.findIndex((line) => /^- Ends mid-word/.test(line));
-      const phraseRuleIndex = rules.findIndex((line) => /^- Ends on a whole word/.test(line));
+      const wordRuleIndex = rules.findIndex((line) =>
+        /^- Ends mid-word/.test(line),
+      );
+      const phraseRuleIndex = rules.findIndex((line) =>
+        /^- Ends on a whole word/.test(line),
+      );
 
       expect(wordRuleIndex).toBeGreaterThanOrEqual(0);
       expect(phraseRuleIndex).toBeGreaterThan(wordRuleIndex);
@@ -387,7 +414,8 @@ describe("buildAutocompletePrompt", () => {
       const example = /"(\w+)" -> (\{"suggestion":"[^"]*"\}), not "(\w+)"/.exec(
         AUTOCOMPLETE_SYSTEM_PROMPT,
       );
-      if (!example) throw new Error("the mid-word rule must carry a literal example");
+      if (!example)
+        throw new Error("the mid-word rule must carry a literal example");
 
       const [, typed, literal, wholeWord] = example;
       const { suggestion } = JSON.parse(literal) as { suggestion: string };
@@ -447,7 +475,8 @@ describe("buildAutocompletePrompt", () => {
      * softens either into prose reopens the bug above — and prose is exactly what
      * a rewrite reaches for once the length rule has to live here.
      */
-    const promptLines = (): string[] => AUTOCOMPLETE_SYSTEM_PROMPT.trimEnd().split("\n");
+    const promptLines = (): string[] =>
+      AUTOCOMPLETE_SYSTEM_PROMPT.trimEnd().split("\n");
     const expectSuggestionObject = (literal: string): void => {
       expect(literal).toMatch(/^\{"suggestion":.*\}$/);
       expect(JSON.parse(literal)).toHaveProperty("suggestion");
@@ -462,7 +491,9 @@ describe("buildAutocompletePrompt", () => {
      */
     it("opens on the schema object, alone on its line, before the rules", () => {
       const lines = promptLines();
-      const schemaIndex = lines.findIndex((line) => line.trimStart().startsWith("{"));
+      const schemaIndex = lines.findIndex((line) =>
+        line.trimStart().startsWith("{"),
+      );
 
       expect(schemaIndex).toBeGreaterThanOrEqual(0);
       expect(schemaIndex).toBeLessThanOrEqual(1);

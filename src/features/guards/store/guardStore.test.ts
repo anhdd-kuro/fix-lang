@@ -39,7 +39,9 @@ vi.mock("~/main/clipboard/clipboardChangeTracker", () => ({
   applySettings: applySettingsMock,
 }));
 
-const settingsWith = (overrides: Partial<SelectionGuardSettings> = {}): SelectionGuardSettings => ({
+const settingsWith = (
+  overrides: Partial<SelectionGuardSettings> = {},
+): SelectionGuardSettings => ({
   clipboardMaxAgeSeconds: DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
   maxSelectionChars: DEFAULT_MAX_SELECTION_CHARS,
   deniedBundleIds: [...DEFAULT_DENIED_BUNDLE_IDS],
@@ -87,10 +89,14 @@ describe("guardStore", () => {
   });
 
   it("starts the poll immediately on a 0 -> non-0 write", () => {
-    guardStore.setSelectionGuardSettings(settingsWith({ clipboardMaxAgeSeconds: 0 }));
+    guardStore.setSelectionGuardSettings(
+      settingsWith({ clipboardMaxAgeSeconds: 0 }),
+    );
     applySettingsMock.mockClear();
 
-    guardStore.setSelectionGuardSettings(settingsWith({ clipboardMaxAgeSeconds: 7 }));
+    guardStore.setSelectionGuardSettings(
+      settingsWith({ clipboardMaxAgeSeconds: 7 }),
+    );
 
     expect(applySettingsMock).toHaveBeenCalledTimes(1);
     expect(applySettingsMock).toHaveBeenCalledWith(
@@ -99,10 +105,14 @@ describe("guardStore", () => {
   });
 
   it("stops the poll immediately on a non-0 -> 0 write", () => {
-    guardStore.setSelectionGuardSettings(settingsWith({ clipboardMaxAgeSeconds: 5 }));
+    guardStore.setSelectionGuardSettings(
+      settingsWith({ clipboardMaxAgeSeconds: 5 }),
+    );
     applySettingsMock.mockClear();
 
-    guardStore.setSelectionGuardSettings(settingsWith({ clipboardMaxAgeSeconds: 0 }));
+    guardStore.setSelectionGuardSettings(
+      settingsWith({ clipboardMaxAgeSeconds: 0 }),
+    );
 
     expect(applySettingsMock).toHaveBeenCalledTimes(1);
     expect(applySettingsMock).toHaveBeenCalledWith(
@@ -111,19 +121,27 @@ describe("guardStore", () => {
   });
 
   it("does not re-apply clipboard tracker settings on a non-0 -> non-0 write", () => {
-    guardStore.setSelectionGuardSettings(settingsWith({ clipboardMaxAgeSeconds: 5 }));
+    guardStore.setSelectionGuardSettings(
+      settingsWith({ clipboardMaxAgeSeconds: 5 }),
+    );
     applySettingsMock.mockClear();
 
-    guardStore.setSelectionGuardSettings(settingsWith({ clipboardMaxAgeSeconds: 9 }));
+    guardStore.setSelectionGuardSettings(
+      settingsWith({ clipboardMaxAgeSeconds: 9 }),
+    );
 
     expect(applySettingsMock).not.toHaveBeenCalled();
   });
 
   it("does not re-apply clipboard tracker settings on a 0 -> 0 write", () => {
-    guardStore.setSelectionGuardSettings(settingsWith({ clipboardMaxAgeSeconds: 0 }));
+    guardStore.setSelectionGuardSettings(
+      settingsWith({ clipboardMaxAgeSeconds: 0 }),
+    );
     applySettingsMock.mockClear();
 
-    guardStore.setSelectionGuardSettings(settingsWith({ clipboardMaxAgeSeconds: 0, maxSelectionChars: 1 }));
+    guardStore.setSelectionGuardSettings(
+      settingsWith({ clipboardMaxAgeSeconds: 0, maxSelectionChars: 1 }),
+    );
 
     expect(applySettingsMock).not.toHaveBeenCalled();
   });

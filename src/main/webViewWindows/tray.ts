@@ -41,7 +41,7 @@ export function createTrayWindow(): BrowserWindow {
 
   const trayWindowHtml = path.join(
     __dirname,
-    "../renderer/TrayWindow/index.html"
+    "../renderer/TrayWindow/index.html",
   );
   // Load standalone HTML for tray tray
   trayWindow.loadFile(trayWindowHtml);

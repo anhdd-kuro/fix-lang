@@ -1,6 +1,6 @@
 ---
 name: fixlang-pkg-upgrade
-description: "Use when upgrading FixLang npm/bun dependencies, bumping Electron/Vite/AI SDK versions, or diagnosing white-screen / blank UI after a deps update. Examples: \"upgrade all packages\", \"bump electron\", \"bun outdated\", \"white screen after update\". Covers package.json, bun.lock, electron.vite.config.ts, and post-upgrade verification."
+description: 'Use when upgrading FixLang npm/bun dependencies, bumping Electron/Vite/AI SDK versions, or diagnosing white-screen / blank UI after a deps update. Examples: "upgrade all packages", "bump electron", "bun outdated", "white screen after update". Covers package.json, bun.lock, electron.vite.config.ts, and post-upgrade verification.'
 ---
 
 # FixLang — Package Upgrade Playbook

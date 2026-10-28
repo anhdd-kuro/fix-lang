@@ -8,7 +8,11 @@
  * an id retired from `secretRules.ts` stays in yesterday's log forever.
  */
 import { topSecurityRules } from "~/features/guards/shared/securityStats";
-import { msg, type Message, type MessageKey } from "~/features/i18n/shared/message";
+import {
+  msg,
+  type Message,
+  type MessageKey,
+} from "~/features/i18n/shared/message";
 import { SECRET_RULES } from "~/features/secretGuard/shared/secretRules";
 import { plainStatus, type StatusDescriptor } from "../statusDescriptor";
 import type { SecurityStats } from "~/features/guards/shared/securityStats";
@@ -27,23 +31,30 @@ export const SECURITY_CHART_KEYS = {
 } as const satisfies Record<string, MessageKey>;
 
 /** Donut tooltip: `{pct}% · {count} event(s)`. `pctLabel` is pre-formatted. */
-export const securityChartDonutTooltip = (count: number, pctLabel: string): Message =>
-  msg("security.stats.charts.tooltip", { pct: pctLabel, count });
+export const securityChartDonutTooltip = (
+  count: number,
+  pctLabel: string,
+): Message => msg("security.stats.charts.tooltip", { pct: pctLabel, count });
 
 /** Bar tooltip: `{count} event(s)`. */
 export const securityChartBarTooltip = (count: number): Message =>
   msg("security.stats.charts.barTooltip", { count });
 
 /** One named slice inside a chart's accessible name: `{label}: {detail}`. */
-export const securityChartNamedSlice = (label: string, detail: string): Message =>
-  msg("security.stats.charts.namedSlice", { label, detail });
+export const securityChartNamedSlice = (
+  label: string,
+  detail: string,
+): Message => msg("security.stats.charts.namedSlice", { label, detail });
 
 /** Chart canvas name: `{title}. {summary}`. `summary` is already joined. */
-export const securityChartAriaLabel = (title: string, summary: string): Message =>
-  msg("security.stats.charts.ariaLabel", { title, summary });
+export const securityChartAriaLabel = (
+  title: string,
+  summary: string,
+): Message => msg("security.stats.charts.ariaLabel", { title, summary });
 
 /** Screen-reader join for already-resolved slice phrases. Locale-neutral. */
-export const joinChartAriaSummary = (parts: readonly string[]): string => parts.join("; ");
+export const joinChartAriaSummary = (parts: readonly string[]): string =>
+  parts.join("; ");
 
 export const TOP_RULE_LIMIT = 6;
 
@@ -103,7 +114,9 @@ export type SecurityStatsView = {
   lastEventAt: string | null;
 };
 
-const KNOWN_RULE_IDS: ReadonlySet<string> = new Set(SECRET_RULES.map((rule) => rule.id));
+const KNOWN_RULE_IDS: ReadonlySet<string> = new Set(
+  SECRET_RULES.map((rule) => rule.id),
+);
 
 /** The cast holds only because `KNOWN_RULE_IDS` was checked first. */
 const ruleLabelKey = (ruleId: string): MessageKey | null =>
@@ -119,7 +132,9 @@ const card = (
   details: readonly StatusDescriptor[] = [],
 ): SecurityStatCard => ({ id, labelKey, hintKey, value, details });
 
-export const resolveSecurityStatsView = (stats: SecurityStats): SecurityStatsView => {
+export const resolveSecurityStatsView = (
+  stats: SecurityStats,
+): SecurityStatsView => {
   const ruleRows = topSecurityRules(stats, TOP_RULE_LIMIT).map((rule) => ({
     ruleId: rule.ruleId,
     count: rule.count,
@@ -165,7 +180,9 @@ export const resolveSecurityStatsView = (stats: SecurityStats): SecurityStatsVie
 
   return {
     secretCards,
-    secretMixCards: secretCards.filter((item) => SECRET_GATE_MIX_IDS.has(item.id)),
+    secretMixCards: secretCards.filter((item) =>
+      SECRET_GATE_MIX_IDS.has(item.id),
+    ),
     selectionCards: [
       card(
         "blockedByApp",
@@ -200,12 +217,14 @@ export const resolveSecurityStatsView = (stats: SecurityStats): SecurityStatsVie
     ],
     ruleRows,
     hasActivity: stats.eventCount > 0,
-    emptyHint: stats.eventCount === 0 ? plainStatus("security.stats.empty") : null,
+    emptyHint:
+      stats.eventCount === 0 ? plainStatus("security.stats.empty") : null,
     legacyNotice:
       stats.legacyEvents > 0
         ? plainStatus("security.stats.legacy", { count: stats.legacyEvents })
         : null,
-    rulesHint: ruleRows.length === 0 ? null : plainStatus("security.stats.rules.hint"),
+    rulesHint:
+      ruleRows.length === 0 ? null : plainStatus("security.stats.rules.hint"),
     lastEventAt: stats.lastEventAt,
   };
 };

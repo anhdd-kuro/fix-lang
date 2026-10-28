@@ -24,7 +24,11 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/message";
+import {
+  messageLabel,
+  textLabel,
+  type Label,
+} from "~/features/i18n/shared/message";
 import { createTranslator } from "~/features/i18n/shared/translate";
 import ModelManagerDialog from "./ModelManagerDialog";
 import ProfileManager from "./ProfileManager";
@@ -63,8 +67,6 @@ const buttonNamed = (
   }
   return button;
 };
-
-
 
 const selectProviderTab = async (root: HTMLElement, label: string) => {
   const tab = [...root.querySelectorAll("button")].find(
@@ -315,8 +317,7 @@ const expectedModelManagerContracts = [
   buttonContract("BTN-020", {
     variant: '"destructive"',
     handlers: {
-      onClick:
-        '{() => deleteModel(deleteConfirmation.modelName || "") }',
+      onClick: '{() => deleteModel(deleteConfirmation.modelName || "") }',
     },
     className: '"px-4 py-2 rounded"',
   }),
@@ -468,9 +469,17 @@ describe("SettingGeneral", () => {
         .mockResolvedValue({ enabled: true, model: "" }),
       getAutocompleteUsage: vi.fn().mockResolvedValue(autocompleteUsage()),
       setAutocompleteSettings: vi.fn().mockResolvedValue({ success: true }),
-      getAppearanceTypography: vi.fn().mockResolvedValue({ fontSize: "md", fontFamily: "system" }),
-      setAppearanceFontSize: vi.fn().mockResolvedValue({ success: true, typography: { fontSize: "md", fontFamily: "system" } }),
-      setAppearanceFontFamily: vi.fn().mockResolvedValue({ success: true, typography: { fontSize: "md", fontFamily: "system" } }),
+      getAppearanceTypography: vi
+        .fn()
+        .mockResolvedValue({ fontSize: "md", fontFamily: "system" }),
+      setAppearanceFontSize: vi.fn().mockResolvedValue({
+        success: true,
+        typography: { fontSize: "md", fontFamily: "system" },
+      }),
+      setAppearanceFontFamily: vi.fn().mockResolvedValue({
+        success: true,
+        typography: { fontSize: "md", fontFamily: "system" },
+      }),
       onAppearanceTypographyChanged: vi.fn().mockReturnValue(vi.fn()),
       getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
       setLocale: vi.fn().mockResolvedValue({ success: true }),
@@ -583,7 +592,6 @@ describe("SettingGeneral", () => {
     expect(jaWrapped).toContain("disk full");
   });
 
-
   // The autocomplete card moved out of General into its own Settings tab
   // (`SettingsModal.test.ts` owns the guarantee that it still renders, and
   // that its toggle and model picker are reachable there). This is the other
@@ -597,7 +605,9 @@ describe("SettingGeneral", () => {
     await waitForUi();
 
     expect(
-      [...container.querySelectorAll("h2")].map((element) => element.textContent),
+      [...container.querySelectorAll("h2")].map(
+        (element) => element.textContent,
+      ),
     ).not.toContain(tEn("settings.autocomplete.heading"));
     expect(container.textContent).not.toContain(
       tEn("settings.autocomplete.enabled.label"),
@@ -629,7 +639,9 @@ describe("SettingGeneral", () => {
         tEn("settings.general.correctionOutput.paste.label"),
         tEn("settings.general.correctionOutput.popup.label"),
       ]);
-      expect(container.querySelector("input#correction-output-mode")).toBeNull();
+      expect(
+        container.querySelector("input#correction-output-mode"),
+      ).toBeNull();
     });
 
     it("persists the chosen mode through setCorrectionOutputMode", async () => {
@@ -657,7 +669,11 @@ describe("SettingGeneral", () => {
     it("renders provider tabs and the active provider card", async () => {
       await render({ success: true });
 
-      const providerGroup = container.querySelector('[role="group"][aria-label="' + tEn("settings.general.providers.title") + '"]');
+      const providerGroup = container.querySelector(
+        '[role="group"][aria-label="' +
+          tEn("settings.general.providers.title") +
+          '"]',
+      );
       expect(providerGroup).toBeTruthy();
       for (const key of [
         "models.select.provider.openai",
@@ -722,16 +738,17 @@ describe("SettingGeneral", () => {
         { getCurrentProfile: vi.fn(() => new Promise(vi.fn())) },
       );
 
-      const field = container.querySelector<HTMLInputElement>(
-        "#openai-project-id",
-      );
+      const field =
+        container.querySelector<HTMLInputElement>("#openai-project-id");
       expect(field?.disabled).toBe(true);
 
       await click(connectButtonNear(container, "#api-key-openai"));
       await waitForUi();
 
       expect(api.connectProvider).toHaveBeenCalledTimes(1);
-      expect(api.connectProvider.mock.calls[0][0]).not.toHaveProperty("projectId");
+      expect(api.connectProvider.mock.calls[0][0]).not.toHaveProperty(
+        "projectId",
+      );
     });
 
     it("submits the stored OpenAI project id, and an empty field as a clear", async () => {
@@ -753,9 +770,8 @@ describe("SettingGeneral", () => {
         },
       );
 
-      const field = container.querySelector<HTMLInputElement>(
-        "#openai-project-id",
-      );
+      const field =
+        container.querySelector<HTMLInputElement>("#openai-project-id");
       if (!field) throw new Error("expected the OpenAI project id field");
       expect(field.disabled).toBe(false);
       expect(field.value).toBe("proj_stored");
@@ -795,9 +811,8 @@ describe("SettingGeneral", () => {
         },
       );
 
-      const field = container.querySelector<HTMLInputElement>(
-        "#openai-project-id",
-      );
+      const field =
+        container.querySelector<HTMLInputElement>("#openai-project-id");
       if (!field) throw new Error("expected the OpenAI project id field");
       // Empty is "unset", never an error.
       expect(field.getAttribute("aria-invalid")).toBe("false");
@@ -882,7 +897,10 @@ describe("SettingGeneral", () => {
     it("keeps credential fields masked and out of browser autofill", async () => {
       await render({ success: true });
 
-      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+      await selectProviderTab(
+        container,
+        tEn("models.select.provider.openrouter"),
+      );
 
       for (const id of [
         "#api-key-openrouter",
@@ -902,7 +920,10 @@ describe("SettingGeneral", () => {
     it("drops the typed key from renderer state as soon as main has it", async () => {
       await render({ success: true });
 
-      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+      await selectProviderTab(
+        container,
+        tEn("models.select.provider.openrouter"),
+      );
 
       const input = () =>
         container.querySelector<HTMLInputElement>("#api-key-openrouter");
@@ -944,7 +965,10 @@ describe("SettingGeneral", () => {
     it("keeps one provider's in-flight connect from unlocking another's button", async () => {
       await render({ success: true });
 
-      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+      await selectProviderTab(
+        container,
+        tEn("models.select.provider.openrouter"),
+      );
 
       // Hold OpenRouter's connect open.
       let settle: (value: unknown) => void = () => undefined;
@@ -994,10 +1018,15 @@ describe("SettingGeneral", () => {
     it("refuses to attempt a connect with no stored and no typed key", async () => {
       await render({ success: true });
 
-      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+      await selectProviderTab(
+        container,
+        tEn("models.select.provider.openrouter"),
+      );
 
       // OpenRouter: no stored key, nothing typed.
-      expect(connectButtonNear(container, "#api-key-openrouter").disabled).toBe(true);
+      expect(connectButtonNear(container, "#api-key-openrouter").disabled).toBe(
+        true,
+      );
 
       const field = container.querySelector<HTMLInputElement>(
         "#api-key-openrouter",
@@ -1005,7 +1034,9 @@ describe("SettingGeneral", () => {
       if (!field) throw new Error("expected an OpenRouter API key field");
       await type(field, "sk-or-typed");
 
-      expect(connectButtonNear(container, "#api-key-openrouter").disabled).toBe(false);
+      expect(connectButtonNear(container, "#api-key-openrouter").disabled).toBe(
+        false,
+      );
     });
 
     it("renders a SUCCESS-path note verbatim, never through the Error wrapper", async () => {
@@ -1110,7 +1141,10 @@ describe("SettingGeneral", () => {
         },
       );
 
-      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+      await selectProviderTab(
+        container,
+        tEn("models.select.provider.openrouter"),
+      );
 
       const near = (id: string): string => {
         const field = container.querySelector(id);
@@ -1137,7 +1171,10 @@ describe("SettingGeneral", () => {
         },
       );
 
-      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+      await selectProviderTab(
+        container,
+        tEn("models.select.provider.openrouter"),
+      );
 
       const field = container.querySelector("#provisioning-key-openrouter");
       const near = field?.parentElement?.textContent ?? "";
@@ -1189,7 +1226,10 @@ describe("SettingGeneral", () => {
 
     const primaryConnect = connectButtonNear(container, "#api-key-openai");
 
-    await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+    await selectProviderTab(
+      container,
+      tEn("models.select.provider.openrouter"),
+    );
     const disabledConnect = connectButtonNear(container, "#api-key-openrouter");
 
     await selectProviderTab(container, tEn("models.select.provider.openai"));
@@ -1233,7 +1273,10 @@ describe("Card 06 management and PromptGen Button runtime behavior", () => {
   let container: HTMLDivElement;
   let root: Root;
 
-  const mount = async (element: ReturnType<typeof createElement>, api: object) => {
+  const mount = async (
+    element: ReturnType<typeof createElement>,
+    api: object,
+  ) => {
     Object.defineProperty(window, "electronAPI", {
       configurable: true,
       value: api,
@@ -1266,7 +1309,9 @@ describe("Card 06 management and PromptGen Button runtime behavior", () => {
   });
 
   it("switches model panels and keeps the install action disabled until its request settles", async () => {
-    let resolveInstall: ((result: { success: boolean; error?: string }) => void) | undefined;
+    let resolveInstall:
+      | ((result: { success: boolean; error?: string }) => void)
+      | undefined;
     const pullLocalModel = vi.fn(
       () =>
         new Promise<{ success: boolean; error?: string }>((resolve) => {
@@ -1325,37 +1370,49 @@ describe("Card 06 management and PromptGen Button runtime behavior", () => {
     const getProfiles = vi.fn().mockResolvedValue({
       currentProfileId: "current",
       profiles: [
-        { id: "current", name: "Current", updatedAt: "2026-07-27T00:00:00.000Z" },
-        { id: "delete-me", name: "Delete me", updatedAt: "2026-07-27T00:00:00.000Z" },
+        {
+          id: "current",
+          name: "Current",
+          updatedAt: "2026-07-27T00:00:00.000Z",
+        },
+        {
+          id: "delete-me",
+          name: "Delete me",
+          updatedAt: "2026-07-27T00:00:00.000Z",
+        },
       ],
     });
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
-    await mount(
-      createElement(ProfileManager),
-      {
-        ...localeApi(),
-        getProfiles,
-        deleteProfile,
-        onProfileUpdated: vi.fn().mockReturnValue(vi.fn()),
-        getKeyBindings: vi
-          .fn()
-          .mockResolvedValue({ promptGen: "Control+P", profileSwitch: "Control+Shift+P" }),
-        resumeHotkeys: vi.fn().mockResolvedValue(undefined),
-      },
-    );
+    await mount(createElement(ProfileManager), {
+      ...localeApi(),
+      getProfiles,
+      deleteProfile,
+      onProfileUpdated: vi.fn().mockReturnValue(vi.fn()),
+      getKeyBindings: vi.fn().mockResolvedValue({
+        promptGen: "Control+P",
+        profileSwitch: "Control+Shift+P",
+      }),
+      resumeHotkeys: vi.fn().mockResolvedValue(undefined),
+    });
 
     await click(buttonNamed(container, tEn("profiles.manager.newProfile")));
     const create = buttonNamed(container, tEn("profiles.manager.create"));
     expect(create.disabled).toBe(true);
-    await type(container.querySelector<HTMLInputElement>("#profileName") ?? never(), "New");
+    await type(
+      container.querySelector<HTMLInputElement>("#profileName") ?? never(),
+      "New",
+    );
     expect(create.disabled).toBe(false);
 
     const deleteButton = [...container.querySelectorAll("button")].find(
       (button) =>
         button.textContent === tEn("common.delete") &&
-        button.closest("div")?.parentElement?.textContent?.includes("Delete me"),
+        button
+          .closest("div")
+          ?.parentElement?.textContent?.includes("Delete me"),
     );
-    if (!deleteButton) throw new Error("Expected the Delete me destructive action");
+    if (!deleteButton)
+      throw new Error("Expected the Delete me destructive action");
     await click(deleteButton);
     expect(confirm).toHaveBeenCalledWith(tEn("profiles.manager.confirmDelete"));
     expect(deleteProfile).toHaveBeenCalledWith({ profileId: "delete-me" });
@@ -1373,30 +1430,30 @@ describe("Card 06 management and PromptGen Button runtime behavior", () => {
       autoCopy: true,
     };
     const setPromptGenSettings = vi.fn().mockResolvedValue({ success: true });
-    await mount(
-      createElement(SettingPromptGen),
-      {
-        ...localeApi(),
-        getPromptGenSettings: vi.fn().mockResolvedValue(settings),
-        setPromptGenSettings,
-        onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
-        fetchAIModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
-        getProviderStates: vi.fn().mockResolvedValue({}),
-        getSelectedModel: vi.fn().mockResolvedValue(""),
-        getFeatureModel: vi.fn().mockResolvedValue(""),
-        getKeyBindings: vi
-          .fn()
-          .mockResolvedValue({ promptGen: "Control+P", profileSwitch: "Control+Shift+P" }),
-        resumeHotkeys: vi.fn().mockResolvedValue(undefined),
-      },
-    );
+    await mount(createElement(SettingPromptGen), {
+      ...localeApi(),
+      getPromptGenSettings: vi.fn().mockResolvedValue(settings),
+      setPromptGenSettings,
+      onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
+      fetchAIModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
+      getProviderStates: vi.fn().mockResolvedValue({}),
+      getSelectedModel: vi.fn().mockResolvedValue(""),
+      getFeatureModel: vi.fn().mockResolvedValue(""),
+      getKeyBindings: vi.fn().mockResolvedValue({
+        promptGen: "Control+P",
+        profileSwitch: "Control+Shift+P",
+      }),
+      resumeHotkeys: vi.fn().mockResolvedValue(undefined),
+    });
 
     const form = container.querySelector("form");
     if (!form) throw new Error("Expected the PromptGen settings form");
     const save = buttonNamed(container, tEn("common.save"));
     expect(save.type).toBe("submit");
     await act(async () => {
-      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
     });
     await waitForUi();
 

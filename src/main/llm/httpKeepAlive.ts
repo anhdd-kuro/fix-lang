@@ -46,6 +46,7 @@ const keepAliveAgent: Dispatcher = new Agent({
  * (Homebrew/GitHub update checks, etc.) is unaffected.
  */
 export const keepAliveFetch: typeof fetch = (input, init) =>
-  undiciFetch(input, { ...(init ?? {}), dispatcher: keepAliveAgent } as Parameters<typeof undiciFetch>[1]) as ReturnType<
-    typeof fetch
-  >;
+  undiciFetch(input, {
+    ...(init ?? {}),
+    dispatcher: keepAliveAgent,
+  } as Parameters<typeof undiciFetch>[1]) as ReturnType<typeof fetch>;

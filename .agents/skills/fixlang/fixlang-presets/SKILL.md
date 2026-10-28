@@ -1,6 +1,6 @@
 ---
 name: fixlang-presets
-description: "Use when adding or editing a transform preset, a preset-scoped option (extraOptions), a built-in combo, reasoning effort, per-preset output mode, the Ask AI flow, the Caveman intensity levels, or the source-app context block. Carries the file-by-file recipes so the exploration step can be skipped. Examples: \"add a new preset\", \"add a preset field\", \"give a preset its own setting\", \"change the built-in combo\", \"why does this preset ignore the popup setting\", \"retire a reasoning effort value\". Covers src/prompts/correction.ts, src/features/providers/store/apiStore.ts, src/features/correction/shared/presetOptions.ts, src/features/correction/shared/reasoningEffort.ts, src/renderer/components/SettingCorrection.tsx, src/main/ai.request/transform-context.ts, src/main/keybindings/askFlow.ts, src/renderer/components/MarkdownView.tsx."
+description: 'Use when adding or editing a transform preset, a preset-scoped option (extraOptions), a built-in combo, reasoning effort, per-preset output mode, the Ask AI flow, the Caveman intensity levels, or the source-app context block. Carries the file-by-file recipes so the exploration step can be skipped. Examples: "add a new preset", "add a preset field", "give a preset its own setting", "change the built-in combo", "why does this preset ignore the popup setting", "retire a reasoning effort value". Covers src/prompts/correction.ts, src/features/providers/store/apiStore.ts, src/features/correction/shared/presetOptions.ts, src/features/correction/shared/reasoningEffort.ts, src/renderer/components/SettingCorrection.tsx, src/main/ai.request/transform-context.ts, src/main/keybindings/askFlow.ts, src/renderer/components/MarkdownView.tsx.'
 ---
 
 # FixLang — Presets: Recipes and Gotchas
@@ -20,14 +20,17 @@ Ground truth: adding Caveman touched **22 files**. The eight below are the ones 
 **1. `src/prompts/<name>.md`** — the system prompt. Bundled at BUILD time via `?raw`, never fetched (see [Prompt bundling](../fixlang-prompt-bundling/SKILL.md)). Draw the instruction/input boundary by MESSAGE ROLE — never write "everything after this line is the text to transform" (trap: [Caveman instruction boundary](#the-caveman-instruction-boundary-is-drawn-by-message-role-not-position)).
 
 **2. `src/prompts/correction.ts`** — three additions:
+
 ```ts
 import xMarkdown from "./x.md?raw";
-export const DEFAULT_X_PRESET_ID = "x";              // stored in user config FOREVER
+export const DEFAULT_X_PRESET_ID = "x"; // stored in user config FOREVER
 export const DEFAULT_X_PRESET_PROMPT = xMarkdown.trim();
 ```
+
 The id string is persisted user data. Choose it once; renaming it orphans every stored profile that references it.
 
 **3. `src/features/providers/store/apiStore.ts` → `makeDefaultCorrectionPresets()`** — **APPEND**, never insert. Stored profiles, combo steps and tests index into this array.
+
 ```ts
 {
   id: DEFAULT_X_PRESET_ID,
@@ -47,6 +50,7 @@ The id string is persisted user data. Choose it once; renaming it orphans every 
 **6. Delivery needs nothing** — an ordinary preset rides the existing hotkey → `fixGrammar` → deliver route with no new code. You only write code here if the preset changes CONTROL FLOW (`requiresInput`, `markdownOutput` — see [the rule](#preset-scoped-options-live-in-a-registry-not-in-the-ui)).
 
 **7. Tests that break mechanically — budget for all five:**
+
 - `src/prompts/defaultPresetPrompts.test.ts` — prompt-content invariants.
 - `src/renderer/components/builtInPresetDefaults.test.ts` — the parity guard from step 5.
 - `src/features/providers/store/apiStore.test.ts` — **the byte-pinned `sha256` of `apiStoreSchema`**. Preset defaults are serialized into `settingsCorrect.default`, so ANY default prompt or combo edit moves it. Recompute from the failure output, then PROVE the delta: substitute the old value back and confirm the previous digest reproduces byte-for-byte. It moved 5× on the Caveman branch.
@@ -86,6 +90,7 @@ bun run lint
 bun run i18n:check
 bunx tsc --noEmit
 ```
+
 There is **no tsc gate** in this repo and ~90 pre-existing errors, so a green suite proves nothing about types — filter to the files you touched rather than comparing totals. Known baseline noise: 2 failures in `bundleExternals.test.ts` ("path containing spaces"), 2 lint warnings (one in `LogsPanel.tsx`, one in `compatibility.ts`).
 
 **Sabotage every new assertion and watch it go red.** Several tests on this branch passed while asserting nothing. Restore by re-editing — never `git checkout --`.

@@ -19,7 +19,8 @@ vi.mock("~/main/keybindings", () => ({
   reloadHotkeys: vi.fn(),
 }));
 vi.mock("~/main/llm", () => ({
-  createOllamaClient: () => ({ pull: vi.fn(), delete: vi.fn(), chat: vi.fn() }), ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
+  createOllamaClient: () => ({ pull: vi.fn(), delete: vi.fn(), chat: vi.fn() }),
+  ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
 }));
 vi.mock("~/main/llm/models/compatibility", () => ({
   checkModelCompatibility: vi.fn(),
@@ -65,7 +66,9 @@ import { parseProviderConnect } from "./api";
 
 describe("parseProviderConnect", () => {
   it("accepts a bare provider — no modelId is required or carried", () => {
-    expect(parseProviderConnect({ provider: "openai" })).toEqual({ provider: "openai" });
+    expect(parseProviderConnect({ provider: "openai" })).toEqual({
+      provider: "openai",
+    });
   });
 
   it("accepts a full payload with apiKey and provisioningKey", () => {
@@ -83,7 +86,10 @@ describe("parseProviderConnect", () => {
   });
 
   it("DROPS a modelId a stale caller still sends", () => {
-    const parsed = parseProviderConnect({ provider: "ollama", modelId: "llama3" });
+    const parsed = parseProviderConnect({
+      provider: "ollama",
+      modelId: "llama3",
+    });
 
     expect(parsed).toEqual({ provider: "ollama" });
     expect(parsed).not.toHaveProperty("modelId");
@@ -108,8 +114,12 @@ describe("parseProviderConnect", () => {
   });
 
   it("rejects a non-string apiKey", () => {
-    expect(parseProviderConnect({ provider: "openai", apiKey: 123 })).toBeNull();
-    expect(parseProviderConnect({ provider: "openai", apiKey: null })).toBeNull();
+    expect(
+      parseProviderConnect({ provider: "openai", apiKey: 123 }),
+    ).toBeNull();
+    expect(
+      parseProviderConnect({ provider: "openai", apiKey: null }),
+    ).toBeNull();
   });
 
   it("rejects a non-string provisioningKey", () => {

@@ -56,7 +56,7 @@ export const hideErrorPopup = (): void => {
     errorPopupWindow.hide();
     // Reset the dismiss hash so a later Close click fires `did-navigate-in-page`
     // again (setting the same hash twice is a no-op).
-    void errorPopupWindow.webContents.executeJavaScript("location.hash = \"\"");
+    void errorPopupWindow.webContents.executeJavaScript('location.hash = ""');
   }
 };
 
@@ -134,7 +134,9 @@ export const createErrorPopupWindow = (): BrowserWindow => {
       devTools: false,
     },
   });
-  errorPopupWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  errorPopupWindow.setVisibleOnAllWorkspaces(true, {
+    visibleOnFullScreen: true,
+  });
   // Unlike the spinner overlay, the error popup must accept clicks on Close.
   errorPopupWindow.setIgnoreMouseEvents(false);
   errorPopupWindow.loadFile(errorPopupHtml);
@@ -177,7 +179,6 @@ export const initializeErrorPopupWindow = (): void => {
     errorPopupReady = false;
   });
 };
-
 
 export const syncErrorPopupTypography = (
   typography = appearanceStore.getTypography(),

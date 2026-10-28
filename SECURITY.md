@@ -6,10 +6,10 @@ FixLang does and does not try to defend against.
 
 ## Supported versions
 
-| Version                | Supported |
-| ---------------------- | --------- |
-| Latest release         | ✅        |
-| Any earlier release    | ❌        |
+| Version             | Supported |
+| ------------------- | --------- |
+| Latest release      | ✅        |
+| Any earlier release | ❌        |
 
 Fixes ship in the newest GitHub release. There are no backports.
 
@@ -24,7 +24,7 @@ Please reproduce on the latest release before reporting.
 Report privately through GitHub:
 
 **[Report a vulnerability](https://github.com/anhdd-kuro/fix-lang/security/advisories/new)**
-— or open the repository's *Security* tab and choose *Report a vulnerability*.
+— or open the repository's _Security_ tab and choose _Report a vulnerability_.
 
 Please do not open a public issue for a security problem.
 
@@ -66,7 +66,7 @@ explicitly connected, and each provider only ever receives its own key.
 
 - An attacker who already controls your macOS user account or has read access to
   your home directory. FixLang stores data under `~/Library/Application Support`
-  and cannot defend against that position — see *Known limitations* below.
+  and cannot defend against that position — see _Known limitations_ below.
 - The behaviour, availability, or data handling of the AI providers you choose to
   connect. Their terms govern text you send them.
 - Missing code signing and notarization. This is a known, deliberate property of

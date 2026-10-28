@@ -10,7 +10,10 @@ import { HistorySessionDetailsModal } from "./HistorySessionDetailsModal";
 import Tooltip from "./Tooltip";
 import { TrashButton } from "./TrashButton";
 import { useI18n } from "../i18n/useI18n";
-import type { HistoryEntry, HistoryFeatureId } from "~/features/history/store/historyStore";
+import type {
+  HistoryEntry,
+  HistoryFeatureId,
+} from "~/features/history/store/historyStore";
 
 type HistoryEntryItemProps = {
   entry: HistoryEntry;

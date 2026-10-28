@@ -32,7 +32,6 @@ describe("MODEL_TABLE_HEADER_KEYS", () => {
   });
 });
 
-
 describe("MODEL_BREAKDOWN_TITLE_KEY", () => {
   it("points at the Model Breakdown section title", () => {
     expect(MODEL_BREAKDOWN_TITLE_KEY).toBe("models.breakdown.title");
@@ -111,8 +110,12 @@ describe("rendered strings (EN + JA)", () => {
     );
     expect(resolveMessage(expanded, tEn)).toBe(tEn("models.table.showLess"));
     expect(resolveMessage(expanded, tJa)).toBe(tJa("models.table.showLess"));
-    expect(resolveMessage(collapsed, tJa)).not.toBe(resolveMessage(collapsed, tEn));
-    expect(resolveMessage(expanded, tJa)).not.toBe(resolveMessage(expanded, tEn));
+    expect(resolveMessage(collapsed, tJa)).not.toBe(
+      resolveMessage(collapsed, tEn),
+    );
+    expect(resolveMessage(expanded, tJa)).not.toBe(
+      resolveMessage(expanded, tEn),
+    );
   });
 });
 
@@ -164,7 +167,10 @@ describe("barDateLabel", () => {
 
     const { formatDate } = createFormatters("en");
     const correct = barDateLabel(formatDate, "2026-01-01");
-    const buggy = formatDate(new Date("2026-01-01"), { month: "short", day: "numeric" });
+    const buggy = formatDate(new Date("2026-01-01"), {
+      month: "short",
+      day: "numeric",
+    });
 
     expect(correct).toBe("Jan 1");
     expect(buggy).toBe("Dec 31");

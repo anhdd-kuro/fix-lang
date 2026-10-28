@@ -16,15 +16,21 @@ describe("isKeystrokePermissionDenied", () => {
   });
 
   it("matches an Error instance wrapping the denial text", () => {
-    expect(isKeystrokePermissionDenied(new Error(REAL_DENIAL_MESSAGE))).toBe(true);
+    expect(isKeystrokePermissionDenied(new Error(REAL_DENIAL_MESSAGE))).toBe(
+      true,
+    );
   });
 
   it("matches a plain string rejection (copyHighlightedText's reject shape)", () => {
-    expect(isKeystrokePermissionDenied(`Error: ${REAL_DENIAL_MESSAGE}`)).toBe(true);
+    expect(isKeystrokePermissionDenied(`Error: ${REAL_DENIAL_MESSAGE}`)).toBe(
+      true,
+    );
   });
 
   it("matches an object with a message property", () => {
-    expect(isKeystrokePermissionDenied({ message: REAL_DENIAL_MESSAGE })).toBe(true);
+    expect(isKeystrokePermissionDenied({ message: REAL_DENIAL_MESSAGE })).toBe(
+      true,
+    );
   });
 
   it("does not throw and returns false for null", () => {
@@ -57,14 +63,18 @@ describe("isKeystrokePermissionDenied", () => {
   });
 
   it("does not match a generic command-not-found failure", () => {
-    expect(isKeystrokePermissionDenied("Command failed: osascript: command not found")).toBe(
-      false,
-    );
+    expect(
+      isKeystrokePermissionDenied(
+        "Command failed: osascript: command not found",
+      ),
+    ).toBe(false);
   });
 
   it("does not match the bare (1002) code without any mention of keystrokes", () => {
     // Defense-in-depth: the code alone is not specific enough (see module
     // doc) — it must appear together with "keystrokes" to count.
-    expect(isKeystrokePermissionDenied("execution error: not authorized. (1002)")).toBe(false);
+    expect(
+      isKeystrokePermissionDenied("execution error: not authorized. (1002)"),
+    ).toBe(false);
   });
 });

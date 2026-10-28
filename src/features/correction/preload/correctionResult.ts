@@ -26,10 +26,7 @@ export const correctionResultFeature = {
   onCorrectionResultData: (
     callback: (payload: CorrectionResultPayload) => void,
   ): (() => void) => {
-    const listener = (
-      _event: Electron.IpcRendererEvent,
-      payload: unknown,
-    ) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
       if (isCorrectionResultPayload(payload)) callback(payload);
     };
     ipcRenderer.on("correction-result-data", listener);

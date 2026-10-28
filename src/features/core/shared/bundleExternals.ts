@@ -165,7 +165,11 @@ const ELECTRON_RUNTIME_SPECIFIERS = new Set<string>([
 ]);
 
 /** File extensions Node will actually load from `out/`. */
-export const BUNDLE_SCRIPT_EXTENSIONS: readonly string[] = [".cjs", ".js", ".mjs"];
+export const BUNDLE_SCRIPT_EXTENSIONS: readonly string[] = [
+  ".cjs",
+  ".js",
+  ".mjs",
+];
 
 /**
  * Top-level `out/` subdirectories excluded from the scan. `out/renderer` is
@@ -216,8 +220,12 @@ const SCAN_FILE_NAME = "/bundle-scan.cjs";
  * require living inside the discarded half is still reached on its own.
  */
 const unwrapExpression = (node: ts.Expression): ts.Expression => {
-  if (ts.isParenthesizedExpression(node)) return unwrapExpression(node.expression);
-  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.CommaToken) {
+  if (ts.isParenthesizedExpression(node))
+    return unwrapExpression(node.expression);
+  if (
+    ts.isBinaryExpression(node) &&
+    node.operatorToken.kind === ts.SyntaxKind.CommaToken
+  ) {
     return unwrapExpression(node.right);
   }
   return node;
@@ -238,14 +246,18 @@ const memberAccess = (
   if (ts.isPropertyAccessExpression(node)) {
     return { object: node.expression, name: node.name.text };
   }
-  if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
+  if (
+    ts.isElementAccessExpression(node) &&
+    ts.isStringLiteralLike(node.argumentExpression)
+  ) {
     return { object: node.expression, name: node.argumentExpression.text };
   }
   return undefined;
 };
 
 /** The property name of a `foo.bar` / `foo["bar"]` access, if it is one. */
-const memberName = (node: ts.Expression): string | undefined => memberAccess(node)?.name;
+const memberName = (node: ts.Expression): string | undefined =>
+  memberAccess(node)?.name;
 
 /** Strips wrappers and returns the identifier, if that is all there is. */
 const unwrapIdentifier = (node: ts.Expression): ts.Identifier | undefined => {
@@ -341,7 +353,13 @@ const createScopeResolver = (
     // rest of this file's parsing they are switched on here.
     getSourceFile: (requested) =>
       requested === fileName
-        ? ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
+        ? ts.createSourceFile(
+            fileName,
+            source,
+            ts.ScriptTarget.Latest,
+            true,
+            ts.ScriptKind.JS,
+          )
         : undefined,
     getDefaultLibFileName: () => "lib.d.ts",
     writeFile: () => undefined,
@@ -362,7 +380,8 @@ const createScopeResolver = (
   if (sourceFile === undefined) {
     throw new Error(`bundle scan could not parse ${fileName}`);
   }
-  if (hasWithStatement(sourceFile)) return { sourceFile, resolve: resolveByName };
+  if (hasWithStatement(sourceFile))
+    return { sourceFile, resolve: resolveByName };
 
   const checker = program.getTypeChecker();
 
@@ -379,7 +398,8 @@ const createScopeResolver = (
     // `free:` key an entirely unresolved name gets, so the two spellings of
     // "not declared here" never split one binding in two.
     const declaredHere =
-      symbol?.declarations?.some((d) => d.getSourceFile() === sourceFile) ?? false;
+      symbol?.declarations?.some((d) => d.getSourceFile() === sourceFile) ??
+      false;
     const binding: BindingId =
       declaredHere && symbol !== undefined ? symbol : `free:${identifier.text}`;
     cache.set(identifier, binding);
@@ -422,7 +442,9 @@ const isCreateRequireReference = (
   const target = unwrapExpression(node);
   const identifier = unwrapIdentifier(target);
   if (identifier === undefined) return memberName(target) === CREATE_REQUIRE;
-  return identifier.text === CREATE_REQUIRE || factories.has(resolve(identifier));
+  return (
+    identifier.text === CREATE_REQUIRE || factories.has(resolve(identifier))
+  );
 };
 
 /**
@@ -455,12 +477,22 @@ const isIntrinsicRequireExpression = (
  * `function (module, exports, require)` wrapper, which really is require and
  * has a perfectly ordinary local binding.
  */
-const isRequireExpression = (node: ts.Expression, context: RequireContext): boolean => {
+const isRequireExpression = (
+  node: ts.Expression,
+  context: RequireContext,
+): boolean => {
   const identifier = unwrapIdentifier(node);
   if (identifier === undefined) {
-    return isIntrinsicRequireExpression(node, context.resolve, context.factories);
+    return isIntrinsicRequireExpression(
+      node,
+      context.resolve,
+      context.factories,
+    );
   }
-  return identifier.text === REQUIRE || context.requires.has(context.resolve(identifier));
+  return (
+    identifier.text === REQUIRE ||
+    context.requires.has(context.resolve(identifier))
+  );
 };
 
 /**
@@ -514,7 +546,9 @@ const createAliasGraph = (): {
 /** `name = <expr>` (no declaration keyword), anywhere in the tree. */
 const plainAssignment = (
   node: ts.Node,
-): { readonly name: ts.Identifier; readonly value: ts.Expression } | undefined =>
+):
+  | { readonly name: ts.Identifier; readonly value: ts.Expression }
+  | undefined =>
   ts.isBinaryExpression(node) &&
   node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
   ts.isIdentifier(node.left)
@@ -529,7 +563,11 @@ const destructuredAs = (
   const found: ts.Identifier[] = [];
   for (const element of pattern.elements) {
     const key = element.propertyName ?? element.name;
-    if (ts.isIdentifier(key) && key.text === property && ts.isIdentifier(element.name)) {
+    if (
+      ts.isIdentifier(key) &&
+      key.text === property &&
+      ts.isIdentifier(element.name)
+    ) {
       found.push(element.name);
     }
   }
@@ -549,7 +587,10 @@ const destructuredAs = (
 const forEachBinding = (
   sourceFile: ts.SourceFile,
   record: {
-    readonly initialized: (name: ts.Identifier, initializer: ts.Expression) => void;
+    readonly initialized: (
+      name: ts.Identifier,
+      initializer: ts.Expression,
+    ) => void;
     readonly destructured: (pattern: ts.ObjectBindingPattern) => void;
   },
 ): void => {
@@ -625,7 +666,8 @@ const collectRequireBindings = (
       else requireGraph.link(resolve(source), resolve(name));
     },
     destructured: (pattern) => {
-      for (const name of destructuredAs(pattern, REQUIRE)) requireGraph.seed(resolve(name));
+      for (const name of destructuredAs(pattern, REQUIRE))
+        requireGraph.seed(resolve(name));
     },
   });
 
@@ -637,12 +679,17 @@ const collectRequireBindings = (
  * `require.resolve(…)`, any aliased/derived form of either, or a dynamic
  * `import(…)`.
  */
-const isModuleResolvingCall = (node: ts.CallExpression, context: RequireContext): boolean => {
+const isModuleResolvingCall = (
+  node: ts.CallExpression,
+  context: RequireContext,
+): boolean => {
   const callee = unwrapExpression(node.expression);
   if (callee.kind === ts.SyntaxKind.ImportKeyword) return true;
   if (isRequireExpression(callee, context)) return true;
   const member = memberAccess(callee);
-  return member?.name === "resolve" && isRequireExpression(member.object, context);
+  return (
+    member?.name === "resolve" && isRequireExpression(member.object, context)
+  );
 };
 
 const lineOf = (sourceFile: ts.SourceFile, pos: number): number =>
@@ -664,10 +711,17 @@ export function scanBundleSource(
   // `program.getSourceFile(fileLabel)` no longer finds it. The label is only
   // ever used for reporting, so nothing needs the two to agree.
   const { sourceFile, resolve } = createScopeResolver(source, SCAN_FILE_NAME);
-  const context: RequireContext = { resolve, ...collectRequireBindings(sourceFile, resolve) };
+  const context: RequireContext = {
+    resolve,
+    ...collectRequireBindings(sourceFile, resolve),
+  };
   const violations: BundleViolation[] = [];
 
-  const report = (node: ts.Node, kind: BundleViolationKind, detail: string): void => {
+  const report = (
+    node: ts.Node,
+    kind: BundleViolationKind,
+    detail: string,
+  ): void => {
     violations.push({
       file: fileLabel,
       line: lineOf(sourceFile, node.getStart(sourceFile)),
@@ -692,13 +746,20 @@ export function scanBundleSource(
       if (specifier !== undefined && ts.isStringLiteralLike(specifier)) {
         checkSpecifier(node, specifier.text);
       }
-    } else if (ts.isCallExpression(node) && isModuleResolvingCall(node, context)) {
+    } else if (
+      ts.isCallExpression(node) &&
+      isModuleResolvingCall(node, context)
+    ) {
       const [arg] = node.arguments;
       if (arg !== undefined) {
         if (ts.isStringLiteralLike(arg)) {
           checkSpecifier(node, arg.text);
         } else {
-          report(node, "non-literal-argument", node.getText(sourceFile).slice(0, 120));
+          report(
+            node,
+            "non-literal-argument",
+            node.getText(sourceFile).slice(0, 120),
+          );
         }
       }
     }
@@ -797,15 +858,22 @@ export const runBundleExternalsCheck = (
       violations = scanBundleSource(readFileSync(file, "utf8"), relPath);
     } catch (error: unknown) {
       unscanned += 1;
-      io.error(`  ${relPath.padEnd(40)} could not be scanned: ${describeError(error)}`);
+      io.error(
+        `  ${relPath.padEnd(40)} could not be scanned: ${describeError(error)}`,
+      );
       continue;
     }
     total += violations.length;
 
-    const status = violations.length === 0 ? "OK" : `${String(violations.length)} violation(s)`;
+    const status =
+      violations.length === 0
+        ? "OK"
+        : `${String(violations.length)} violation(s)`;
     io.log(`  ${relPath.padEnd(40)} ${status}`);
     for (const violation of violations) {
-      io.log(`    - [${violation.kind}] line ${String(violation.line)}: ${violation.detail}`);
+      io.log(
+        `    - [${violation.kind}] line ${String(violation.line)}: ${violation.detail}`,
+      );
     }
   }
 
@@ -820,6 +888,8 @@ export const runBundleExternalsCheck = (
   }
   if (total > 0 || unscanned > 0) return 1;
 
-  io.log("No non-allowlisted bare specifiers or non-literal require()/import() calls found.");
+  io.log(
+    "No non-allowlisted bare specifiers or non-literal require()/import() calls found.",
+  );
   return 0;
 };

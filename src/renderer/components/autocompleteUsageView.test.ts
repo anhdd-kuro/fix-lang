@@ -25,9 +25,14 @@ import {
   resolveAutocompleteRollupView,
   resolveAutocompleteUsageView,
 } from "./autocompleteUsageView";
-import type { AutocompleteDayRollup, AutocompleteUsageSnapshot } from "~/features/autocomplete/shared/autocompleteWire";
+import type {
+  AutocompleteDayRollup,
+  AutocompleteUsageSnapshot,
+} from "~/features/autocomplete/shared/autocompleteWire";
 
-const rollup = (overrides: Partial<AutocompleteDayRollup> = {}): AutocompleteDayRollup => ({
+const rollup = (
+  overrides: Partial<AutocompleteDayRollup> = {},
+): AutocompleteDayRollup => ({
   date: "2026-07-31",
   requests: 0,
   responses: 0,
@@ -41,7 +46,9 @@ const rollup = (overrides: Partial<AutocompleteDayRollup> = {}): AutocompleteDay
 
 describe("resolveAutocompleteRollupView — reading rule 1: nothing happened", () => {
   it("reports a real zero (never N/A) when requests is 0", () => {
-    const view = resolveAutocompleteRollupView(rollup({ requests: 0, responses: 0 }));
+    const view = resolveAutocompleteRollupView(
+      rollup({ requests: 0, responses: 0 }),
+    );
     expect(view.totalTokens).toEqual({ kind: "value", value: 0 });
     expect(view.estimatedCostUsd).toEqual({ kind: "value", value: 0 });
   });
@@ -49,7 +56,9 @@ describe("resolveAutocompleteRollupView — reading rule 1: nothing happened", (
   it("reports a real zero when requests were dispatched but none came back (responses is 0)", () => {
     // Every request aborted mid-keystroke — attempts were made (requests > 0)
     // but nothing came back to be priced or counted.
-    const view = resolveAutocompleteRollupView(rollup({ requests: 5, responses: 0 }));
+    const view = resolveAutocompleteRollupView(
+      rollup({ requests: 5, responses: 0 }),
+    );
     expect(view.requests).toBe(5);
     expect(view.responses).toBe(0);
     expect(view.totalTokens).toEqual({ kind: "value", value: 0 });
@@ -68,7 +77,7 @@ describe("resolveAutocompleteRollupView — reading rule 2: fully known", () => 
         promptTokens: 120,
         completionTokens: 30,
         estimatedCostUsd: 0.02,
-      })
+      }),
     );
     expect(view.totalTokens).toEqual({ kind: "value", value: 150 });
     expect(view.estimatedCostUsd).toEqual({ kind: "value", value: 0.02 });
@@ -89,7 +98,7 @@ describe("resolveAutocompleteRollupView — reading rule 3: nothing known", () =
         promptTokens: 800,
         completionTokens: 200,
         estimatedCostUsd: 0,
-      })
+      }),
     );
     expect(view.estimatedCostUsd).toEqual({ kind: "na" });
     // Tokens are a SEPARATE axis — fully known here, so they must NOT also
@@ -107,7 +116,7 @@ describe("resolveAutocompleteRollupView — reading rule 3: nothing known", () =
         promptTokens: 0,
         completionTokens: 0,
         estimatedCostUsd: 0,
-      })
+      }),
     );
     expect(view.totalTokens).toEqual({ kind: "na" });
     // Cost is honestly known to be $0 for a local provider — a SEPARATE axis
@@ -127,7 +136,7 @@ describe("resolveAutocompleteRollupView — reading rule 4: mixed coverage", () 
         promptTokens: 200,
         completionTokens: 40,
         estimatedCostUsd: 0.03,
-      })
+      }),
     );
     expect(view.estimatedCostUsd).toEqual({
       kind: "value",
@@ -149,7 +158,11 @@ describe("resolveAutocompleteCapUsage", () => {
         rollup({ requests: 750, responses: 750, estimatedCostUsd: 2.5 }),
         5,
       ),
-    ).toEqual({ spent: { kind: "value", value: 2.5, partial: undefined }, capUsd: 5, ratio: 0.5 });
+    ).toEqual({
+      spent: { kind: "value", value: 2.5, partial: undefined },
+      capUsd: 5,
+      ratio: 0.5,
+    });
   });
 
   it("clamps a ratio above 1 down to 1", () => {
@@ -168,7 +181,12 @@ describe("resolveAutocompleteCapUsage", () => {
    */
   it("reports unmeasured spend as N/A with no bar, never as $0", () => {
     const usage = resolveAutocompleteCapUsage(
-      rollup({ requests: 42, responses: 42, unpricedResponses: 42, estimatedCostUsd: 0 }),
+      rollup({
+        requests: 42,
+        responses: 42,
+        unpricedResponses: 42,
+        estimatedCostUsd: 0,
+      }),
       5,
     );
 
@@ -178,7 +196,10 @@ describe("resolveAutocompleteCapUsage", () => {
 
   it("returns a 0 ratio (not NaN/Infinity) when the cap is 0", () => {
     expect(
-      resolveAutocompleteCapUsage(rollup({ responses: 5, estimatedCostUsd: 1 }), 0).ratio,
+      resolveAutocompleteCapUsage(
+        rollup({ responses: 5, estimatedCostUsd: 1 }),
+        0,
+      ).ratio,
     ).toBe(0);
   });
 
@@ -291,33 +312,49 @@ describe("formatAutocompleteCount / formatAutocompleteCost / formatAutocompleteC
   // branch in the implementation cannot pass by construction.
   const naLiteral: Record<"en" | "ja", string> = { en: "N/A", ja: "未計測" };
 
-  it.each(localeCases)("renders the translated N/A for an unmeasured count in %s", (locale) => {
-    const t = createTranslator(locale);
-    const { formatNumber } = createFormatters(locale);
-    expect(formatAutocompleteCount({ kind: "na" }, t, formatNumber)).toBe(naLiteral[locale]);
-  });
+  it.each(localeCases)(
+    "renders the translated N/A for an unmeasured count in %s",
+    (locale) => {
+      const t = createTranslator(locale);
+      const { formatNumber } = createFormatters(locale);
+      expect(formatAutocompleteCount({ kind: "na" }, t, formatNumber)).toBe(
+        naLiteral[locale],
+      );
+    },
+  );
 
-  it.each(localeCases)("renders the translated N/A for an unmeasured cost in %s", (locale) => {
-    const t = createTranslator(locale);
-    const { formatCurrency } = createFormatters(locale);
-    expect(formatAutocompleteCost({ kind: "na" }, t, formatCurrency)).toBe(naLiteral[locale]);
-  });
+  it.each(localeCases)(
+    "renders the translated N/A for an unmeasured cost in %s",
+    (locale) => {
+      const t = createTranslator(locale);
+      const { formatCurrency } = createFormatters(locale);
+      expect(formatAutocompleteCost({ kind: "na" }, t, formatCurrency)).toBe(
+        naLiteral[locale],
+      );
+    },
+  );
 
   it("renders a locale-formatted number for a measured count", () => {
     const t = createTranslator("en");
     const { formatNumber } = createFormatters("en");
-    expect(formatAutocompleteCount({ kind: "value", value: 1234 }, t, formatNumber)).toBe("1,234");
+    expect(
+      formatAutocompleteCount({ kind: "value", value: 1234 }, t, formatNumber),
+    ).toBe("1,234");
   });
 
   it("renders a locale-formatted currency amount for a measured cost", () => {
     const t = createTranslator("en");
     const { formatCurrency } = createFormatters("en");
-    expect(formatAutocompleteCost({ kind: "value", value: 1.5 }, t, formatCurrency)).toBe("$1.50");
+    expect(
+      formatAutocompleteCost({ kind: "value", value: 1.5 }, t, formatCurrency),
+    ).toBe("$1.50");
   });
 
   it("renders no coverage hint for a fully-known metric", () => {
     const t = createTranslator("en");
-    expect(formatAutocompleteCoverage({ kind: "value", value: 42 }, t)).toBeUndefined();
+    expect(
+      formatAutocompleteCoverage({ kind: "value", value: 42 }, t),
+    ).toBeUndefined();
   });
 
   it("renders no coverage hint for an N/A metric", () => {
@@ -328,7 +365,10 @@ describe("formatAutocompleteCount / formatAutocompleteCost / formatAutocompleteC
   it("renders the known/total coverage hint for a partially-known metric", () => {
     const t = createTranslator("en");
     expect(
-      formatAutocompleteCoverage({ kind: "value", value: 240, partial: { known: 2, total: 3 } }, t)
+      formatAutocompleteCoverage(
+        { kind: "value", value: 240, partial: { known: 2, total: 3 } },
+        t,
+      ),
     ).toBe("2 of 3 known"); // hand-computed from en/dashboard.json, not re-derived via t()
   });
 });

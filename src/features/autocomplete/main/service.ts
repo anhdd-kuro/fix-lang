@@ -68,7 +68,10 @@ import {
   getDefaultModelId,
   getProfileSetting,
 } from "~/features/providers/store/apiStore";
-import { isFullyMaskable, scanForSecrets } from "~/features/secretGuard/shared/detectSecrets";
+import {
+  isFullyMaskable,
+  scanForSecrets,
+} from "~/features/secretGuard/shared/detectSecrets";
 import { redactSecretsIrreversibly } from "~/features/secretGuard/shared/maskSecrets";
 import { logger } from "~/main/logging/logService";
 import { DEFAULT_ASK_PRESET_ID } from "~/prompts";
@@ -328,7 +331,10 @@ export type AutocompleteResolution = {
 
 const lastResolutions = new Map<string, AutocompleteResolution>();
 
-const rememberResolution = (sessionId: string, resolution: AutocompleteResolution): void => {
+const rememberResolution = (
+  sessionId: string,
+  resolution: AutocompleteResolution,
+): void => {
   lastResolutions.set(sessionId, resolution);
   while (lastResolutions.size > RESOLUTION_MEMORY_MAX_ENTRIES) {
     const oldest = lastResolutions.keys().next();
@@ -472,7 +478,10 @@ const backendIdentity = (): string => {
     // Sorted: persisted key order is whatever the last writer left, and a
     // reordered map is still the same backend.
     .sort(([left], [right]) => (left < right ? -1 : 1))
-    .map(([provider, endpoint]) => `${provider}=${endpoint?.host ?? ""}:${endpoint?.port ?? ""}`)
+    .map(
+      ([provider, endpoint]) =>
+        `${provider}=${endpoint?.host ?? ""}:${endpoint?.port ?? ""}`,
+    )
     .join(",");
   return `${getCurrentProfileId()}|${fingerprint}`;
 };
@@ -522,7 +531,11 @@ const readCache = (key: string, now: number): CacheEntry | undefined => {
   return entry;
 };
 
-const writeCache = (key: string, suggestion: string | null, now: number): void => {
+const writeCache = (
+  key: string,
+  suggestion: string | null,
+  now: number,
+): void => {
   cache.set(key, { suggestion, storedAt: now });
   while (cache.size > CACHE_MAX_ENTRIES) {
     const oldest = cache.keys().next();
@@ -563,11 +576,16 @@ export const resetAutocompleteState = (): void => {
 
 const askPresetModelRef = (): string => {
   const correct = getProfileSetting("settingsCorrect");
-  const ask = correct?.presets?.find((preset) => preset.id === DEFAULT_ASK_PRESET_ID);
+  const ask = correct?.presets?.find(
+    (preset) => preset.id === DEFAULT_ASK_PRESET_ID,
+  );
   return ask?.model ?? "";
 };
 
-const none = (requestId: number): AutocompleteResult => ({ requestId, suggestion: null });
+const none = (requestId: number): AutocompleteResult => ({
+  requestId,
+  suggestion: null,
+});
 
 /**
  * Why no provider call was made. Stable tokens, not prose: the message beside
@@ -720,11 +738,15 @@ const logWastedSuggestion = (
 ): void => {
   const decision = wastedThrottle.admit(reason, nowMs);
   if (!decision.emit) return;
-  logger[wastedSuggestionLogLevel(decision.suppressedSincePrevious)]("autocomplete", message, {
-    reason,
-    suppressedSincePrevious: decision.suppressedSincePrevious,
-    ...context,
-  });
+  logger[wastedSuggestionLogLevel(decision.suppressedSincePrevious)](
+    "autocomplete",
+    message,
+    {
+      reason,
+      suppressedSincePrevious: decision.suppressedSincePrevious,
+      ...context,
+    },
+  );
 };
 
 /**
@@ -770,7 +792,9 @@ const logUnparseableReply = (nowMs: number, context: LogContext): void => {
  * The error's CLASS is the diagnostic ("AccessDeniedException",
  * "RateLimitError", "AuthenticationError"); its prose is the leak.
  */
-const describeFailure = (error: unknown): { errorName: string; status?: number } => {
+const describeFailure = (
+  error: unknown,
+): { errorName: string; status?: number } => {
   if (!(error instanceof Error)) return { errorName: typeof error };
   const status = (error as { status?: unknown }).status;
   return {
@@ -808,7 +832,10 @@ const usageBookkeepingFailed = (stage: string, error: unknown): void => {
  */
 const readToday = (
   now: Date,
-): { day: AutocompleteDayRollup | null; failure?: ReturnType<typeof describeFailure> } => {
+): {
+  day: AutocompleteDayRollup | null;
+  failure?: ReturnType<typeof describeFailure>;
+} => {
   try {
     return { day: autocompleteUsageStore.getDay(now) };
   } catch (error) {
@@ -887,17 +914,21 @@ export const requestAutocompleteSuggestion = async (
     // once tripped.
     if (capWarnedForDay !== today.date) {
       capWarnedForDay = today.date;
-      logger.warn("autocomplete", "Daily spend cap reached; suggestions are off until tomorrow", {
-        reason: "cap-reached" satisfies AutocompleteSkipReason,
-        capUsd: dailyCostCapUsd,
-        spentUsd: today.estimatedCostUsd,
-        // What the amount above does NOT cover. A day whose responses are all
-        // unpriced trips this only at a cap of zero, and a reader deserves to
-        // see that rather than infer it.
-        pricedResponses: today.responses - today.unpricedResponses,
-        responses: today.responses,
-        date: today.date,
-      });
+      logger.warn(
+        "autocomplete",
+        "Daily spend cap reached; suggestions are off until tomorrow",
+        {
+          reason: "cap-reached" satisfies AutocompleteSkipReason,
+          capUsd: dailyCostCapUsd,
+          spentUsd: today.estimatedCostUsd,
+          // What the amount above does NOT cover. A day whose responses are all
+          // unpriced trips this only at a cap of zero, and a reader deserves to
+          // see that rather than infer it.
+          pricedResponses: today.responses - today.unpricedResponses,
+          responses: today.responses,
+          date: today.date,
+        },
+      );
     }
     return none(requestId);
   }
@@ -920,7 +951,11 @@ export const requestAutocompleteSuggestion = async (
   // looked at, which is exactly the list of settings that would fix it.
   if (!modelRef) {
     logSkip("no-model", startedAt, {
-      checkedSources: ["settingsAutocomplete.model", "askPreset.model", "profileDefaultModel"],
+      checkedSources: [
+        "settingsAutocomplete.model",
+        "askPreset.model",
+        "profileDefaultModel",
+      ],
     });
     return none(requestId);
   }
@@ -942,7 +977,8 @@ export const requestAutocompleteSuggestion = async (
   // store module instantiates a real `electron-store` at module scope, which
   // throws outside a running app and would drag Electron into the module graph
   // of everything that imports this file.
-  const { secretGuardStore } = await import("~/features/secretGuard/store/secretGuardStore");
+  const { secretGuardStore } =
+    await import("~/features/secretGuard/store/secretGuardStore");
   const secretGuardSettings = secretGuardStore.getSecretGuardSettings();
   const scanOptions = { highEntropyRule: secretGuardSettings.highEntropyRule };
 
@@ -956,7 +992,9 @@ export const requestAutocompleteSuggestion = async (
   if (secretGuardSettings.mode !== "off" && environment) {
     const environmentScan = scanForSecrets(environment, scanOptions);
     if (!isFullyMaskable(environmentScan)) {
-      logSkip("secret-in-text", startedAt, { ruleIds: [...environmentScan.ruleIds] });
+      logSkip("secret-in-text", startedAt, {
+        ruleIds: [...environmentScan.ruleIds],
+      });
       return none(requestId);
     }
     if (environmentScan.matches.length > 0) {
@@ -1000,7 +1038,10 @@ export const requestAutocompleteSuggestion = async (
   // worse than no ghost. A fully-maskable environment was already redacted
   // above; an unmaskable one already refused.
   if (secretGuardSettings.mode !== "off") {
-    const scan = scanForSecrets(`${prefix}\n${suffix}\n${askContext?.text ?? ""}`, scanOptions);
+    const scan = scanForSecrets(
+      `${prefix}\n${suffix}\n${askContext?.text ?? ""}`,
+      scanOptions,
+    );
     if (scan.matches.length > 0) {
       // Spread to a mutable array: `LogValue` does not accept a readonly one.
       // It stays an array VALUE and never becomes a set of KEYS — a spread
@@ -1138,7 +1179,9 @@ export const requestAutocompleteSuggestion = async (
     // the only region the overlap guard reads (`OVERLAP_LOOKBACK_CHARS` is far
     // inside `PREFIX_WINDOW_CHARS`), and the raw one is what the suggestion is
     // actually appended to in the renderer.
-    const suggestion = parsedReply.ok ? sanitizeSuggestion(parsedReply.suggestion, prefix) : null;
+    const suggestion = parsedReply.ok
+      ? sanitizeSuggestion(parsedReply.suggestion, prefix)
+      : null;
     writeCache(key, suggestion, Date.now());
     await recordResponseUsage(response, now);
 
@@ -1181,7 +1224,9 @@ export const requestAutocompleteSuggestion = async (
       prefixLength: prefix.length,
       suffixLength: suffix.length,
       contextLength,
-      ...(contextLength > 0 && askContext ? { contextSource: askContext.source } : {}),
+      ...(contextLength > 0 && askContext
+        ? { contextSource: askContext.source }
+        : {}),
       // The environment block's SIZE only. Its lines name the user's presets
       // and state the minute they pressed the hotkey, and these lines are
       // copyable and exportable from the Logs tab. `environmentLength` also
@@ -1267,7 +1312,9 @@ type SpendSource = {
  * coalesces missing token counts to `0` internally, so passing them through
  * uncoalesced cannot on its own stop it returning a confident zero.
  */
-const resolveResponseCostUsd = async (response: SpendSource): Promise<number | null> => {
+const resolveResponseCostUsd = async (
+  response: SpendSource,
+): Promise<number | null> => {
   const { buildPriceMap, computeCost } = await import("~/main/ai.request/cost");
   const { getCachedModels } = await import("~/main/ai.request/shared");
   const snapshot = computeCost(
@@ -1280,8 +1327,11 @@ const resolveResponseCostUsd = async (response: SpendSource): Promise<number | n
     },
     buildPriceMap(getCachedModels()),
   );
-  const tokensMissing = response.promptTokens === null || response.completionTokens === null;
-  return snapshot.status === "ok" && tokensMissing ? null : snapshot.estimatedCostUsd;
+  const tokensMissing =
+    response.promptTokens === null || response.completionTokens === null;
+  return snapshot.status === "ok" && tokensMissing
+    ? null
+    : snapshot.estimatedCostUsd;
 };
 
 /**
@@ -1307,7 +1357,10 @@ const resolveResponseCostUsd = async (response: SpendSource): Promise<number | n
  * lands after midnight is booked on the day whose counter already holds its
  * request.
  */
-const recordResponseUsage = async (response: SpendSource, now: Date): Promise<void> => {
+const recordResponseUsage = async (
+  response: SpendSource,
+  now: Date,
+): Promise<void> => {
   let estimatedCostUsd: number | null = null;
   try {
     estimatedCostUsd = await resolveResponseCostUsd(response);

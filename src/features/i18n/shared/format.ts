@@ -27,7 +27,10 @@ export type Formatters = {
   formatCurrency: (value: number, currency?: string) => string;
   /** `value` is a 0..1 ratio, e.g. `0.42` → `"42%"`. */
   formatPercent: (value: number, fractionDigits?: number) => string;
-  formatDate: (value: DateInput, options?: Intl.DateTimeFormatOptions) => string;
+  formatDate: (
+    value: DateInput,
+    options?: Intl.DateTimeFormatOptions,
+  ) => string;
   formatDateTime: (value: DateInput) => string;
   formatRelativeTime: (value: DateInput, now?: DateInput) => string;
   dateFnsLocale: DateFnsLocale;
@@ -59,7 +62,11 @@ const canonicalize = (value: unknown): unknown => {
 const cacheKey = (locale: Locale, options?: object): string =>
   `${locale}:${JSON.stringify(canonicalize(options ?? {}))}`;
 
-const getOrCreate = <T>(cache: Map<string, T>, key: string, factory: () => T): T => {
+const getOrCreate = <T>(
+  cache: Map<string, T>,
+  key: string,
+  factory: () => T,
+): T => {
   const existing = cache.get(key);
   if (existing) {
     return existing;
@@ -77,24 +84,30 @@ const getNumberFormat = (
   locale: Locale,
   options?: Intl.NumberFormatOptions,
 ): Intl.NumberFormat =>
-  getOrCreate(numberFormatCache, cacheKey(locale, options), () =>
-    new Intl.NumberFormat(LOCALE_META[locale].intlTag, options),
+  getOrCreate(
+    numberFormatCache,
+    cacheKey(locale, options),
+    () => new Intl.NumberFormat(LOCALE_META[locale].intlTag, options),
   );
 
 const getDateTimeFormat = (
   locale: Locale,
   options?: Intl.DateTimeFormatOptions,
 ): Intl.DateTimeFormat =>
-  getOrCreate(dateTimeFormatCache, cacheKey(locale, options), () =>
-    new Intl.DateTimeFormat(LOCALE_META[locale].intlTag, options),
+  getOrCreate(
+    dateTimeFormatCache,
+    cacheKey(locale, options),
+    () => new Intl.DateTimeFormat(LOCALE_META[locale].intlTag, options),
   );
 
 const getRelativeTimeFormat = (
   locale: Locale,
   options?: Intl.RelativeTimeFormatOptions,
 ): Intl.RelativeTimeFormat =>
-  getOrCreate(relativeTimeFormatCache, cacheKey(locale, options), () =>
-    new Intl.RelativeTimeFormat(LOCALE_META[locale].intlTag, options),
+  getOrCreate(
+    relativeTimeFormatCache,
+    cacheKey(locale, options),
+    () => new Intl.RelativeTimeFormat(LOCALE_META[locale].intlTag, options),
   );
 
 // ---------------------------------------------------------------------------
@@ -121,19 +134,28 @@ const formatNumberImpl = (
   locale: Locale,
   value: number,
   options?: Intl.NumberFormatOptions,
-): string => (Number.isFinite(value) ? getNumberFormat(locale, options).format(value) : "");
+): string =>
+  Number.isFinite(value) ? getNumberFormat(locale, options).format(value) : "";
 
 const formatCompactNumberImpl = (locale: Locale, value: number): string =>
   Number.isFinite(value)
     ? getNumberFormat(locale, { notation: "compact" }).format(value)
     : "";
 
-const formatCurrencyImpl = (locale: Locale, value: number, currency = "USD"): string =>
+const formatCurrencyImpl = (
+  locale: Locale,
+  value: number,
+  currency = "USD",
+): string =>
   Number.isFinite(value)
     ? getNumberFormat(locale, { style: "currency", currency }).format(value)
     : "";
 
-const formatPercentImpl = (locale: Locale, value: number, fractionDigits = 0): string =>
+const formatPercentImpl = (
+  locale: Locale,
+  value: number,
+  fractionDigits = 0,
+): string =>
   Number.isFinite(value)
     ? getNumberFormat(locale, {
         style: "percent",
@@ -202,7 +224,11 @@ const selectRelativeUnit = (
   return { amount: Math.round(duration), unit: "year" };
 };
 
-const formatRelativeTimeImpl = (locale: Locale, value: DateInput, now?: DateInput): string => {
+const formatRelativeTimeImpl = (
+  locale: Locale,
+  value: DateInput,
+  now?: DateInput,
+): string => {
   const target = toValidDate(value);
   const reference = toValidDate(now ?? new Date());
   if (!target || !reference) {
@@ -210,7 +236,10 @@ const formatRelativeTimeImpl = (locale: Locale, value: DateInput, now?: DateInpu
   }
   const deltaSeconds = (target.getTime() - reference.getTime()) / 1000;
   const { amount, unit } = selectRelativeUnit(deltaSeconds);
-  return getRelativeTimeFormat(locale, { numeric: "auto" }).format(amount, unit);
+  return getRelativeTimeFormat(locale, { numeric: "auto" }).format(
+    amount,
+    unit,
+  );
 };
 
 // ---------------------------------------------------------------------------
@@ -223,7 +252,8 @@ const DATE_FNS_LOCALES: Record<Locale, DateFnsLocale> = {
 };
 
 /** Maps a FixLang {@link Locale} to its `date-fns/locale` object. */
-export const dateFnsLocaleFor = (locale: Locale): DateFnsLocale => DATE_FNS_LOCALES[locale];
+export const dateFnsLocaleFor = (locale: Locale): DateFnsLocale =>
+  DATE_FNS_LOCALES[locale];
 
 // ---------------------------------------------------------------------------
 // Public factory
@@ -240,18 +270,26 @@ const formattersCache = new Map<Locale, Formatters>();
  * Not used by production code.
  */
 export const __peekFormatCachesForTests = {
-  numberFormat: (locale: Locale, options?: Intl.NumberFormatOptions): Intl.NumberFormat | undefined =>
+  numberFormat: (
+    locale: Locale,
+    options?: Intl.NumberFormatOptions,
+  ): Intl.NumberFormat | undefined =>
     numberFormatCache.get(cacheKey(locale, options)),
   dateTimeFormat: (
     locale: Locale,
     options?: Intl.DateTimeFormatOptions,
-  ): Intl.DateTimeFormat | undefined => dateTimeFormatCache.get(cacheKey(locale, options)),
+  ): Intl.DateTimeFormat | undefined =>
+    dateTimeFormatCache.get(cacheKey(locale, options)),
   relativeTimeFormat: (
     locale: Locale,
     options?: Intl.RelativeTimeFormatOptions,
   ): Intl.RelativeTimeFormat | undefined =>
     relativeTimeFormatCache.get(cacheKey(locale, options)),
-  sizes: (): { numberFormat: number; dateTimeFormat: number; relativeTimeFormat: number } => ({
+  sizes: (): {
+    numberFormat: number;
+    dateTimeFormat: number;
+    relativeTimeFormat: number;
+  } => ({
     numberFormat: numberFormatCache.size,
     dateTimeFormat: dateTimeFormatCache.size,
     relativeTimeFormat: relativeTimeFormatCache.size,
@@ -286,11 +324,14 @@ export const createFormatters = (locale: Locale): Formatters => {
   const formatters: Formatters = {
     formatNumber: (value, options) => formatNumberImpl(locale, value, options),
     formatCompactNumber: (value) => formatCompactNumberImpl(locale, value),
-    formatCurrency: (value, currency) => formatCurrencyImpl(locale, value, currency),
-    formatPercent: (value, fractionDigits) => formatPercentImpl(locale, value, fractionDigits),
+    formatCurrency: (value, currency) =>
+      formatCurrencyImpl(locale, value, currency),
+    formatPercent: (value, fractionDigits) =>
+      formatPercentImpl(locale, value, fractionDigits),
     formatDate: (value, options) => formatDateImpl(locale, value, options),
     formatDateTime: (value) => formatDateTimeImpl(locale, value),
-    formatRelativeTime: (value, now) => formatRelativeTimeImpl(locale, value, now),
+    formatRelativeTime: (value, now) =>
+      formatRelativeTimeImpl(locale, value, now),
     dateFnsLocale: dateFnsLocaleFor(locale),
   };
 

@@ -18,7 +18,10 @@ import {
   resolveOllamaEndpoint,
 } from "~/features/providers/shared/ollamaEndpoint";
 import { isMalformedOpenAIProjectId } from "~/features/providers/shared/openaiProject";
-import { findKeyShapeMismatch, type KeySlotKind } from "~/features/providers/shared/providerKeyShapes";
+import {
+  findKeyShapeMismatch,
+  type KeySlotKind,
+} from "~/features/providers/shared/providerKeyShapes";
 import {
   isModelForProvider,
   isProviderConfigured,
@@ -53,8 +56,14 @@ import {
   secretKindsForProvider,
   setProfileSecret,
 } from "~/features/providers/store/profileSecretStore";
-import { exceptionLabel, wrapStoreResult } from "~/features/settings/main/ipcResultLabel";
-import { fetchAvailableModels, fetchModelsForProviders } from "~/main/ai.request";
+import {
+  exceptionLabel,
+  wrapStoreResult,
+} from "~/features/settings/main/ipcResultLabel";
+import {
+  fetchAvailableModels,
+  fetchModelsForProviders,
+} from "~/main/ai.request";
 import { reloadHotkeys } from "~/main/keybindings";
 import { ollamaClient } from "~/main/llm";
 import { checkModelCompatibility } from "~/main/llm/models/compatibility";
@@ -82,10 +91,9 @@ const MASK_RUN = /\S*[*•·…]{2,}\S*/g;
  */
 const providerErrorLabel = (error: unknown): Label =>
   textLabel(
-    redactLogMessage(error instanceof Error ? error.message : String(error)).replace(
-      MASK_RUN,
-      "[REDACTED]",
-    ),
+    redactLogMessage(
+      error instanceof Error ? error.message : String(error),
+    ).replace(MASK_RUN, "[REDACTED]"),
   );
 
 /**
@@ -125,13 +133,16 @@ type ProviderConnectPayload = {
   projectId?: string;
 };
 
-export const parseProviderConnect = (raw: unknown): ProviderConnectPayload | null => {
+export const parseProviderConnect = (
+  raw: unknown,
+): ProviderConnectPayload | null => {
   if (!raw || typeof raw !== "object") return null;
   const value = raw as Record<string, unknown>;
   if (!isProviderId(value.provider)) return null;
   if (
     (value.apiKey !== undefined && typeof value.apiKey !== "string") ||
-    (value.provisioningKey !== undefined && typeof value.provisioningKey !== "string") ||
+    (value.provisioningKey !== undefined &&
+      typeof value.provisioningKey !== "string") ||
     (value.secretKey !== undefined && typeof value.secretKey !== "string") ||
     (value.region !== undefined && typeof value.region !== "string") ||
     (value.projectId !== undefined && typeof value.projectId !== "string")
@@ -139,9 +150,15 @@ export const parseProviderConnect = (raw: unknown): ProviderConnectPayload | nul
     return null;
   }
   const host =
-    value.host === undefined ? undefined : sanitizeLmStudioHost(value.host) ?? undefined;
+    value.host === undefined
+      ? undefined
+      : (sanitizeLmStudioHost(value.host) ?? undefined);
   // Reject explicitly invalid host strings rather than silently dropping them.
-  if (value.host !== undefined && typeof value.host === "string" && host === undefined) {
+  if (
+    value.host !== undefined &&
+    typeof value.host === "string" &&
+    host === undefined
+  ) {
     return null;
   }
   if (value.host !== undefined && typeof value.host !== "string") {
@@ -159,9 +176,13 @@ export const parseProviderConnect = (raw: unknown): ProviderConnectPayload | nul
     ...(typeof value.provisioningKey === "string"
       ? { provisioningKey: value.provisioningKey }
       : {}),
-    ...(typeof value.secretKey === "string" ? { secretKey: value.secretKey } : {}),
+    ...(typeof value.secretKey === "string"
+      ? { secretKey: value.secretKey }
+      : {}),
     ...(typeof value.region === "string" ? { region: value.region } : {}),
-    ...(typeof value.projectId === "string" ? { projectId: value.projectId } : {}),
+    ...(typeof value.projectId === "string"
+      ? { projectId: value.projectId }
+      : {}),
     ...(host !== undefined ? { host } : {}),
     ...(port !== undefined ? { port } : {}),
   };
@@ -225,11 +246,15 @@ const providerApiKeys = async (
   const profileId = getCurrentProfileId();
   const entries = await Promise.all(
     providers.map(async (provider): Promise<[ProviderId, string]> => {
-      if (!secretKindsForProvider(provider).includes("api")) return [provider, ""];
-      if (provider === "openrouter") return [provider, (await getApiKey()) ?? ""];
+      if (!secretKindsForProvider(provider).includes("api"))
+        return [provider, ""];
+      if (provider === "openrouter")
+        return [provider, (await getApiKey()) ?? ""];
       return [
         provider,
-        profileId ? ((await getProfileSecret(profileId, provider, "api")) ?? "") : "",
+        profileId
+          ? ((await getProfileSecret(profileId, provider, "api")) ?? "")
+          : "",
       ];
     }),
   );
@@ -294,7 +319,10 @@ export const registerApiHandlers = (): void => {
 
   ipcMain.handle("set-api-key", async (_event, raw: unknown) => {
     if (typeof raw !== "string") {
-      return { success: false, error: messageLabel("models.providerSetup.error.invalidApiKeyInput") };
+      return {
+        success: false,
+        error: messageLabel("models.providerSetup.error.invalidApiKeyInput"),
+      };
     }
     try {
       const result = await setApiKey(raw);
@@ -321,7 +349,9 @@ export const registerApiHandlers = (): void => {
 
   ipcMain.handle("has-api-key", async () => hasApiKey());
 
-  ipcMain.handle("clear-api-key", async () => wrapStoreResult(await clearApiKey()));
+  ipcMain.handle("clear-api-key", async () =>
+    wrapStoreResult(await clearApiKey()),
+  );
 
   // No "get-active-provider": requests route by composite `<providerId>::<rawId>` ref.
 
@@ -348,7 +378,8 @@ export const registerApiHandlers = (): void => {
   });
 
   ipcMain.handle("get-provider-secret-status", async (_event, raw: unknown) => {
-    if (!isProviderId(raw)) return { apiKeySet: false, provisioningKeySet: false };
+    if (!isProviderId(raw))
+      return { apiKeySet: false, provisioningKeySet: false };
     const profileId = getCurrentProfileId();
     if (!profileId) return { apiKeySet: false, provisioningKeySet: false };
     const accessKeySet =
@@ -356,7 +387,8 @@ export const registerApiHandlers = (): void => {
     const secretKeySet =
       raw === "bedrock" && (await hasProfileSecret(profileId, raw, "secret"));
     return {
-      apiKeySet: raw === "bedrock" ? accessKeySet && secretKeySet : accessKeySet,
+      apiKeySet:
+        raw === "bedrock" ? accessKeySet && secretKeySet : accessKeySet,
       accessKeySet: raw === "bedrock" ? accessKeySet : undefined,
       secretKeySet: raw === "bedrock" ? secretKeySet : undefined,
       provisioningKeySet:
@@ -371,9 +403,15 @@ export const registerApiHandlers = (): void => {
     const payload = parseProviderConnect(raw);
     const profileId = getCurrentProfileId();
     if (!payload || !profileId) {
-      return { success: false, error: messageLabel("models.providerSetup.error.invalidSetup") };
+      return {
+        success: false,
+        error: messageLabel("models.providerSetup.error.invalidSetup"),
+      };
     }
-    if (!supportsAdminKey(payload.provider) && payload.provisioningKey?.trim()) {
+    if (
+      !supportsAdminKey(payload.provider) &&
+      payload.provisioningKey?.trim()
+    ) {
       return {
         success: false,
         error: messageLabel("models.providerSetup.error.adminKeyUnsupported"),
@@ -381,7 +419,11 @@ export const registerApiHandlers = (): void => {
     }
     try {
       if (payload.provider === "bedrock") {
-        const accessKeyId = await getSetupApiKey(profileId, "bedrock", payload.apiKey);
+        const accessKeyId = await getSetupApiKey(
+          profileId,
+          "bedrock",
+          payload.apiKey,
+        );
         const secretAccessKey =
           payload.secretKey?.trim() ||
           (await getProfileSecret(profileId, "bedrock", "secret")) ||
@@ -389,17 +431,18 @@ export const registerApiHandlers = (): void => {
         if (!accessKeyId || !secretAccessKey) {
           return {
             success: false,
-            error: messageLabel("models.providerSetup.error.bedrockCredentialsRequired"),
+            error: messageLabel(
+              "models.providerSetup.error.bedrockCredentialsRequired",
+            ),
           };
         }
-        const { resolveBedrockRegion } = await import("~/features/providers/shared/bedrockEndpoint");
-        const { fetchBedrockModels } = await import(
-          "~/main/llm/providers/bedrock/models"
-        );
-        const region =
-          payload.region
-            ? resolveBedrockRegion(payload.region)
-            : resolveBedrockRegion(getProviderEndpoint("bedrock")?.host);
+        const { resolveBedrockRegion } =
+          await import("~/features/providers/shared/bedrockEndpoint");
+        const { fetchBedrockModels } =
+          await import("~/main/llm/providers/bedrock/models");
+        const region = payload.region
+          ? resolveBedrockRegion(payload.region)
+          : resolveBedrockRegion(getProviderEndpoint("bedrock")?.host);
         const models = await fetchBedrockModels({
           accessKeyId,
           secretAccessKey,
@@ -408,18 +451,30 @@ export const registerApiHandlers = (): void => {
         return { success: true, models };
       }
 
-      const apiKey = await getSetupApiKey(profileId, payload.provider, payload.apiKey);
+      const apiKey = await getSetupApiKey(
+        profileId,
+        payload.provider,
+        payload.apiKey,
+      );
       if (payload.provider !== "ollama" && !apiKey) {
         return {
           success: false,
-          error: messageLabel("models.providerSetup.error.apiKeyRequiredFirst", {
-            provider: PROVIDER_LOG_LABELS[payload.provider],
-          }),
+          error: messageLabel(
+            "models.providerSetup.error.apiKeyRequiredFirst",
+            {
+              provider: PROVIDER_LOG_LABELS[payload.provider],
+            },
+          ),
         };
       }
       // strict: true — a live-fetch failure (bad/revoked key) must surface as
       // an error here, never silently fall back to a stale cached list.
-      const models = await fetchAvailableModels(apiKey, payload.provider, false, true);
+      const models = await fetchAvailableModels(
+        apiKey,
+        payload.provider,
+        false,
+        true,
+      );
       return { success: true, models };
     } catch (error) {
       return { success: false, error: providerErrorLabel(error) };
@@ -437,7 +492,10 @@ export const registerApiHandlers = (): void => {
         error: messageLabel("models.providerSetup.error.invalidSetup"),
       };
     }
-    if (!supportsAdminKey(payload.provider) && payload.provisioningKey?.trim()) {
+    if (
+      !supportsAdminKey(payload.provider) &&
+      payload.provisioningKey?.trim()
+    ) {
       return {
         success: false,
         error: messageLabel("models.providerSetup.error.adminKeyUnsupported"),
@@ -447,7 +505,11 @@ export const registerApiHandlers = (): void => {
     // slot must not be spent on a request, and must never reach the store.
     const shapeError =
       keyShapeMismatchLabel(payload.provider, "api", payload.apiKey) ??
-      keyShapeMismatchLabel(payload.provider, "provisioning", payload.provisioningKey);
+      keyShapeMismatchLabel(
+        payload.provider,
+        "provisioning",
+        payload.provisioningKey,
+      );
     if (shapeError) {
       return { success: false, error: shapeError };
     }
@@ -459,7 +521,9 @@ export const registerApiHandlers = (): void => {
     ) {
       return {
         success: false,
-        error: messageLabel("settings.general.providers.openai.projectId.invalid"),
+        error: messageLabel(
+          "settings.general.providers.openai.projectId.invalid",
+        ),
       };
     }
 
@@ -484,7 +548,9 @@ export const registerApiHandlers = (): void => {
         if (!probe.reachable) {
           return {
             success: false,
-            error: messageLabel("settings.general.providers.ollama.unreachable"),
+            error: messageLabel(
+              "settings.general.providers.ollama.unreachable",
+            ),
           };
         }
         models = probe.models;
@@ -499,7 +565,9 @@ export const registerApiHandlers = (): void => {
         if (!profile) {
           return {
             success: false,
-            error: messageLabel("models.providerSetup.error.activeProfileNotFound"),
+            error: messageLabel(
+              "models.providerSetup.error.activeProfileNotFound",
+            ),
           };
         }
         return {
@@ -509,15 +577,27 @@ export const registerApiHandlers = (): void => {
         };
       } else if (payload.provider === "lmstudio") {
         const endpoint = resolveLmStudioEndpoint({
-          host: payload.host ?? getProviderEndpoint("lmstudio")?.host ?? LMSTUDIO_DEFAULT_ENDPOINT.host,
-          port: payload.port ?? getProviderEndpoint("lmstudio")?.port ?? LMSTUDIO_DEFAULT_ENDPOINT.port,
+          host:
+            payload.host ??
+            getProviderEndpoint("lmstudio")?.host ??
+            LMSTUDIO_DEFAULT_ENDPOINT.host,
+          port:
+            payload.port ??
+            getProviderEndpoint("lmstudio")?.port ??
+            LMSTUDIO_DEFAULT_ENDPOINT.port,
         });
-        const apiKey = await getSetupApiKey(profileId, "lmstudio", payload.apiKey);
+        const apiKey = await getSetupApiKey(
+          profileId,
+          "lmstudio",
+          payload.apiKey,
+        );
         const probe = await probeLmStudio({ endpoint, apiKey });
         if (!probe.reachable) {
           return {
             success: false,
-            error: messageLabel("settings.general.providers.lmstudio.unreachable"),
+            error: messageLabel(
+              "settings.general.providers.lmstudio.unreachable",
+            ),
           };
         }
         models = probe.models;
@@ -535,13 +615,20 @@ export const registerApiHandlers = (): void => {
           if (!result.success) return wrapStoreResult(result);
         }
 
-        const profile = connectProviderToProfile(profileId, "lmstudio", models, {
-          endpoint,
-        });
+        const profile = connectProviderToProfile(
+          profileId,
+          "lmstudio",
+          models,
+          {
+            endpoint,
+          },
+        );
         if (!profile) {
           return {
             success: false,
-            error: messageLabel("models.providerSetup.error.activeProfileNotFound"),
+            error: messageLabel(
+              "models.providerSetup.error.activeProfileNotFound",
+            ),
           };
         }
         return {
@@ -550,7 +637,11 @@ export const registerApiHandlers = (): void => {
           ...(note ? { note } : {}),
         };
       } else if (payload.provider === "bedrock") {
-        const accessKeyId = await getSetupApiKey(profileId, "bedrock", payload.apiKey);
+        const accessKeyId = await getSetupApiKey(
+          profileId,
+          "bedrock",
+          payload.apiKey,
+        );
         const secretAccessKey =
           payload.secretKey?.trim() ||
           (await getProfileSecret(profileId, "bedrock", "secret")) ||
@@ -558,18 +649,20 @@ export const registerApiHandlers = (): void => {
         if (!accessKeyId || !secretAccessKey) {
           return {
             success: false,
-            error: messageLabel("models.providerSetup.error.bedrockCredentialsRequired"),
+            error: messageLabel(
+              "models.providerSetup.error.bedrockCredentialsRequired",
+            ),
           };
         }
-        const { resolveBedrockRegion } = await import("~/features/providers/shared/bedrockEndpoint");
+        const { resolveBedrockRegion } =
+          await import("~/features/providers/shared/bedrockEndpoint");
         const region =
           resolveBedrockRegion(payload.region) !== "us-east-1" || payload.region
             ? resolveBedrockRegion(payload.region)
             : resolveBedrockRegion(getProviderEndpoint("bedrock")?.host);
 
-        const { fetchBedrockModels } = await import(
-          "~/main/llm/providers/bedrock/models"
-        );
+        const { fetchBedrockModels } =
+          await import("~/main/llm/providers/bedrock/models");
         models = await fetchBedrockModels({
           accessKeyId,
           secretAccessKey,
@@ -601,7 +694,9 @@ export const registerApiHandlers = (): void => {
         if (!profile) {
           return {
             success: false,
-            error: messageLabel("models.providerSetup.error.activeProfileNotFound"),
+            error: messageLabel(
+              "models.providerSetup.error.activeProfileNotFound",
+            ),
           };
         }
         return {
@@ -609,7 +704,11 @@ export const registerApiHandlers = (): void => {
           profile: withoutProfileSecrets(profile),
         };
       } else {
-        const apiKey = await getSetupApiKey(profileId, payload.provider, payload.apiKey);
+        const apiKey = await getSetupApiKey(
+          profileId,
+          payload.provider,
+          payload.apiKey,
+        );
         if (!apiKey) {
           return {
             success: false,
@@ -621,7 +720,12 @@ export const registerApiHandlers = (): void => {
 
         // Validate the key before writing it: non-persistent and strict, so a
         // revoked key cannot pass on stale models cached by an earlier connect.
-        models = await fetchAvailableModels(apiKey, payload.provider, false, true);
+        models = await fetchAvailableModels(
+          apiKey,
+          payload.provider,
+          false,
+          true,
+        );
 
         if (payload.apiKey?.trim()) {
           const result = await setProfileSecret(
@@ -631,13 +735,18 @@ export const registerApiHandlers = (): void => {
             payload.apiKey,
           );
           if (!result.success) return wrapStoreResult(result);
-        } else if (!(await hasProfileSecret(profileId, payload.provider, "api"))) {
+        } else if (
+          !(await hasProfileSecret(profileId, payload.provider, "api"))
+        ) {
           return {
             success: false,
             error: messageLabel("models.providerSetup.error.apiKeyNotVerified"),
           };
         }
-        if (supportsAdminKey(payload.provider) && payload.provisioningKey?.trim()) {
+        if (
+          supportsAdminKey(payload.provider) &&
+          payload.provisioningKey?.trim()
+        ) {
           const result = await setProfileSecret(
             profileId,
             payload.provider,
@@ -662,7 +771,9 @@ export const registerApiHandlers = (): void => {
       if (!profile) {
         return {
           success: false,
-          error: messageLabel("models.providerSetup.error.activeProfileNotFound"),
+          error: messageLabel(
+            "models.providerSetup.error.activeProfileNotFound",
+          ),
         };
       }
       // SECURITY: `SettingsStore` still declares the deprecated plaintext
@@ -714,7 +825,9 @@ export const registerApiHandlers = (): void => {
       if (!outcome) {
         return {
           success: false,
-          error: messageLabel("models.providerSetup.error.activeProfileNotFound"),
+          error: messageLabel(
+            "models.providerSetup.error.activeProfileNotFound",
+          ),
         };
       }
       return {
@@ -759,7 +872,9 @@ export const registerApiHandlers = (): void => {
     } catch (error) {
       console.error(
         "Error fetching models:",
-        redactLogMessage(error instanceof Error ? error.message : String(error)),
+        redactLogMessage(
+          error instanceof Error ? error.message : String(error),
+        ),
       );
       return { success: false, error: providerErrorLabel(error) };
     }
@@ -801,7 +916,9 @@ export const registerApiHandlers = (): void => {
       if (typeof raw !== "string") {
         return {
           success: false,
-          error: messageLabel("models.select.error.modelNotAvailableForProvider"),
+          error: messageLabel(
+            "models.select.error.modelNotAvailableForProvider",
+          ),
         };
       }
 
@@ -816,7 +933,9 @@ export const registerApiHandlers = (): void => {
       if (!resolution || !enabledProviders().includes(resolution.provider)) {
         return {
           success: false,
-          error: messageLabel("models.select.error.modelNotAvailableForProvider"),
+          error: messageLabel(
+            "models.select.error.modelNotAvailableForProvider",
+          ),
         };
       }
 
@@ -833,7 +952,9 @@ export const registerApiHandlers = (): void => {
   // Feature-specific model settings
   ipcMain.handle("get-feature-model", (_event, feature) => {
     if (feature === "settingsPromptGen") {
-      return getProfileSetting("settingsPromptGen").model || getDefaultModelId();
+      return (
+        getProfileSetting("settingsPromptGen").model || getDefaultModelId()
+      );
     }
     return getDefaultModelId();
   });
@@ -941,7 +1062,9 @@ export const registerApiHandlers = (): void => {
       if (!model) {
         return {
           success: false,
-          error: messageLabel("models.manager.error.modelNotFound", { modelName }),
+          error: messageLabel("models.manager.error.modelNotFound", {
+            modelName,
+          }),
         };
       }
 

@@ -32,17 +32,26 @@ const isSecretGuardMode = (value: unknown): value is SecretGuardMode =>
  * legitimate choices and stay legal; a non-boolean entropy flag is refused,
  * because normalization would turn it into "off" without saying so.
  */
-const isSecretGuardSettings = (value: unknown): value is SecretGuardSettings => {
+const isSecretGuardSettings = (
+  value: unknown,
+): value is SecretGuardSettings => {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
-  return isSecretGuardMode(record.mode) && typeof record.highEntropyRule === "boolean";
+  return (
+    isSecretGuardMode(record.mode) &&
+    typeof record.highEntropyRule === "boolean"
+  );
 };
 
 export const secretGuardFeature = {
   /** A malformed reply falls back to the SAFE defaults (`confirm`), never to `off`. */
   getSecretGuardSettings: async (): Promise<SecretGuardSettings> => {
-    const result: unknown = await ipcRenderer.invoke("get-secret-guard-settings");
-    return isSecretGuardSettings(result) ? result : DEFAULT_SECRET_GUARD_SETTINGS;
+    const result: unknown = await ipcRenderer.invoke(
+      "get-secret-guard-settings",
+    );
+    return isSecretGuardSettings(result)
+      ? result
+      : DEFAULT_SECRET_GUARD_SETTINGS;
   },
 
   setSecretGuardSettings: async (
@@ -54,7 +63,10 @@ export const secretGuardFeature = {
         error: textLabel("Malformed secret guard settings"),
       };
     }
-    const result = await ipcRenderer.invoke("set-secret-guard-settings", settings);
+    const result = await ipcRenderer.invoke(
+      "set-secret-guard-settings",
+      settings,
+    );
     return { success: Boolean(result?.success), error: asLabel(result?.error) };
   },
 };

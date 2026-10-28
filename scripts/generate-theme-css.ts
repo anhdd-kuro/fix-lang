@@ -4,13 +4,7 @@
  *
  * Usage: bun run themes:generate
  */
-import {
-  mkdir,
-  readdir,
-  readFile,
-  unlink,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmThemeToSemanticTokens } from "../src/themes/tmThemeToSemanticTokens";
 import type { SemanticTokenKey, TmTheme } from "../src/themes/tmThemeTypes";
@@ -38,9 +32,7 @@ const SEMANTIC_KEYS = Object.keys(
 ) as SemanticTokenKey[];
 
 const toCssBlock = (selector: string, tokens: ThemeEntry["tokens"]): string => {
-  const lines = SEMANTIC_KEYS.map(
-    (key) => `  ${key}: ${tokens[key]};`,
-  );
+  const lines = SEMANTIC_KEYS.map((key) => `  ${key}: ${tokens[key]};`);
   return `${selector} {\n${lines.join("\n")}\n}`;
 };
 
@@ -287,11 +279,7 @@ const main = async (): Promise<void> => {
     const cssPath = path.join(THEME_CSS_DIR, cssFileName);
     const isDefault = entry.id === DEFAULT_THEME_ID;
 
-    await writeFile(
-      cssPath,
-      `${toPresetCss(entry, isDefault)}\n`,
-      "utf8",
-    );
+    await writeFile(cssPath, `${toPresetCss(entry, isDefault)}\n`, "utf8");
     importLines.push(`@import "./${cssFileName}";`);
   }
 

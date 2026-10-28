@@ -12,7 +12,10 @@
  * network / never need electron. All I/O is async with a 5s AbortController
  * timeout (mirrors the existing model-list fetch in ai.request/shared.ts).
  */
-import { describeKeyShape, findKeyShapeMismatch } from "~/features/providers/shared/providerKeyShapes";
+import {
+  describeKeyShape,
+  findKeyShapeMismatch,
+} from "~/features/providers/shared/providerKeyShapes";
 import { getProvisioningKey } from "~/features/providers/store/provisioningKeyStore";
 import { logger } from "~/main/logging/logService";
 import {
@@ -42,7 +45,7 @@ export type OpenRouterAnalytics = {
 
 type FetchLike = (
   url: string,
-  init: { headers: Record<string, string>; signal: AbortSignal }
+  init: { headers: Record<string, string>; signal: AbortSignal },
 ) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
 
 type ClientDeps = {
@@ -67,7 +70,8 @@ const logAdminRequest = (
   outcome: { ok: boolean; status?: number; reason?: string },
 ): void => {
   const shape = describeKeyShape(key);
-  const foreign = findKeyShapeMismatch("openrouter", "provisioning", key) !== null;
+  const foreign =
+    findKeyShapeMismatch("openrouter", "provisioning", key) !== null;
   const context = {
     endpoint: path,
     keyShape: shape,
@@ -100,7 +104,7 @@ export type OpenRouterClient = {
 };
 
 export const createOpenRouterClient = (
-  deps: ClientDeps = {}
+  deps: ClientDeps = {},
 ): OpenRouterClient => {
   const doFetch = (deps.fetch ?? (globalThis.fetch as unknown)) as FetchLike;
   const getKey = deps.getKey ?? (() => getProvisioningKey("openrouter"));
@@ -112,13 +116,17 @@ export const createOpenRouterClient = (
    */
   const call = async <T>(
     path: string,
-    parse: (json: unknown) => CardResult<T>
+    parse: (json: unknown) => CardResult<T>,
   ): Promise<ClientCardResult<T>> => {
     const key = await getKey();
     if (!key) {
-      logger.debug(LOG_SCOPE, "OpenRouter account request skipped — no key stored", {
-        endpoint: path,
-      });
+      logger.debug(
+        LOG_SCOPE,
+        "OpenRouter account request skipped — no key stored",
+        {
+          endpoint: path,
+        },
+      );
       return NO_KEY;
     }
 
@@ -131,7 +139,11 @@ export const createOpenRouterClient = (
       });
       if (!response.ok) {
         const reason = reasonForStatus(response.status);
-        logAdminRequest(path, key, { ok: false, status: response.status, reason });
+        logAdminRequest(path, key, {
+          ok: false,
+          status: response.status,
+          reason,
+        });
         return { ok: false, reason };
       }
       const json = await response.json();
@@ -158,7 +170,7 @@ export const createOpenRouterClient = (
   const getEnabledKeyCount = () => call("/keys", parseProvisioningKeys);
 
   const getAnalytics = async (
-    range: "7d" | "30d"
+    range: "7d" | "30d",
   ): Promise<OpenRouterAnalytics> => {
     const hasKey = (await getKey()) !== null;
     const [credits, keyUsage, activity, enabledKeys] = await Promise.all([

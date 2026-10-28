@@ -5,7 +5,10 @@
  * labels, series values and slice ordering are unit-testable directly (no DOM
  * testing library is installed). Mirrors the `presetChartView.ts` split.
  */
-import type { UsageCostSlice, UsageDailyPoint } from "~/features/usage/shared/usage";
+import type {
+  UsageCostSlice,
+  UsageDailyPoint,
+} from "~/features/usage/shared/usage";
 
 /** Largest slices first, with a "+N more" bucket so the donut stays readable. */
 export const MAX_DONUT_SLICES = 6;
@@ -28,7 +31,8 @@ const dateFromDayKey = (dayKey: string): Date => {
 export const dailyTickLabel = (
   formatDate: (date: Date, options?: Intl.DateTimeFormatOptions) => string,
   dayKey: string,
-): string => formatDate(dateFromDayKey(dayKey), { month: "short", day: "numeric" });
+): string =>
+  formatDate(dateFromDayKey(dayKey), { month: "short", day: "numeric" });
 
 /** Bars: one real billed figure per day. Days the provider never priced are 0. */
 export const dailyCostSeries = (
@@ -66,7 +70,10 @@ export const hasTokenData = (points: readonly UsageDailyPoint[]): boolean =>
 export const costDonutSlices = (
   slices: readonly UsageCostSlice[],
   maxSlices: number = MAX_DONUT_SLICES,
-): { slices: UsageCostSlice[]; remainder: { count: number; costUsd: number } | null } => {
+): {
+  slices: UsageCostSlice[];
+  remainder: { count: number; costUsd: number } | null;
+} => {
   const positive = slices
     .filter((slice) => slice.costUsd > 0)
     .sort((a, b) => b.costUsd - a.costUsd);

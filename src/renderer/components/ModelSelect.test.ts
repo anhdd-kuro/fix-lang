@@ -54,7 +54,9 @@ describe("ModelSelect", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(createElement(I18nProvider, null, createElement(ModelSelect)));
+      root.render(
+        createElement(I18nProvider, null, createElement(ModelSelect)),
+      );
     });
     // Two ticks: `<I18nProvider>` renders null until `getLocale()` resolves,
     // and `fetchModels()`'s rejection needs a further tick to land in state.
@@ -115,13 +117,18 @@ describe("ModelSelect", () => {
         return vi.fn();
       }),
     };
-    Object.defineProperty(window, "electronAPI", { configurable: true, value: api });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: api,
+    });
 
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(createElement(I18nProvider, null, createElement(ModelSelect)));
+      root.render(
+        createElement(I18nProvider, null, createElement(ModelSelect)),
+      );
     });
     await waitForUi();
     await waitForUi();
@@ -193,16 +200,19 @@ describe("ModelSelect", () => {
       onFormSubmit?: ReturnType<typeof vi.fn>,
     ) => {
       const api = {
-        fetchAIModels: vi
-          .fn()
-          .mockResolvedValue({ success: true, models: overrides.models ?? [MODEL] }),
+        fetchAIModels: vi.fn().mockResolvedValue({
+          success: true,
+          models: overrides.models ?? [MODEL],
+        }),
         getProviderStates: vi
           .fn()
           .mockResolvedValue(overrides.states ?? connectedOpenAI),
         getSelectedModel: vi
           .fn()
           .mockResolvedValue(overrides.selectedModel ?? "openai::gpt-5-mini"),
-        getFeatureModel: vi.fn().mockResolvedValue(overrides.featureModel ?? ""),
+        getFeatureModel: vi
+          .fn()
+          .mockResolvedValue(overrides.featureModel ?? ""),
         setSelectedModel: vi.fn().mockResolvedValue({ success: true }),
         setFeatureModel: vi.fn().mockResolvedValue(undefined),
         onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
@@ -213,7 +223,10 @@ describe("ModelSelect", () => {
           return vi.fn();
         }),
       };
-      Object.defineProperty(window, "electronAPI", { configurable: true, value: api });
+      Object.defineProperty(window, "electronAPI", {
+        configurable: true,
+        value: api,
+      });
 
       container = document.createElement("div");
       document.body.append(container);
@@ -247,13 +260,20 @@ describe("ModelSelect", () => {
     it('shows "use global default" for a preset whose model is the empty inherit sentinel', async () => {
       await mount({ selectedModelId: "", persistSelection: false });
 
-      expect(container.textContent).toContain(tEn("models.select.option.inherit"));
+      expect(container.textContent).toContain(
+        tEn("models.select.option.inherit"),
+      );
       // The placeholder is what a missing inherit option leaves behind.
-      expect(container.textContent).not.toContain(tEn("models.select.placeholder"));
+      expect(container.textContent).not.toContain(
+        tEn("models.select.placeholder"),
+      );
     });
 
     it("marks a stored-but-missing model as no longer available instead of rendering blank", async () => {
-      await mount({ selectedModelId: "openai::ghost", persistSelection: false });
+      await mount({
+        selectedModelId: "openai::ghost",
+        persistSelection: false,
+      });
 
       expect(container.textContent).toContain(
         tEn("models.select.option.unavailable", { model: "ghost" }),
@@ -261,10 +281,15 @@ describe("ModelSelect", () => {
     });
 
     it("resolves a composite ref to its model rather than the inherit row", async () => {
-      await mount({ selectedModelId: "openai::gpt-5-mini", persistSelection: false });
+      await mount({
+        selectedModelId: "openai::gpt-5-mini",
+        persistSelection: false,
+      });
 
       expect(container.textContent).toContain("gpt-5-mini");
-      expect(container.textContent).not.toContain(tEn("models.select.option.inherit"));
+      expect(container.textContent).not.toContain(
+        tEn("models.select.option.inherit"),
+      );
     });
 
     it("uses the caller's label/description override — what Settings → General passes", async () => {
@@ -273,7 +298,9 @@ describe("ModelSelect", () => {
         descriptionKey: "settings.general.defaultModel.description",
       });
 
-      expect(container.textContent).toContain(tEn("settings.general.defaultModel.label"));
+      expect(container.textContent).toContain(
+        tEn("settings.general.defaultModel.label"),
+      );
       expect(container.textContent).not.toContain(tEn("models.select.label"));
     });
 
@@ -281,7 +308,9 @@ describe("ModelSelect", () => {
       await mount({});
 
       expect(container.textContent).toContain(tEn("models.select.label"));
-      expect(container.textContent).toContain(tEn("models.select.description.default"));
+      expect(container.textContent).toContain(
+        tEn("models.select.description.default"),
+      );
     });
 
     // A feature picker reaches inherit via `getFeatureModel()`, not via the
@@ -289,14 +318,20 @@ describe("ModelSelect", () => {
     it("offers the inherit row to a feature picker whose feature model is unset", async () => {
       await mount({ featureId: "settingsPromptGen", useFeatureModel: true });
 
-      expect(container.textContent).toContain(tEn("models.select.option.inherit"));
-      expect(container.textContent).toContain(tEn("models.select.description.feature"));
+      expect(container.textContent).toContain(
+        tEn("models.select.option.inherit"),
+      );
+      expect(container.textContent).toContain(
+        tEn("models.select.description.feature"),
+      );
     });
 
     it("does NOT offer the inherit row to the global default picker", async () => {
       await mount({ saveOnChange: true });
 
-      expect(container.textContent).not.toContain(tEn("models.select.option.inherit"));
+      expect(container.textContent).not.toContain(
+        tEn("models.select.option.inherit"),
+      );
       expect(container.textContent).toContain("gpt-5-mini");
     });
 
@@ -306,7 +341,9 @@ describe("ModelSelect", () => {
       expect(container.textContent).toContain(
         tEn("models.select.placeholder.noProviders"),
       );
-      expect(container.textContent).not.toContain(tEn("models.select.placeholder"));
+      expect(container.textContent).not.toContain(
+        tEn("models.select.placeholder"),
+      );
     });
 
     it("surfaces a stored default that its provider no longer serves", async () => {
@@ -340,15 +377,23 @@ describe("ModelSelect", () => {
       });
 
     it("names the selected model's provider in the closed control", async () => {
-      await mount({ selectedModelId: "openai::gpt-5-mini", persistSelection: false });
+      await mount({
+        selectedModelId: "openai::gpt-5-mini",
+        persistSelection: false,
+      });
 
-      expect(container.textContent).toContain(selectedText("openai", "gpt-5-mini"));
+      expect(container.textContent).toContain(
+        selectedText("openai", "gpt-5-mini"),
+      );
       // The control must show the provider's label, not the composite ref.
       expect(container.textContent).not.toContain("openai::gpt-5-mini");
     });
 
     it("keeps the provider out of the menu rows, which sit under its heading", async () => {
-      await mount({ selectedModelId: "openai::gpt-5-mini", persistSelection: false });
+      await mount({
+        selectedModelId: "openai::gpt-5-mini",
+        persistSelection: false,
+      });
       await openMenu();
 
       const rows = menuRowTexts();
@@ -362,14 +407,19 @@ describe("ModelSelect", () => {
     it("leaves the inherit control text unprefixed", async () => {
       await mount({ selectedModelId: "", persistSelection: false });
 
-      expect(container.textContent).toContain(tEn("models.select.option.inherit"));
+      expect(container.textContent).toContain(
+        tEn("models.select.option.inherit"),
+      );
       expect(container.textContent).not.toContain(
         tEn("models.select.provider.openai"),
       );
     });
 
     it("leaves the unavailable control text unprefixed", async () => {
-      await mount({ selectedModelId: "openai::ghost", persistSelection: false });
+      await mount({
+        selectedModelId: "openai::ghost",
+        persistSelection: false,
+      });
 
       expect(container.textContent).toContain(
         tEn("models.select.option.unavailable", { model: "ghost" }),
@@ -397,7 +447,9 @@ describe("ModelSelect", () => {
         },
       );
 
-      expect(container.textContent).toContain(selectedText("ollama", "llama3.2:3b"));
+      expect(container.textContent).toContain(
+        selectedText("ollama", "llama3.2:3b"),
+      );
     });
 
     it("names OpenRouter for a selected OpenRouter model", async () => {
@@ -480,10 +532,7 @@ describe("ModelSelect", () => {
       });
       await waitForUi();
 
-      expect(api.setFeatureModel).toHaveBeenCalledWith(
-        "settingsPromptGen",
-        "",
-      );
+      expect(api.setFeatureModel).toHaveBeenCalledWith("settingsPromptGen", "");
       expect(onFormSubmit).not.toHaveBeenCalled();
     });
   });

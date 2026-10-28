@@ -97,7 +97,9 @@ describe("SettingCombos tab strip", () => {
   ];
 
   const renameInput = (): HTMLInputElement | null =>
-    container.querySelector<HTMLInputElement>('input[aria-label="Rename combo"]');
+    container.querySelector<HTMLInputElement>(
+      'input[aria-label="Rename combo"]',
+    );
 
   const startRenamingFirstTab = async () => {
     await act(async () => {
@@ -135,7 +137,9 @@ describe("SettingCombos tab strip", () => {
 
     expect(renameInput()).not.toBeNull();
 
-    const selected = container.querySelector('[role="tab"][aria-selected="true"]');
+    const selected = container.querySelector(
+      '[role="tab"][aria-selected="true"]',
+    );
     expect(selected).not.toBeNull();
     expect(selected?.getAttribute("tabindex")).toBe("0");
 

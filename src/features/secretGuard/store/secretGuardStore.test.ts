@@ -52,8 +52,13 @@ describe("secretGuardStore", () => {
   });
 
   it("starts from the documented defaults before anything is written", () => {
-    expect(secretGuardStore.getSecretGuardSettings()).toEqual(DEFAULT_SECRET_GUARD_SETTINGS);
-    expect(DEFAULT_SECRET_GUARD_SETTINGS).toEqual({ mode: "confirm", highEntropyRule: false });
+    expect(secretGuardStore.getSecretGuardSettings()).toEqual(
+      DEFAULT_SECRET_GUARD_SETTINGS,
+    );
+    expect(DEFAULT_SECRET_GUARD_SETTINGS).toEqual({
+      mode: "confirm",
+      highEntropyRule: false,
+    });
   });
 
   it.each<SecretGuardSettings>([

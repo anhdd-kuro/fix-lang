@@ -23,7 +23,8 @@ const { entries } = vi.hoisted(() => ({
 
 vi.mock("~/main/logging/logService", () => {
   const record =
-    (level: LogLevel) => (scope: string, message: string, context?: LogContext) => {
+    (level: LogLevel) =>
+    (scope: string, message: string, context?: LogContext) => {
       entries.push({ level, scope, message, context });
     };
   return {
@@ -46,7 +47,11 @@ const errResponse = (status: number) => ({
   json: async () => ({}),
 });
 
-const okResponse = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
+const okResponse = (body: unknown) => ({
+  ok: true,
+  status: 200,
+  json: async () => body,
+});
 
 beforeEach(() => {
   entries.length = 0;
@@ -88,7 +93,8 @@ describe("OpenRouter admin request logging", () => {
 
   it("logs a success and the no-key skip, so silence means no attempt at all", async () => {
     const client = createOpenRouterClient({
-      fetch: (async () => okResponse({ data: { total_credits: 5, total_usage: 1 } })) as never,
+      fetch: (async () =>
+        okResponse({ data: { total_credits: 5, total_usage: 1 } })) as never,
       getKey: async () => OPENROUTER_KEY,
     });
     await client.getCredits();

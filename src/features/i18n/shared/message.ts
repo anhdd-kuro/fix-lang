@@ -31,7 +31,10 @@ export type MessageParams = Readonly<Record<string, string | number>>;
  * Aggregation code returns these instead of formatted prose; the renderer
  * resolves them via `tm()` (see `useI18n.ts`).
  */
-export type Message = { readonly key: MessageKey; readonly params?: MessageParams };
+export type Message = {
+  readonly key: MessageKey;
+  readonly params?: MessageParams;
+};
 
 /**
  * A display value that is EITHER user data (never translated, e.g. a preset
@@ -52,7 +55,10 @@ export const msg = (key: MessageKey, params?: MessageParams): Message =>
 export const textLabel = (text: string): Label => ({ kind: "text", text });
 
 /** Wraps a translation key as a `Label` — always resolved through `t()`. */
-export const messageLabel = (key: MessageKey, params?: MessageParams): Label => ({
+export const messageLabel = (
+  key: MessageKey,
+  params?: MessageParams,
+): Label => ({
   kind: "message",
   message: msg(key, params),
 });
@@ -61,7 +67,8 @@ export const messageLabel = (key: MessageKey, params?: MessageParams): Label => 
 export type Translate = (key: MessageKey, params?: MessageParams) => string;
 
 /** Resolves a `Message` to a display string via `t`. Thin — kept so call sites don't hand-roll `t(m.key, m.params)`. */
-export const resolveMessage = (m: Message, t: Translate): string => t(m.key, m.params);
+export const resolveMessage = (m: Message, t: Translate): string =>
+  t(m.key, m.params);
 
 /** Resolves a `Label` to a display string: verbatim for `"text"`, translated for `"message"`. */
 export const resolveLabel = (l: Label, t: Translate): string =>

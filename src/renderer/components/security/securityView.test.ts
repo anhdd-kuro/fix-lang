@@ -32,7 +32,11 @@ const guardSettings = (
 
 describe("resolveSecurityView", () => {
   it("never carries a resolved string — every message is a {key,params} descriptor", () => {
-    const view = resolveSecurityView(guardSettings(), DEFAULT_SECRET_GUARD_SETTINGS, []);
+    const view = resolveSecurityView(
+      guardSettings(),
+      DEFAULT_SECRET_GUARD_SETTINGS,
+      [],
+    );
 
     for (const descriptor of [
       view.clipboardAge.hint,
@@ -103,22 +107,35 @@ describe("resolveSecurityView", () => {
 
   it("derives listHint only when the deny-list is empty", () => {
     expect(
-      resolveSecurityView(guardSettings({ deniedBundleIds: [] }), DEFAULT_SECRET_GUARD_SETTINGS, [])
-        .deniedApps.listHint,
+      resolveSecurityView(
+        guardSettings({ deniedBundleIds: [] }),
+        DEFAULT_SECRET_GUARD_SETTINGS,
+        [],
+      ).deniedApps.listHint,
     ).toEqual({ kind: "plain", message: { key: "security.deniedApps.empty" } });
     expect(
-      resolveSecurityView(guardSettings(), DEFAULT_SECRET_GUARD_SETTINGS, []).deniedApps.listHint,
+      resolveSecurityView(guardSettings(), DEFAULT_SECRET_GUARD_SETTINGS, [])
+        .deniedApps.listHint,
     ).toBeNull();
   });
 
   it("derives recentHint only when there are no recently used apps", () => {
-    const withApps: ActiveApp[] = [{ name: "Slack", bundleId: "com.slack.slack" }];
+    const withApps: ActiveApp[] = [
+      { name: "Slack", bundleId: "com.slack.slack" },
+    ];
     expect(
-      resolveSecurityView(guardSettings(), DEFAULT_SECRET_GUARD_SETTINGS, []).deniedApps.recentHint,
-    ).toEqual({ kind: "plain", message: { key: "security.deniedApps.recentEmpty" } });
+      resolveSecurityView(guardSettings(), DEFAULT_SECRET_GUARD_SETTINGS, [])
+        .deniedApps.recentHint,
+    ).toEqual({
+      kind: "plain",
+      message: { key: "security.deniedApps.recentEmpty" },
+    });
     expect(
-      resolveSecurityView(guardSettings(), DEFAULT_SECRET_GUARD_SETTINGS, withApps).deniedApps
-        .recentHint,
+      resolveSecurityView(
+        guardSettings(),
+        DEFAULT_SECRET_GUARD_SETTINGS,
+        withApps,
+      ).deniedApps.recentHint,
     ).toBeNull();
   });
 
@@ -128,7 +145,11 @@ describe("resolveSecurityView", () => {
       { name: "Slack", bundleId: "com.slack.slack" },
       { name: "Helper", bundleId: null },
     ];
-    const view = resolveSecurityView(guardSettings(), DEFAULT_SECRET_GUARD_SETTINGS, recentApps);
+    const view = resolveSecurityView(
+      guardSettings(),
+      DEFAULT_SECRET_GUARD_SETTINGS,
+      recentApps,
+    );
 
     expect(view.deniedApps.recentApps).toEqual([
       { app: recentApps[0], blocked: true },
@@ -139,21 +160,37 @@ describe("resolveSecurityView", () => {
 
   it("only shows the mask hint in mask mode — confirm and off show no hint", () => {
     expect(
-      resolveSecurityView(guardSettings(), { mode: "mask", highEntropyRule: false }, [])
-        .secretGuard.maskHint,
-    ).toEqual({ kind: "plain", message: { key: "security.secretGuard.maskHint" } });
+      resolveSecurityView(
+        guardSettings(),
+        { mode: "mask", highEntropyRule: false },
+        [],
+      ).secretGuard.maskHint,
+    ).toEqual({
+      kind: "plain",
+      message: { key: "security.secretGuard.maskHint" },
+    });
     expect(
-      resolveSecurityView(guardSettings(), { mode: "confirm", highEntropyRule: false }, [])
-        .secretGuard.maskHint,
+      resolveSecurityView(
+        guardSettings(),
+        { mode: "confirm", highEntropyRule: false },
+        [],
+      ).secretGuard.maskHint,
     ).toBeNull();
     expect(
-      resolveSecurityView(guardSettings(), { mode: "off", highEntropyRule: false }, [])
-        .secretGuard.maskHint,
+      resolveSecurityView(
+        guardSettings(),
+        { mode: "off", highEntropyRule: false },
+        [],
+      ).secretGuard.maskHint,
     ).toBeNull();
   });
 
   it("passes mode and highEntropyRule through unchanged", () => {
-    const view = resolveSecurityView(guardSettings(), { mode: "mask", highEntropyRule: true }, []);
+    const view = resolveSecurityView(
+      guardSettings(),
+      { mode: "mask", highEntropyRule: true },
+      [],
+    );
     expect(view.secretGuard.mode).toBe("mask");
     expect(view.secretGuard.highEntropyRule).toBe(true);
   });
@@ -161,7 +198,10 @@ describe("resolveSecurityView", () => {
 
 describe("withDeniedBundleId", () => {
   it("adds a normalized bundle id", () => {
-    const next = withDeniedBundleId(guardSettings({ deniedBundleIds: [] }), " Com.Slack.Slack ");
+    const next = withDeniedBundleId(
+      guardSettings({ deniedBundleIds: [] }),
+      " Com.Slack.Slack ",
+    );
     expect(next.deniedBundleIds).toEqual(["com.slack.slack"]);
   });
 
@@ -187,7 +227,9 @@ describe("withDeniedBundleId", () => {
 describe("withoutDeniedBundleId", () => {
   it("removes a bundle id, case/whitespace-insensitively", () => {
     const next = withoutDeniedBundleId(
-      guardSettings({ deniedBundleIds: ["com.slack.slack", "com.figma.desktop"] }),
+      guardSettings({
+        deniedBundleIds: ["com.slack.slack", "com.figma.desktop"],
+      }),
       " COM.SLACK.SLACK ",
     );
     expect(next.deniedBundleIds).toEqual(["com.figma.desktop"]);
@@ -195,7 +237,9 @@ describe("withoutDeniedBundleId", () => {
 
   it("is a no-op when the bundle id is not present", () => {
     const settings = guardSettings({ deniedBundleIds: ["com.figma.desktop"] });
-    expect(withoutDeniedBundleId(settings, "com.slack.slack")).toEqual(settings);
+    expect(withoutDeniedBundleId(settings, "com.slack.slack")).toEqual(
+      settings,
+    );
   });
 
   it("never mutates the settings passed in", () => {
@@ -234,7 +278,9 @@ describe("withDeniedBundleIds", () => {
    */
   it("returns the SAME reference when every id was already denied", () => {
     const settings = guardSettings({ deniedBundleIds: ["com.slack.slack"] });
-    expect(withDeniedBundleIds(settings, [" com.slack.slack "]).settings).toBe(settings);
+    expect(withDeniedBundleIds(settings, [" com.slack.slack "]).settings).toBe(
+      settings,
+    );
   });
 
   it("returns the SAME reference for an empty batch", () => {
@@ -258,8 +304,9 @@ describe("withDeniedBundleIds", () => {
    * first `MAX_DENIED_BUNDLE_IDS` and drop the rest — it persists nothing.
    */
   it("stops at MAX_DENIED_BUNDLE_IDS and counts what did not fit", () => {
-    const full = Array.from({ length: MAX_DENIED_BUNDLE_IDS }, (_unused, index) =>
-      `com.example.app${String(index)}`,
+    const full = Array.from(
+      { length: MAX_DENIED_BUNDLE_IDS },
+      (_unused, index) => `com.example.app${String(index)}`,
     );
     const next = withDeniedBundleIds(guardSettings({ deniedBundleIds: full }), [
       "com.slack.slack",
@@ -274,10 +321,10 @@ describe("withDeniedBundleIds", () => {
       { length: MAX_DENIED_BUNDLE_IDS - 1 },
       (_unused, index) => `com.example.app${String(index)}`,
     );
-    const next = withDeniedBundleIds(guardSettings({ deniedBundleIds: nearlyFull }), [
-      "com.slack.slack",
-      "com.figma.desktop",
-    ]);
+    const next = withDeniedBundleIds(
+      guardSettings({ deniedBundleIds: nearlyFull }),
+      ["com.slack.slack", "com.figma.desktop"],
+    );
     expect(next.settings.deniedBundleIds).toHaveLength(MAX_DENIED_BUNDLE_IDS);
     expect(next.settings.deniedBundleIds).toContain("com.slack.slack");
     expect(next.droppedForCapacity).toBe(1);
@@ -285,8 +332,9 @@ describe("withDeniedBundleIds", () => {
 
   /** An already-denied id needs no capacity, so a full list still accepts it as a no-op. */
   it("does not count an already-denied id as dropped when the list is full", () => {
-    const full = Array.from({ length: MAX_DENIED_BUNDLE_IDS }, (_unused, index) =>
-      `com.example.app${String(index)}`,
+    const full = Array.from(
+      { length: MAX_DENIED_BUNDLE_IDS },
+      (_unused, index) => `com.example.app${String(index)}`,
     );
     const settings = guardSettings({ deniedBundleIds: full });
     const next = withDeniedBundleIds(settings, ["com.example.app0"]);

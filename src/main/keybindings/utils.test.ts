@@ -7,7 +7,10 @@
  * `notifications/error.test.ts`.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AccessibilityPermissionError, LocalizedError } from "~/main/notifications/error";
+import {
+  AccessibilityPermissionError,
+  LocalizedError,
+} from "~/main/notifications/error";
 import {
   checkShortcut,
   handleError,
@@ -16,10 +19,11 @@ import {
   withHotkeyThrottle,
 } from "./utils";
 
-const { showErrorNotificationMock, promptAccessibilityPermissionMock } = vi.hoisted(() => ({
-  showErrorNotificationMock: vi.fn(),
-  promptAccessibilityPermissionMock: vi.fn(),
-}));
+const { showErrorNotificationMock, promptAccessibilityPermissionMock } =
+  vi.hoisted(() => ({
+    showErrorNotificationMock: vi.fn(),
+    promptAccessibilityPermissionMock: vi.fn(),
+  }));
 
 // `handleError` now also imports `~/utils` for `promptAccessibilityPermission`.
 // The real module talks to `child_process`/Electron `dialog` — irrelevant to
@@ -95,7 +99,9 @@ describe("checkShortcut", () => {
 
     expect(result).toBe(false);
     expect(showErrorNotificationMock).toHaveBeenCalledOnce();
-    const [reportedError] = showErrorNotificationMock.mock.calls[0] as [unknown];
+    const [reportedError] = showErrorNotificationMock.mock.calls[0] as [
+      unknown,
+    ];
     expect(reportedError).toBeInstanceOf(LocalizedError);
     expect((reportedError as LocalizedError).messageKey).toBe(
       "notifications.error.hotkeyRegistrationFailed.body",
@@ -110,7 +116,6 @@ describe("checkShortcut", () => {
   });
 });
 
-
 describe("withHotkeyThrottle", () => {
   beforeEach(() => {
     resetHotkeyThrottleForTests();
@@ -119,7 +124,11 @@ describe("withHotkeyThrottle", () => {
   it("invokes the handler on the first press", () => {
     const clock = 1_000;
     const handler = vi.fn();
-    const throttled = withHotkeyThrottle("Control+Shift+D", handler, () => clock);
+    const throttled = withHotkeyThrottle(
+      "Control+Shift+D",
+      handler,
+      () => clock,
+    );
 
     throttled();
 
@@ -129,7 +138,11 @@ describe("withHotkeyThrottle", () => {
   it("ignores a second press of the same accelerator within 500ms", () => {
     let clock = 1_000;
     const handler = vi.fn();
-    const throttled = withHotkeyThrottle("Control+Shift+D", handler, () => clock);
+    const throttled = withHotkeyThrottle(
+      "Control+Shift+D",
+      handler,
+      () => clock,
+    );
 
     throttled();
     clock += HOTKEY_THROTTLE_MS - 1;
@@ -141,7 +154,11 @@ describe("withHotkeyThrottle", () => {
   it("invokes again after the 500ms window", () => {
     let clock = 1_000;
     const handler = vi.fn();
-    const throttled = withHotkeyThrottle("Control+Shift+D", handler, () => clock);
+    const throttled = withHotkeyThrottle(
+      "Control+Shift+D",
+      handler,
+      () => clock,
+    );
 
     throttled();
     clock += HOTKEY_THROTTLE_MS;
@@ -154,8 +171,16 @@ describe("withHotkeyThrottle", () => {
     let clock = 1_000;
     const first = vi.fn();
     const second = vi.fn();
-    const throttledFirst = withHotkeyThrottle("Control+Shift+D", first, () => clock);
-    const throttledSecond = withHotkeyThrottle("Control+Shift+S", second, () => clock);
+    const throttledFirst = withHotkeyThrottle(
+      "Control+Shift+D",
+      first,
+      () => clock,
+    );
+    const throttledSecond = withHotkeyThrottle(
+      "Control+Shift+S",
+      second,
+      () => clock,
+    );
 
     throttledFirst();
     clock += 50;

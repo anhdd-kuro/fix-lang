@@ -72,11 +72,13 @@ export const JA_CATALOG: Partial<Record<TranslationKey, string>> = {
   ...jaUsage,
 };
 
-export const CATALOGS: Record<Locale, Partial<Record<TranslationKey, string>>> =
-  {
-    en: EN_CATALOG,
-    ja: JA_CATALOG,
-  };
+export const CATALOGS: Record<
+  Locale,
+  Partial<Record<TranslationKey, string>>
+> = {
+  en: EN_CATALOG,
+  ja: JA_CATALOG,
+};
 
 /** Namespace file stems, used by the catalog integrity tests. */
 export const CATALOG_NAMESPACES = [

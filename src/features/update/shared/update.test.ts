@@ -103,7 +103,10 @@ describe("install-result preload boundary", () => {
     expect(
       isInstallUpdateResult({
         success: false,
-        error: { key: "settings.updates.installErrorMessage", params: { n: true } },
+        error: {
+          key: "settings.updates.installErrorMessage",
+          params: { n: true },
+        },
       }),
     ).toBe(false);
   });

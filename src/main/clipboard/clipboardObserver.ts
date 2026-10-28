@@ -84,7 +84,8 @@ export type ClipboardObserver = {
   snapshot: () => ClipboardObserverSnapshot;
 };
 
-const hashOf = (text: string): string => createHash("sha256").update(text).digest("hex");
+const hashOf = (text: string): string =>
+  createHash("sha256").update(text).digest("hex");
 
 export const createClipboardObserver = ({
   now = Date.now,
@@ -123,8 +124,10 @@ export const createClipboardObserver = ({
     // A real change always wins over the baseline; the baseline is only the
     // floor for a clipboard we have never seen change.
     age: (at = now()) => {
-      if (lastChangedAt !== null) return { ms: at - lastChangedAt, origin: "change" };
-      if (baselineAt !== null) return { ms: at - baselineAt, origin: "baseline" };
+      if (lastChangedAt !== null)
+        return { ms: at - lastChangedAt, origin: "change" };
+      if (baselineAt !== null)
+        return { ms: at - baselineAt, origin: "baseline" };
       return null;
     },
     suspend: () => {

@@ -76,7 +76,9 @@ describe("adjustSemanticTokenContrast via tmThemeToSemanticTokens", () => {
   });
 
   it("keeps the plan-start primary and destructive normal values for exactly 149 themes", () => {
-    const baseline = JSON.parse(readFileSync(baselinePath, "utf8")) as PlanBaseline;
+    const baseline = JSON.parse(
+      readFileSync(baselinePath, "utf8"),
+    ) as PlanBaseline;
     const ids = baseline.entries.map((entry) => entry.id);
     const sourcePaths = themeFiles.map((theme) =>
       path.relative(process.cwd(), theme.filePath),
@@ -90,9 +92,9 @@ describe("adjustSemanticTokenContrast via tmThemeToSemanticTokens", () => {
     expect(
       new Set(baseline.entries.map((entry) => entry.sourcePath)).size,
     ).toBe(149);
-    expect(
-      baseline.entries.map((entry) => entry.sourcePath).sort(),
-    ).toEqual(sourcePaths.sort());
+    expect(baseline.entries.map((entry) => entry.sourcePath).sort()).toEqual(
+      sourcePaths.sort(),
+    );
 
     for (const entry of baseline.entries) {
       const tokens = tmThemeToSemanticTokens(loadTheme(entry.sourcePath));
@@ -103,9 +105,24 @@ describe("adjustSemanticTokenContrast via tmThemeToSemanticTokens", () => {
 
   it("keeps all 1,341 filled-button pairs opaque, distinct, hue-preserving, and readable", () => {
     const contrastPairs = [
-      ["--primary-foreground", "--primary", "--primary-hover", "--primary-active"],
-      ["--secondary-foreground", "--secondary", "--secondary-hover", "--secondary-active"],
-      ["--destructive-foreground", "--destructive", "--destructive-hover", "--destructive-active"],
+      [
+        "--primary-foreground",
+        "--primary",
+        "--primary-hover",
+        "--primary-active",
+      ],
+      [
+        "--secondary-foreground",
+        "--secondary",
+        "--secondary-hover",
+        "--secondary-active",
+      ],
+      [
+        "--destructive-foreground",
+        "--destructive",
+        "--destructive-hover",
+        "--destructive-active",
+      ],
     ] as const;
 
     let totalPairs = 0;
@@ -113,7 +130,12 @@ describe("adjustSemanticTokenContrast via tmThemeToSemanticTokens", () => {
 
     for (const { filePath } of themeFiles) {
       const tokens = tmThemeToSemanticTokens(loadTheme(filePath));
-      for (const [foregroundKey, normalKey, hoverKey, activeKey] of contrastPairs) {
+      for (const [
+        foregroundKey,
+        normalKey,
+        hoverKey,
+        activeKey,
+      ] of contrastPairs) {
         const foreground = colord(tokens[foregroundKey]);
         const normal = tokens[normalKey];
         const hover = tokens[hoverKey];
@@ -199,9 +221,9 @@ describe("adjustSemanticTokenContrast via tmThemeToSemanticTokens", () => {
         colord(tokens["--input"]),
         colord(tokens["--secondary"]),
       ]) {
-        expect(
-          controlBorder.contrast(controlSurface),
-        ).toBeGreaterThanOrEqual(controlBorderContrastFloor);
+        expect(controlBorder.contrast(controlSurface)).toBeGreaterThanOrEqual(
+          controlBorderContrastFloor,
+        );
         expect(controlBorder.contrast(controlSurface)).toBeLessThanOrEqual(
           controlBorderContrastCeiling,
         );
@@ -214,10 +236,7 @@ describe("adjustSemanticTokenContrast via tmThemeToSemanticTokens", () => {
       );
       for (const surface of borderedSurfaces) {
         expect(
-          Math.max(
-            border.contrast(surface),
-            surface.contrast(background),
-          ),
+          Math.max(border.contrast(surface), surface.contrast(background)),
         ).toBeGreaterThanOrEqual(borderContrastFloor);
       }
       expect(tokens["--overlay-backdrop"]).toMatch(/^rgba?\(/);

@@ -30,7 +30,8 @@ const store = new Store<LocaleStoreSchema>({
  * Normalizes whatever is persisted — `null` (never chosen) or garbage left
  * behind by a manual edit / older build — down to {@link DEFAULT_LOCALE}.
  */
-export const getLocale = (): Locale => normalizeLocale(store.get("locale", null));
+export const getLocale = (): Locale =>
+  normalizeLocale(store.get("locale", null));
 
 /** Persists the user's explicit locale choice. */
 export const setLocale = (locale: Locale): void => {

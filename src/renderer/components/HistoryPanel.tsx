@@ -22,7 +22,10 @@ import {
   deriveAvailableFilters,
   toggleFilter,
 } from "../MainWindow/dashboardTabs";
-import type { HistoryEntry, HistoryFeatureId } from "~/features/history/store/historyStore";
+import type {
+  HistoryEntry,
+  HistoryFeatureId,
+} from "~/features/history/store/historyStore";
 
 type HistoryPanelProps = {
   /** Full, already-sorted history list (corrections + promptGen). */
@@ -37,7 +40,7 @@ type HistoryPanelProps = {
   onDeleteEntry: (
     entry: HistoryEntry,
     featureId: HistoryFeatureId,
-    nextEntry: HistoryEntry | null
+    nextEntry: HistoryEntry | null,
   ) => void;
   /** Clear the buckets implied by the current active filter. */
   onClear: (activeFilter: string | null) => void;
@@ -76,7 +79,9 @@ export const HistoryPanel = ({
               ...availableFilters,
               // Today and yesterday
               format(new Date(), "MM/dd", { locale: dateFnsLocale }),
-              format(addDays(new Date(), -1), "MM/dd", { locale: dateFnsLocale }),
+              format(addDays(new Date(), -1), "MM/dd", {
+                locale: dateFnsLocale,
+              }),
             ]}
             dataListId="history-search-suggestions"
           />

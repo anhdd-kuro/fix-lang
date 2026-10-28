@@ -3,7 +3,9 @@ import { autocompleteUsageStore, localDayKey } from "./autocompleteUsageStore";
 
 // Stateful in-memory backing store so get/set round-trip within a test,
 // mirroring src/features/i18n/store/localeStore.test.ts.
-const { storeData } = vi.hoisted(() => ({ storeData: {} as Record<string, unknown> }));
+const { storeData } = vi.hoisted(() => ({
+  storeData: {} as Record<string, unknown>,
+}));
 
 vi.mock("electron-store", () => {
   class MockStore {
@@ -20,7 +22,11 @@ vi.mock("electron-store", () => {
   return { default: MockStore };
 });
 
-const usage = (promptTokens: number | null, completionTokens: number | null, cost: number | null) => ({
+const usage = (
+  promptTokens: number | null,
+  completionTokens: number | null,
+  cost: number | null,
+) => ({
   promptTokens,
   completionTokens,
   estimatedCostUsd: cost,
@@ -31,10 +37,7 @@ const usage = (promptTokens: number | null, completionTokens: number | null, cos
  * usage folded in once the response returns. Every pre-split test recorded
  * both halves at once, so they keep asserting the same totals.
  */
-const record = (
-  delta: ReturnType<typeof usage>,
-  now: Date,
-): void => {
+const record = (delta: ReturnType<typeof usage>, now: Date): void => {
   autocompleteUsageStore.recordDispatch(now);
   autocompleteUsageStore.recordUsage(delta, now);
 };
@@ -266,7 +269,13 @@ describe("autocompleteUsageStore", () => {
      */
     it("keeps a month that mixes it with a new priced response part-priced", () => {
       storeData.days = {
-        "2026-07-02": { date: "2026-07-02", requests: 200, promptTokens: 1000, completionTokens: 200, estimatedCostUsd: 0.5 },
+        "2026-07-02": {
+          date: "2026-07-02",
+          requests: 200,
+          promptTokens: 1000,
+          completionTokens: 200,
+          estimatedCostUsd: 0.5,
+        },
       };
 
       record(usage(100, 20, 0.004), new Date(2026, 6, 20, 9, 0));
@@ -422,9 +431,27 @@ describe("autocompleteUsageStore", () => {
      */
     it("sorts the days it reads, not merely the days it wrote", () => {
       storeData.days = {
-        "2026-07-29": { date: "2026-07-29", requests: 1, promptTokens: 0, completionTokens: 0, estimatedCostUsd: 0 },
-        "2026-07-31": { date: "2026-07-31", requests: 1, promptTokens: 0, completionTokens: 0, estimatedCostUsd: 0 },
-        "2026-07-30": { date: "2026-07-30", requests: 1, promptTokens: 0, completionTokens: 0, estimatedCostUsd: 0 },
+        "2026-07-29": {
+          date: "2026-07-29",
+          requests: 1,
+          promptTokens: 0,
+          completionTokens: 0,
+          estimatedCostUsd: 0,
+        },
+        "2026-07-31": {
+          date: "2026-07-31",
+          requests: 1,
+          promptTokens: 0,
+          completionTokens: 0,
+          estimatedCostUsd: 0,
+        },
+        "2026-07-30": {
+          date: "2026-07-30",
+          requests: 1,
+          promptTokens: 0,
+          completionTokens: 0,
+          estimatedCostUsd: 0,
+        },
       };
 
       expect(autocompleteUsageStore.getDays().map((day) => day.date)).toEqual([

@@ -39,7 +39,10 @@ const waitForUi = async () => {
  * timing, so the timing has to be deliberate rather than left to however
  * `mockResolvedValue` happens to schedule two already-resolved promises.
  */
-const deferred = <T,>(): { promise: Promise<T>; resolve: (value: T) => void } => {
+const deferred = <T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+} => {
   let resolveFn!: (value: T) => void;
   const promise = new Promise<T>((res) => {
     resolveFn = res;
@@ -64,10 +67,16 @@ describe("SettingSecurity", () => {
       getSelectionGuards: vi.fn().mockResolvedValue(defaultGuardSettings()),
       setSelectionGuards: vi.fn().mockResolvedValue({ success: true }),
       getRecentActiveApps: vi.fn().mockResolvedValue([]),
-      getSecretGuardSettings: vi.fn().mockResolvedValue(DEFAULT_SECRET_GUARD_SETTINGS),
+      getSecretGuardSettings: vi
+        .fn()
+        .mockResolvedValue(DEFAULT_SECRET_GUARD_SETTINGS),
       setSecretGuardSettings: vi.fn().mockResolvedValue({ success: true }),
-      chooseDeniedApps: vi.fn().mockResolvedValue({ success: true, bundleIds: [] }),
-      resolveAppBundleIds: vi.fn().mockResolvedValue({ success: true, bundleIds: [] }),
+      chooseDeniedApps: vi
+        .fn()
+        .mockResolvedValue({ success: true, bundleIds: [] }),
+      resolveAppBundleIds: vi
+        .fn()
+        .mockResolvedValue({ success: true, bundleIds: [] }),
       getAppBundlePathForFile: vi.fn().mockReturnValue(null),
       getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
       setLocale: vi.fn().mockResolvedValue({ success: true }),
@@ -77,13 +86,18 @@ describe("SettingSecurity", () => {
       }),
       ...overrides,
     };
-    Object.defineProperty(window, "electronAPI", { configurable: true, value: api });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: api,
+    });
 
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(createElement(I18nProvider, null, createElement(SettingSecurity)));
+      root.render(
+        createElement(I18nProvider, null, createElement(SettingSecurity)),
+      );
     });
     await waitForUi();
     await waitForUi();
@@ -153,10 +167,14 @@ describe("SettingSecurity", () => {
   it("renders an error message instead of throwing when a settings call rejects", async () => {
     await expect(
       render({
-        getSecretGuardSettings: vi.fn().mockRejectedValue(new Error("ipc failed")),
+        getSecretGuardSettings: vi
+          .fn()
+          .mockRejectedValue(new Error("ipc failed")),
       }),
     ).resolves.not.toThrow();
-    expect(container.textContent).toContain("Could not load security settings.");
+    expect(container.textContent).toContain(
+      "Could not load security settings.",
+    );
   });
 
   it("renders an error message instead of throwing when getRecentActiveApps rejects", async () => {
@@ -165,14 +183,17 @@ describe("SettingSecurity", () => {
         getRecentActiveApps: vi.fn().mockRejectedValue(new Error("ipc failed")),
       }),
     ).resolves.not.toThrow();
-    expect(container.textContent).toContain("Could not load security settings.");
+    expect(container.textContent).toContain(
+      "Could not load security settings.",
+    );
   });
 
   it("shows the disabled hint, not the running description, when clipboard age is 0", async () => {
     await render({
-      getSelectionGuards: vi
-        .fn()
-        .mockResolvedValue({ ...defaultGuardSettings(), clipboardMaxAgeSeconds: 0 }),
+      getSelectionGuards: vi.fn().mockResolvedValue({
+        ...defaultGuardSettings(),
+        clipboardMaxAgeSeconds: 0,
+      }),
     });
 
     expect(container.textContent).toContain(
@@ -185,7 +206,9 @@ describe("SettingSecurity", () => {
       { name: "1Password", bundleId: " Com.1Password.1Password " },
       { name: "Slack", bundleId: "com.slack.slack" },
     ];
-    await render({ getRecentActiveApps: vi.fn().mockResolvedValue(recentApps) });
+    await render({
+      getRecentActiveApps: vi.fn().mockResolvedValue(recentApps),
+    });
 
     const onePasswordChip = [...container.querySelectorAll("button")].find(
       (button) => button.textContent === "1Password",
@@ -198,8 +221,12 @@ describe("SettingSecurity", () => {
   });
 
   it("persists adding a recently-used app to the deny list on chip click", async () => {
-    const recentApps: ActiveApp[] = [{ name: "Figma", bundleId: "com.figma.Desktop" }];
-    await render({ getRecentActiveApps: vi.fn().mockResolvedValue(recentApps) });
+    const recentApps: ActiveApp[] = [
+      { name: "Figma", bundleId: "com.figma.Desktop" },
+    ];
+    await render({
+      getRecentActiveApps: vi.fn().mockResolvedValue(recentApps),
+    });
 
     const figmaChip = [...container.querySelectorAll("button")].find(
       (button) => button.textContent === "Figma",
@@ -223,7 +250,8 @@ describe("SettingSecurity", () => {
     const removeButton = container.querySelector<HTMLButtonElement>(
       '[aria-label="Remove com.1password.1password from the blocked list"]',
     );
-    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    if (!removeButton)
+      throw new Error("Expected the remove-from-deny-list button");
 
     await act(async () => {
       removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -237,12 +265,15 @@ describe("SettingSecurity", () => {
   });
 
   it("shows a save-error status without throwing when persisting rejects", async () => {
-    await render({ setSelectionGuards: vi.fn().mockRejectedValue(new Error("boom")) });
+    await render({
+      setSelectionGuards: vi.fn().mockRejectedValue(new Error("boom")),
+    });
 
     const removeButton = container.querySelector<HTMLButtonElement>(
       '[aria-label="Remove com.1password.1password from the blocked list"]',
     );
-    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    if (!removeButton)
+      throw new Error("Expected the remove-from-deny-list button");
 
     await expect(
       act(async () => {
@@ -255,7 +286,9 @@ describe("SettingSecurity", () => {
   });
 
   it("shows a save-error status without throwing when persisting the secret-guard settings rejects", async () => {
-    await render({ setSecretGuardSettings: vi.fn().mockRejectedValue(new Error("boom")) });
+    await render({
+      setSecretGuardSettings: vi.fn().mockRejectedValue(new Error("boom")),
+    });
 
     const maskButton = [...container.querySelectorAll("button")].find(
       (button) => button.textContent === "Mask and restore",
@@ -326,7 +359,7 @@ describe("SettingSecurity", () => {
     });
   });
 
-  it("reports a partial-restore failure, not \"Saved.\", when the guard write fails and the secret write succeeds shortly after", async () => {
+  it('reports a partial-restore failure, not "Saved.", when the guard write fails and the secret write succeeds shortly after', async () => {
     const guardCall = deferred<{ success: boolean }>();
     const secretCall = deferred<{ success: boolean }>();
     await render({
@@ -364,7 +397,7 @@ describe("SettingSecurity", () => {
     );
   });
 
-  it("reports a partial-restore failure, not \"Saved.\", when the secret write fails and the guard write succeeds shortly after", async () => {
+  it('reports a partial-restore failure, not "Saved.", when the secret write fails and the guard write succeeds shortly after', async () => {
     const guardCall = deferred<{ success: boolean }>();
     const secretCall = deferred<{ success: boolean }>();
     await render({
@@ -420,7 +453,9 @@ describe("SettingSecurity", () => {
   };
 
   /** A drop carrying `files`, which jsdom's `Event` does not model on its own. */
-  const dropFilesOnBlockedApps = async (files: readonly unknown[]): Promise<void> => {
+  const dropFilesOnBlockedApps = async (
+    files: readonly unknown[],
+  ): Promise<void> => {
     const section = container.querySelector("section");
     if (!section) throw new Error("Expected the blocked-apps section");
     const dropEvent = new Event("drop", { bubbles: true });
@@ -434,9 +469,10 @@ describe("SettingSecurity", () => {
 
   it("adds the bundle ids picked in the native app chooser", async () => {
     await render({
-      chooseDeniedApps: vi
-        .fn()
-        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+      chooseDeniedApps: vi.fn().mockResolvedValue({
+        success: true,
+        bundleIds: ["com.tinyspeck.slackmacgap"],
+      }),
     });
 
     await clickButtonLabelled("Choose app…");
@@ -486,11 +522,16 @@ describe("SettingSecurity", () => {
     });
     await clickButtonLabelled("Choose app…");
     await act(async () => {
-      resolveFirst?.({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] });
+      resolveFirst?.({
+        success: true,
+        bundleIds: ["com.tinyspeck.slackmacgap"],
+      });
     });
     await waitForUi();
 
-    const written = api.setSelectionGuards.mock.calls.at(-1)?.[0] as SelectionGuardSettings;
+    const written = api.setSelectionGuards.mock.calls.at(
+      -1,
+    )?.[0] as SelectionGuardSettings;
     expect(written.deniedBundleIds).toContain("com.figma.desktop");
     expect(written.deniedBundleIds).toContain("com.tinyspeck.slackmacgap");
   });
@@ -499,27 +540,37 @@ describe("SettingSecurity", () => {
     await render({
       chooseDeniedApps: vi.fn().mockResolvedValue({
         success: false,
-        error: { kind: "message", message: { key: "security.deniedApps.dropError" } },
+        error: {
+          kind: "message",
+          message: { key: "security.deniedApps.dropError" },
+        },
       }),
     });
 
     await clickButtonLabelled("Choose app…");
 
     expect(api.setSelectionGuards).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Couldn't read the bundle ID of that app.");
+    expect(container.textContent).toContain(
+      "Couldn't read the bundle ID of that app.",
+    );
   });
 
   it("resolves dropped .app bundles through main and blocks them", async () => {
     await render({
-      getAppBundlePathForFile: vi.fn().mockReturnValue("/Applications/Slack.app"),
-      resolveAppBundleIds: vi
+      getAppBundlePathForFile: vi
         .fn()
-        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+        .mockReturnValue("/Applications/Slack.app"),
+      resolveAppBundleIds: vi.fn().mockResolvedValue({
+        success: true,
+        bundleIds: ["com.tinyspeck.slackmacgap"],
+      }),
     });
 
     await dropFilesOnBlockedApps([{}]);
 
-    expect(api.resolveAppBundleIds).toHaveBeenCalledWith(["/Applications/Slack.app"]);
+    expect(api.resolveAppBundleIds).toHaveBeenCalledWith([
+      "/Applications/Slack.app",
+    ]);
     expect(api.setSelectionGuards).toHaveBeenCalledWith({
       ...defaultGuardSettings(),
       deniedBundleIds: ["com.1password.1password", "com.tinyspeck.slackmacgap"],
@@ -538,7 +589,9 @@ describe("SettingSecurity", () => {
 
     expect(api.resolveAppBundleIds).not.toHaveBeenCalled();
     expect(api.setSelectionGuards).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Only .app bundles can be added this way.");
+    expect(container.textContent).toContain(
+      "Only .app bundles can be added this way.",
+    );
   });
 
   /**
@@ -559,7 +612,9 @@ describe("SettingSecurity", () => {
 
     expect(api.resolveAppBundleIds).not.toHaveBeenCalled();
     expect(api.setSelectionGuards).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Only .app bundles can be added this way.");
+    expect(container.textContent).toContain(
+      "Only .app bundles can be added this way.",
+    );
   });
 
   /**
@@ -580,9 +635,10 @@ describe("SettingSecurity", () => {
       setSelectionGuards,
       // Must actually add something, or W1 makes no write and the deferred
       // promise would be consumed by W2 instead.
-      chooseDeniedApps: vi
-        .fn()
-        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+      chooseDeniedApps: vi.fn().mockResolvedValue({
+        success: true,
+        bundleIds: ["com.tinyspeck.slackmacgap"],
+      }),
     });
 
     // W1: block an app via the chooser. Left in flight.
@@ -594,7 +650,8 @@ describe("SettingSecurity", () => {
     const removeButton = container.querySelector<HTMLButtonElement>(
       '[aria-label="Remove com.1password.1password from the blocked list"]',
     );
-    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    if (!removeButton)
+      throw new Error("Expected the remove-from-deny-list button");
     await act(async () => {
       removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
@@ -631,9 +688,10 @@ describe("SettingSecurity", () => {
 
     await render({
       setSelectionGuards,
-      chooseDeniedApps: vi
-        .fn()
-        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+      chooseDeniedApps: vi.fn().mockResolvedValue({
+        success: true,
+        bundleIds: ["com.tinyspeck.slackmacgap"],
+      }),
     });
 
     // W1: block Slack. Pending.
@@ -644,7 +702,8 @@ describe("SettingSecurity", () => {
     const removeButton = container.querySelector<HTMLButtonElement>(
       '[aria-label="Remove com.1password.1password from the blocked list"]',
     );
-    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    if (!removeButton)
+      throw new Error("Expected the remove-from-deny-list button");
     await act(async () => {
       removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
@@ -671,7 +730,9 @@ describe("SettingSecurity", () => {
    * happens — which a test asserting only the final state reports as a pass.
    */
   const toggleHighEntropy = async (): Promise<void> => {
-    const box = [...container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].at(0);
+    const box = [
+      ...container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'),
+    ].at(0);
     if (!box) throw new Error("Expected the high-entropy checkbox");
     await act(async () => {
       box.click();
@@ -679,10 +740,16 @@ describe("SettingSecurity", () => {
   };
 
   /** React's `onChange` for a text/number field is the native `input` event. */
-  const typeIntoNumberField = async (id: string, value: string): Promise<void> => {
+  const typeIntoNumberField = async (
+    id: string,
+    value: string,
+  ): Promise<void> => {
     const field = container.querySelector<HTMLInputElement>(`#${id}`);
     if (!field) throw new Error(`Expected the ${id} field`);
-    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    const setValue = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set;
     await act(async () => {
       setValue?.call(field, value);
       field.dispatchEvent(new Event("input", { bubbles: true }));
@@ -711,7 +778,8 @@ describe("SettingSecurity", () => {
     const removeButton = container.querySelector<HTMLButtonElement>(
       '[aria-label="Remove com.1password.1password from the blocked list"]',
     );
-    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    if (!removeButton)
+      throw new Error("Expected the remove-from-deny-list button");
     await act(async () => {
       removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
@@ -729,7 +797,8 @@ describe("SettingSecurity", () => {
     await waitForUi();
 
     expect(setSelectionGuards).toHaveBeenCalledTimes(2);
-    const secondPayload = setSelectionGuards.mock.calls[1]?.[0] as SelectionGuardSettings;
+    const secondPayload = setSelectionGuards.mock
+      .calls[1]?.[0] as SelectionGuardSettings;
     expect(secondPayload.maxSelectionChars).toBe(1234);
     // The rejected removal must NOT be along for the ride.
     expect(secondPayload.deniedBundleIds).toEqual(["com.1password.1password"]);
@@ -792,7 +861,8 @@ describe("SettingSecurity", () => {
     const removeButton = container.querySelector<HTMLButtonElement>(
       '[aria-label="Remove com.1password.1password from the blocked list"]',
     );
-    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    if (!removeButton)
+      throw new Error("Expected the remove-from-deny-list button");
     await act(async () => {
       removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
@@ -831,7 +901,8 @@ describe("SettingSecurity", () => {
     const removeButton = container.querySelector<HTMLButtonElement>(
       '[aria-label="Remove com.1password.1password from the blocked list"]',
     );
-    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    if (!removeButton)
+      throw new Error("Expected the remove-from-deny-list button");
     await act(async () => {
       removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
@@ -857,9 +928,10 @@ describe("SettingSecurity", () => {
     await waitForUi();
 
     expect(setSelectionGuards).toHaveBeenCalledTimes(3);
-    expect((setSelectionGuards.mock.calls[2]?.[0] as SelectionGuardSettings).maxSelectionChars).toBe(
-      4321,
-    );
+    expect(
+      (setSelectionGuards.mock.calls[2]?.[0] as SelectionGuardSettings)
+        .maxSelectionChars,
+    ).toBe(4321);
   });
 
   /**
@@ -877,7 +949,9 @@ describe("SettingSecurity", () => {
 
     await render({
       setSelectionGuards,
-      getAppBundlePathForFile: vi.fn().mockReturnValue("/Applications/Slack.app"),
+      getAppBundlePathForFile: vi
+        .fn()
+        .mockReturnValue("/Applications/Slack.app"),
       resolveAppBundleIds: vi.fn().mockImplementation(() => resolution.promise),
     });
 
@@ -887,7 +961,8 @@ describe("SettingSecurity", () => {
     const removeButton = container.querySelector<HTMLButtonElement>(
       '[aria-label="Remove com.1password.1password from the blocked list"]',
     );
-    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    if (!removeButton)
+      throw new Error("Expected the remove-from-deny-list button");
     await act(async () => {
       removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
@@ -896,7 +971,10 @@ describe("SettingSecurity", () => {
     expect(container.textContent).toContain("Couldn't save");
 
     await act(async () => {
-      resolution.resolve({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] });
+      resolution.resolve({
+        success: true,
+        bundleIds: ["com.tinyspeck.slackmacgap"],
+      });
     });
     await waitForUi();
     await waitForUi();
@@ -935,7 +1013,8 @@ describe("SettingSecurity", () => {
     const removeButton = container.querySelector<HTMLButtonElement>(
       '[aria-label="Remove com.1password.1password from the blocked list"]',
     );
-    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    if (!removeButton)
+      throw new Error("Expected the remove-from-deny-list button");
     await act(async () => {
       removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
@@ -944,7 +1023,10 @@ describe("SettingSecurity", () => {
     expect(container.textContent).toContain("Couldn't save");
 
     await act(async () => {
-      picked.resolve({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] });
+      picked.resolve({
+        success: true,
+        bundleIds: ["com.tinyspeck.slackmacgap"],
+      });
     });
     await waitForUi();
     await waitForUi();
@@ -969,9 +1051,10 @@ describe("SettingSecurity", () => {
 
     await render({
       setSelectionGuards,
-      chooseDeniedApps: vi
-        .fn()
-        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+      chooseDeniedApps: vi.fn().mockResolvedValue({
+        success: true,
+        bundleIds: ["com.tinyspeck.slackmacgap"],
+      }),
     });
 
     await act(async () => {
@@ -980,7 +1063,8 @@ describe("SettingSecurity", () => {
     const removeButton = container.querySelector<HTMLButtonElement>(
       '[aria-label="Remove com.1password.1password from the blocked list"]',
     );
-    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    if (!removeButton)
+      throw new Error("Expected the remove-from-deny-list button");
     await act(async () => {
       removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
@@ -1004,7 +1088,9 @@ describe("SettingSecurity", () => {
   it("does not let a still-pending restore overwrite a newer edit's status", async () => {
     const secretWrite = deferred<{ success: boolean }>();
     await render({
-      setSecretGuardSettings: vi.fn().mockImplementation(() => secretWrite.promise),
+      setSecretGuardSettings: vi
+        .fn()
+        .mockImplementation(() => secretWrite.promise),
     });
 
     await act(async () => {
@@ -1016,7 +1102,8 @@ describe("SettingSecurity", () => {
     const removeButton = container.querySelector<HTMLButtonElement>(
       '[aria-label="Remove com.1password.1password from the blocked list"]',
     );
-    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    if (!removeButton)
+      throw new Error("Expected the remove-from-deny-list button");
     await act(async () => {
       removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
@@ -1039,11 +1126,15 @@ describe("SettingSecurity", () => {
    * user believing the ones that DID fit were saved.
    */
   it("reports the write failure, not just the overflow, when a partial add fails", async () => {
-    const full = Array.from({ length: 199 }, (_unused, index) => `com.example.app${String(index)}`);
+    const full = Array.from(
+      { length: 199 },
+      (_unused, index) => `com.example.app${String(index)}`,
+    );
     await render({
-      getSelectionGuards: vi
-        .fn()
-        .mockResolvedValue({ ...defaultGuardSettings(), deniedBundleIds: full }),
+      getSelectionGuards: vi.fn().mockResolvedValue({
+        ...defaultGuardSettings(),
+        deniedBundleIds: full,
+      }),
       setSelectionGuards: vi.fn().mockResolvedValue({ success: false }),
       chooseDeniedApps: vi.fn().mockResolvedValue({
         success: true,
@@ -1062,11 +1153,15 @@ describe("SettingSecurity", () => {
    * nothing was said, so Add and the recent-app chips appeared broken.
    */
   it("explains the limit when a typed add cannot fit", async () => {
-    const full = Array.from({ length: 200 }, (_unused, index) => `com.example.app${String(index)}`);
+    const full = Array.from(
+      { length: 200 },
+      (_unused, index) => `com.example.app${String(index)}`,
+    );
     await render({
-      getSelectionGuards: vi
-        .fn()
-        .mockResolvedValue({ ...defaultGuardSettings(), deniedBundleIds: full }),
+      getSelectionGuards: vi.fn().mockResolvedValue({
+        ...defaultGuardSettings(),
+        deniedBundleIds: full,
+      }),
     });
 
     const input = container.querySelector<HTMLInputElement>(
@@ -1085,7 +1180,9 @@ describe("SettingSecurity", () => {
     expect(api.setSelectionGuards).not.toHaveBeenCalled();
     // The exact sentence, not just "full" — the limitations copy below also
     // contains the word "full", which would match no matter what happened.
-    expect(container.textContent).toContain("The blocked-apps list is full at 200");
+    expect(container.textContent).toContain(
+      "The blocked-apps list is full at 200",
+    );
     // The rejected id stays in the field rather than vanishing.
     expect(input.value).toBe("com.tinyspeck.slackmacgap");
   });
@@ -1093,15 +1190,21 @@ describe("SettingSecurity", () => {
   it("sizes the secret-guard mode switch to its options rather than the panel width", async () => {
     await render();
 
-    const modeSwitch = container.querySelector('[role="group"][aria-label="Mode"]');
+    const modeSwitch = container.querySelector(
+      '[role="group"][aria-label="Mode"]',
+    );
     expect(modeSwitch?.className).toContain("self-start");
   });
 
   it("renders the limitations as separate points, not one paragraph", async () => {
     await render();
 
-    const points = [...container.querySelectorAll("li")].map((item) => item.textContent);
-    expect(points).toContain("It cannot un-send. Text you send is saved to your local history on this machine, including when you choose Send anyway.");
+    const points = [...container.querySelectorAll("li")].map(
+      (item) => item.textContent,
+    );
+    expect(points).toContain(
+      "It cannot un-send. Text you send is saved to your local history on this machine, including when you choose Send anyway.",
+    );
     expect(points.length).toBeGreaterThanOrEqual(5);
   });
 
@@ -1127,7 +1230,8 @@ describe("SettingSecurity", () => {
       const removeButton = container.querySelector<HTMLButtonElement>(
         '[aria-label="Remove com.1password.1password from the blocked list"]',
       );
-      if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+      if (!removeButton)
+        throw new Error("Expected the remove-from-deny-list button");
 
       // Change one field: flashes "Saved." and starts a 2s timer.
       await act(async () => {
@@ -1141,7 +1245,8 @@ describe("SettingSecurity", () => {
       const restoreButton = [...container.querySelectorAll("button")].find(
         (button) => button.textContent === "Restore defaults",
       );
-      if (!restoreButton) throw new Error("Expected the Restore defaults button");
+      if (!restoreButton)
+        throw new Error("Expected the Restore defaults button");
 
       await act(async () => {
         restoreButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -1178,7 +1283,8 @@ describe("SettingSecurity", () => {
     const removeButton = container.querySelector<HTMLButtonElement>(
       '[aria-label="Remove com.1password.1password from the blocked list"]',
     );
-    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    if (!removeButton)
+      throw new Error("Expected the remove-from-deny-list button");
 
     // Starts the flash timeout; the panel unmounts before it would fire.
     await act(async () => {

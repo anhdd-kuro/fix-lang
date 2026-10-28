@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { messageLabel, type Label, type Message } from "~/features/i18n/shared/message";
+import {
+  messageLabel,
+  type Label,
+  type Message,
+} from "~/features/i18n/shared/message";
 import { BEDROCK_DEFAULT_REGION } from "~/features/providers/shared/bedrockEndpoint";
 import { LMSTUDIO_DEFAULT_ENDPOINT } from "~/features/providers/shared/lmstudioEndpoint";
 import { OLLAMA_DEFAULT_ENDPOINT } from "~/features/providers/shared/ollamaEndpoint";
@@ -49,7 +53,9 @@ export const SettingGeneral: React.FC = () => {
   // Descriptors, never resolved strings — see `StatusDescriptor` above for why.
   const [resetStatus, setResetStatus] = useState<StatusDescriptor | null>(null);
   const [resetIsError, setResetIsError] = useState<boolean>(false);
-  const [activeProvider, setActiveProvider] = useState<ProviderId>(PROVIDER_ORDER[0]);
+  const [activeProvider, setActiveProvider] = useState<ProviderId>(
+    PROVIDER_ORDER[0],
+  );
   const [defaultReasoningEffort, setDefaultReasoningEffort] =
     useState<ReasoningEffort>("none");
   const [savingReasoning, setSavingReasoning] = useState(false);
@@ -120,7 +126,8 @@ export const SettingGeneral: React.FC = () => {
       setTypedOpenAIProjectId(
         profileResult?.currentProfile?.settings?.openaiProjectId ?? "",
       );
-      const endpoints = profileResult?.currentProfile?.settings?.providerEndpoints;
+      const endpoints =
+        profileResult?.currentProfile?.settings?.providerEndpoints;
       setTypedEndpoints((current) => {
         const next = { ...current };
         const lmstudio = endpoints?.lmstudio;
@@ -164,7 +171,10 @@ export const SettingGeneral: React.FC = () => {
           if (effort) setDefaultReasoningEffort(effort);
         })
         .catch((error: unknown) => {
-          console.error("SettingGeneral: Error reloading default reasoning on profile switch:", error);
+          console.error(
+            "SettingGeneral: Error reloading default reasoning on profile switch:",
+            error,
+          );
         });
     };
     const offProfile = window.electronAPI?.onProfileUpdated?.(() => {
@@ -178,11 +188,13 @@ export const SettingGeneral: React.FC = () => {
       refreshProviderStates();
       reloadReasoningEffort();
     });
-    const offActiveProfile = window.electronAPI?.onActiveProfileChanged?.(() => {
-      setTypedOpenAIProjectId(undefined);
-      refreshProviderStates();
-      reloadReasoningEffort();
-    });
+    const offActiveProfile = window.electronAPI?.onActiveProfileChanged?.(
+      () => {
+        setTypedOpenAIProjectId(undefined);
+        refreshProviderStates();
+        reloadReasoningEffort();
+      },
+    );
     // Another window's connect/disconnect broadcasts `settings-updated`;
     // without this the cards keep showing stale connection state. The tray's
     // global reasoning select also broadcasts on save — reload the slider so
@@ -205,7 +217,10 @@ export const SettingGeneral: React.FC = () => {
         if (effort) setDefaultReasoningEffort(effort);
       })
       .catch((error: unknown) => {
-        console.error("SettingGeneral: Error loading default reasoning:", error);
+        console.error(
+          "SettingGeneral: Error loading default reasoning:",
+          error,
+        );
       });
   }, []);
 
@@ -269,7 +284,9 @@ export const SettingGeneral: React.FC = () => {
       const endpoint = typedEndpoints[provider];
       const portRaw = endpoint?.port?.trim();
       const port =
-        portRaw && Number.isInteger(Number(portRaw)) ? Number(portRaw) : undefined;
+        portRaw && Number.isInteger(Number(portRaw))
+          ? Number(portRaw)
+          : undefined;
       const result = await window.electronAPI.connectProvider({
         provider,
         apiKey: typed?.apiKey || undefined,
@@ -462,77 +479,78 @@ export const SettingGeneral: React.FC = () => {
           </p>
         )}
 
-        {(provider === "lmstudio" || provider === "ollama") && (() => {
-          const defaults =
-            provider === "ollama"
-              ? OLLAMA_DEFAULT_ENDPOINT
-              : LMSTUDIO_DEFAULT_ENDPOINT;
-          const hostKey =
-            provider === "ollama"
-              ? "settings.general.providers.ollama.host"
-              : "settings.general.providers.lmstudio.host";
-          const portKey =
-            provider === "ollama"
-              ? "settings.general.providers.ollama.port"
-              : "settings.general.providers.lmstudio.port";
-          const endpoint = typedEndpoints[provider];
-          return (
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <div>
-                <label
-                  htmlFor={`${provider}-host`}
-                  className="block text-xs font-medium text-card-foreground mb-1"
-                >
-                  {t(hostKey)}
-                </label>
-                <Input
-                  id={`${provider}-host`}
-                  type="text"
-                  autoComplete="off"
-                  className="w-full"
-                  value={endpoint?.host ?? defaults.host}
-                  onChange={(event) =>
-                    setTypedEndpoints((current) => ({
-                      ...current,
-                      [provider]: {
-                        host: event.target.value,
-                        port:
-                          current[provider]?.port ?? String(defaults.port),
-                      },
-                    }))
-                  }
-                  aria-label={t(hostKey)}
-                />
+        {(provider === "lmstudio" || provider === "ollama") &&
+          (() => {
+            const defaults =
+              provider === "ollama"
+                ? OLLAMA_DEFAULT_ENDPOINT
+                : LMSTUDIO_DEFAULT_ENDPOINT;
+            const hostKey =
+              provider === "ollama"
+                ? "settings.general.providers.ollama.host"
+                : "settings.general.providers.lmstudio.host";
+            const portKey =
+              provider === "ollama"
+                ? "settings.general.providers.ollama.port"
+                : "settings.general.providers.lmstudio.port";
+            const endpoint = typedEndpoints[provider];
+            return (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div>
+                  <label
+                    htmlFor={`${provider}-host`}
+                    className="block text-xs font-medium text-card-foreground mb-1"
+                  >
+                    {t(hostKey)}
+                  </label>
+                  <Input
+                    id={`${provider}-host`}
+                    type="text"
+                    autoComplete="off"
+                    className="w-full"
+                    value={endpoint?.host ?? defaults.host}
+                    onChange={(event) =>
+                      setTypedEndpoints((current) => ({
+                        ...current,
+                        [provider]: {
+                          host: event.target.value,
+                          port:
+                            current[provider]?.port ?? String(defaults.port),
+                        },
+                      }))
+                    }
+                    aria-label={t(hostKey)}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor={`${provider}-port`}
+                    className="block text-xs font-medium text-card-foreground mb-1"
+                  >
+                    {t(portKey)}
+                  </label>
+                  <Input
+                    id={`${provider}-port`}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    className="w-full"
+                    value={endpoint?.port ?? String(defaults.port)}
+                    onChange={(event) =>
+                      setTypedEndpoints((current) => ({
+                        ...current,
+                        [provider]: {
+                          host: current[provider]?.host ?? defaults.host,
+                          port: event.target.value,
+                        },
+                      }))
+                    }
+                    aria-label={t(portKey)}
+                  />
+                </div>
               </div>
-              <div>
-                <label
-                  htmlFor={`${provider}-port`}
-                  className="block text-xs font-medium text-card-foreground mb-1"
-                >
-                  {t(portKey)}
-                </label>
-                <Input
-                  id={`${provider}-port`}
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  className="w-full"
-                  value={endpoint?.port ?? String(defaults.port)}
-                  onChange={(event) =>
-                    setTypedEndpoints((current) => ({
-                      ...current,
-                      [provider]: {
-                        host: current[provider]?.host ?? defaults.host,
-                        port: event.target.value,
-                      },
-                    }))
-                  }
-                  aria-label={t(portKey)}
-                />
-              </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
 
         {provider === "bedrock" && (
           <div className="mt-2">
@@ -578,7 +596,11 @@ export const SettingGeneral: React.FC = () => {
               className={`text-xs mb-1 ${(provider === "bedrock" ? card.apiKeySet || (providerStates[provider]?.accessKeySet ?? false) : card.apiKeySet) ? "text-success" : "text-muted-foreground"}`}
               role="status"
             >
-              {(provider === "bedrock" ? providerStates[provider]?.accessKeySet ?? false : card.apiKeySet)
+              {(
+                provider === "bedrock"
+                  ? (providerStates[provider]?.accessKeySet ?? false)
+                  : card.apiKeySet
+              )
                 ? t("settings.general.secret.set")
                 : t("settings.general.secret.unset")}
             </p>
@@ -636,8 +658,12 @@ export const SettingGeneral: React.FC = () => {
               onChange={(event) =>
                 setTypedKey(provider, "secretKey", event.target.value)
               }
-              placeholder={t("settings.general.providers.bedrock.secretAccessKeyPlaceholder")}
-              aria-label={t("settings.general.providers.bedrock.secretAccessKey")}
+              placeholder={t(
+                "settings.general.providers.bedrock.secretAccessKeyPlaceholder",
+              )}
+              aria-label={t(
+                "settings.general.providers.bedrock.secretAccessKey",
+              )}
             />
           </div>
         )}
@@ -726,8 +752,12 @@ export const SettingGeneral: React.FC = () => {
               placeholder={t(
                 "settings.general.providers.openai.projectId.placeholder",
               )}
-              aria-label={t("settings.general.providers.openai.projectId.label")}
-              aria-invalid={isMalformedOpenAIProjectId(typedOpenAIProjectId ?? "")}
+              aria-label={t(
+                "settings.general.providers.openai.projectId.label",
+              )}
+              aria-invalid={isMalformedOpenAIProjectId(
+                typedOpenAIProjectId ?? "",
+              )}
             />
             {/* Shown while typing, not only after a rejected Connect: the id is
                 pasted, and a wrong paste is silent until spend reads as $0. */}
@@ -921,7 +951,9 @@ export const SettingGeneral: React.FC = () => {
             className="w-full overflow-x-auto"
           />
           {(() => {
-            const card = cards.find(({ provider }) => provider === activeProvider);
+            const card = cards.find(
+              ({ provider }) => provider === activeProvider,
+            );
             return card ? renderProviderCard(card) : null;
           })()}
         </div>

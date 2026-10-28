@@ -11,7 +11,12 @@ export const LOG_LEVEL_ORDER: readonly LogLevel[] = [
 
 /** JSON-safe values accepted as structured log metadata. */
 export type LogValue =
-  string | number | boolean | null | LogValue[] | { [key: string]: LogValue };
+  | string
+  | number
+  | boolean
+  | null
+  | LogValue[]
+  | { [key: string]: LogValue };
 
 /** Metadata attached to a log entry. */
 export type LogContext = Record<string, LogValue>;
@@ -239,4 +244,3 @@ export const logEntryMatchesSearch = (
     .toLocaleLowerCase();
   return searchable.includes(normalizedSearch);
 };
-

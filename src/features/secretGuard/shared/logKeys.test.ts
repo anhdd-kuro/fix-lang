@@ -12,7 +12,11 @@
  * than a copy of the regex.
  */
 import { describe, expect, it } from "vitest";
-import { redactLogContext, redactLogMessage, type LogContext } from "~/features/logs/shared/logging";
+import {
+  redactLogContext,
+  redactLogMessage,
+  type LogContext,
+} from "~/features/logs/shared/logging";
 import { SECRET_GUARD_MODES } from "./secretGuardSettings";
 import { SECRET_RULES } from "./secretRules";
 
@@ -29,7 +33,11 @@ const APPROVED: LogContext = {
   textLength: 24_812,
   charLimit: 20_000,
   matchCount: 3,
-  ruleIds: ["authorization-header", "private-key-block", "credential-assignment"],
+  ruleIds: [
+    "authorization-header",
+    "private-key-block",
+    "credential-assignment",
+  ],
   guardMode: "mask",
   appliedMode: "popup",
   gateDecision: "confirmed",
@@ -88,8 +96,12 @@ describe("approved log keys", () => {
    * Pinned because the next reader will correctly flinch at it.
    */
   it("keeps `stale-clipboard` as a value even though it would be fatal as a key", () => {
-    expect(redactLogContext({ reason: "stale-clipboard" })).toEqual({ reason: "stale-clipboard" });
-    expect(redactLogContext({ "stale-clipboard": 1 })).toEqual({ "stale-clipboard": REDACTED });
+    expect(redactLogContext({ reason: "stale-clipboard" })).toEqual({
+      reason: "stale-clipboard",
+    });
+    expect(redactLogContext({ "stale-clipboard": 1 })).toEqual({
+      "stale-clipboard": REDACTED,
+    });
   });
 });
 
@@ -109,8 +121,12 @@ describe("rejected log keys", () => {
    * a spread would look like it worked in half the cases.
    */
   it("blanks half the rule ids and silently keeps the rest when spread into key positions", () => {
-    const redacted = redactLogContext(Object.fromEntries(SECRET_RULES.map((r) => [r.id, 1])));
-    const blanked = Object.keys(redacted).filter((key) => redacted[key] === REDACTED);
+    const redacted = redactLogContext(
+      Object.fromEntries(SECRET_RULES.map((r) => [r.id, 1])),
+    );
+    const blanked = Object.keys(redacted).filter(
+      (key) => redacted[key] === REDACTED,
+    );
     expect(blanked.sort()).toEqual(
       [
         "authorization-header",

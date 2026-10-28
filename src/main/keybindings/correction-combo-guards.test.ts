@@ -33,7 +33,10 @@ vi.mock("electron", () => ({
   // `unregister` matters here: `withComboCancel` always calls it in its
   // `finally`, on both the resolve and reject paths — an unmocked call throws
   // and masks whatever the run actually did.
-  globalShortcut: { register: vi.fn().mockReturnValue(true), unregister: vi.fn() },
+  globalShortcut: {
+    register: vi.fn().mockReturnValue(true),
+    unregister: vi.fn(),
+  },
   Notification: vi.fn().mockImplementation(function () {
     return { show: vi.fn() };
   }),
@@ -66,7 +69,9 @@ vi.mock("~/features/correction/store/keybindingStore", () => ({
 vi.mock("~/features/correction/store/outputModeStore", () => ({
   // "paste" (not "popup") so the delivery assertions exercise the same
   // `pasteText` call site a real combo pastes through.
-  outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("paste") },
+  outputModeStore: {
+    getCorrectionOutputMode: vi.fn().mockReturnValue("paste"),
+  },
 }));
 vi.mock("~/features/guards/store/guardStore", () => ({
   guardStore: { getSelectionGuardSettings: vi.fn() },
@@ -77,7 +82,9 @@ vi.mock("~/features/secretGuard/store/secretGuardStore", () => ({
 vi.mock("~/main/notifications/secretGuardDialog", () => ({
   confirmSecretSend: vi.fn(),
 }));
-vi.mock("../clipboard/clipboardChangeTracker", () => ({ clipboardAge: vi.fn() }));
+vi.mock("../clipboard/clipboardChangeTracker", () => ({
+  clipboardAge: vi.fn(),
+}));
 vi.mock("../notifications/confirmSelectionGuard", () => ({
   confirmSelectionGuard: vi.fn(),
 }));
@@ -115,7 +122,9 @@ vi.mock("./askEnvironment", () => ({
     timeZone: "Asia/Tokyo",
     recentTransforms: [],
   }),
-  buildAskDirectives: vi.fn().mockReturnValue("App locale: en\nSystem language: en-US"),
+  buildAskDirectives: vi
+    .fn()
+    .mockReturnValue("App locale: en\nSystem language: en-US"),
 }));
 // `withHotkeyThrottle` stays REAL, same reason as `correction-preset-hotkeys.test.ts`.
 vi.mock("./utils", async (importOriginal) => {
@@ -129,13 +138,19 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
 }));
 import { guardStore } from "~/features/guards/store/guardStore";
 import { redactLogContext } from "~/features/logs/shared/logging";
-import { getProfileSetting, normalizeCorrectionSettings } from "~/features/providers/store/apiStore";
+import {
+  getProfileSetting,
+  normalizeCorrectionSettings,
+} from "~/features/providers/store/apiStore";
 import { secretGuardStore } from "~/features/secretGuard/store/secretGuardStore";
 import { confirmSecretSend } from "~/main/notifications/secretGuardDialog";
 import { buildAskDirectives } from "./askEnvironment";
 import { resetActiveComboForTests } from "./comboCancel";
 import { resetComboLockForTests } from "./comboLock";
-import { COMBO_LOCK_MAX_HOLD_MS, registerCorrectionShortcut } from "./correction";
+import {
+  COMBO_LOCK_MAX_HOLD_MS,
+  registerCorrectionShortcut,
+} from "./correction";
 import { handleError, resetHotkeyThrottleForTests } from "./utils";
 import { getHighlightedTextWithActiveApp, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
@@ -262,7 +277,9 @@ const setSecretGuardMode = (settings: Partial<SecretGuardSettings>): void => {
 };
 
 const latencyFinishCalls = () =>
-  (logger.info as Mock).mock.calls.filter(([scope]) => scope === "correction.latency");
+  (logger.info as Mock).mock.calls.filter(
+    ([scope]) => scope === "correction.latency",
+  );
 
 const latencyOutcome = () => {
   const finishes = latencyFinishCalls();
@@ -277,7 +294,8 @@ const errorMessageKey = (): string | undefined => {
 };
 
 /** What step 1 was handed — i.e. what `runCombo` was given as `input`. */
-const sentToFirstStep = (): string => (fixGrammar as Mock).mock.calls[0][0] as string;
+const sentToFirstStep = (): string =>
+  (fixGrammar as Mock).mock.calls[0][0] as string;
 
 /** True when `runCombo` never ran a step and never painted its progress ring. */
 const expectComboNeverRan = (): void => {
@@ -294,7 +312,9 @@ beforeEach(() => {
   resetComboLockForTests();
   resetActiveComboForTests();
   (globalShortcut.register as Mock).mockReturnValue(true);
-  (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(defaultGuardSettings());
+  (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
+    defaultGuardSettings(),
+  );
   (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue(null);
   setSecretGuardMode({ mode: "off" });
   mockSelection({ text: "some selected text" });
@@ -327,7 +347,10 @@ describe("combo selection guards — allow", () => {
 describe("combo selection guards — confirm: stale-clipboard", () => {
   it("asks before any provider call, and runs nothing when declined", async () => {
     mockSelection({ text: "a password copied 40 minutes ago", changed: false });
-    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 2_400_000, origin: "change" });
+    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({
+      ms: 2_400_000,
+      origin: "change",
+    });
     (confirmSelectionGuard as Mock).mockResolvedValue(false);
 
     const handler = registerComboHandler();
@@ -346,7 +369,8 @@ describe("combo selection guards — confirm: stale-clipboard", () => {
     expect(handleError).not.toHaveBeenCalled();
 
     const info = (logger.info as Mock).mock.calls.find(
-      ([, message]) => message === "Combo declined at a selection-guard confirm",
+      ([, message]) =>
+        message === "Combo declined at a selection-guard confirm",
     );
     expect(info?.[2]).toMatchObject({
       comboId: "combo-1",
@@ -551,8 +575,14 @@ describe("combo guard logging — log key redaction safety", () => {
     [
       "a stale-clipboard block",
       () => {
-        mockSelection({ text: "a password copied 40 minutes ago", changed: false });
-        (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 2_400_000, origin: "change" });
+        mockSelection({
+          text: "a password copied 40 minutes ago",
+          changed: false,
+        });
+        (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({
+          ms: 2_400_000,
+          origin: "change",
+        });
       },
     ],
     [
@@ -582,19 +612,22 @@ describe("combo guard logging — log key redaction safety", () => {
         (confirmSecretSend as Mock).mockResolvedValue(false);
       },
     ],
-  ])("survives the substring redactor unchanged after %s", async (_label, arrange) => {
-    arrange();
+  ])(
+    "survives the substring redactor unchanged after %s",
+    async (_label, arrange) => {
+      arrange();
 
-    const handler = registerComboHandler();
-    await handler();
+      const handler = registerComboHandler();
+      await handler();
 
-    const contexts = comboHotkeyContexts();
-    // A press that logged nothing would make every assertion below vacuous.
-    expect(contexts.length).toBeGreaterThan(0);
-    for (const context of contexts) {
-      expect(redactLogContext(context)).toEqual(context);
-    }
-  });
+      const contexts = comboHotkeyContexts();
+      // A press that logged nothing would make every assertion below vacuous.
+      expect(contexts.length).toBeGreaterThan(0);
+      for (const context of contexts) {
+        expect(redactLogContext(context)).toEqual(context);
+      }
+    },
+  );
 });
 
 /**

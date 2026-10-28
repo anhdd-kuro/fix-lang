@@ -44,10 +44,16 @@ const {
   clearProfileSecretMock: vi.fn(),
   withoutProfileSecretsMock: vi.fn(),
 }));
-const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
+const handlers = new Map<
+  string,
+  (event: unknown, ...args: unknown[]) => unknown
+>();
 vi.mock("electron", () => ({
   ipcMain: {
-    handle: (channel: string, listener: (event: unknown, ...args: unknown[]) => unknown) => {
+    handle: (
+      channel: string,
+      listener: (event: unknown, ...args: unknown[]) => unknown,
+    ) => {
       handlers.set(channel, listener);
     },
     on: vi.fn(),
@@ -59,13 +65,16 @@ vi.mock("~/main/ai.request", () => ({
 }));
 vi.mock("~/main/keybindings", () => ({ reloadHotkeys: vi.fn() }));
 vi.mock("~/main/llm", () => ({
-  createOllamaClient: () => ({ pull: vi.fn(), delete: vi.fn(), chat: vi.fn() }), ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
+  createOllamaClient: () => ({ pull: vi.fn(), delete: vi.fn(), chat: vi.fn() }),
+  ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
 }));
 vi.mock("~/main/llm/models/compatibility", () => ({
   checkModelCompatibility: vi.fn(),
 }));
 vi.mock("~/main/llm/models/discover", () => ({ probeOllama: probeOllamaMock }));
-vi.mock("~/main/llm/providers/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
+vi.mock("~/main/llm/providers/lmstudio/client", () => ({
+  probeLmStudio: probeLmStudioMock,
+}));
 vi.mock("~/main/llm/models/recommended", () => ({
   findRecommendedModel: vi.fn(),
   getRecommendedModels: vi.fn(),
@@ -84,8 +93,9 @@ vi.mock("~/features/providers/store/apiStore", () => ({
   getCurrentProfileId: getCurrentProfileIdMock,
   getDefaultModelId: vi.fn(),
   getProfileSetting: getProfileSettingMock,
-    getProviderEndpoint: () => undefined,
-    sanitizeProviderEndpoints: (raw: unknown) => (raw && typeof raw === "object" ? raw : {}),
+  getProviderEndpoint: () => undefined,
+  sanitizeProviderEndpoints: (raw: unknown) =>
+    raw && typeof raw === "object" ? raw : {},
   resetCurrentProfileSettings: vi.fn(),
   updateProfileSetting: updateProfileSettingMock,
   withoutProfileSecrets: withoutProfileSecretsMock,
@@ -122,7 +132,10 @@ const OPENAI_MODEL: Model = {
 };
 
 /** Distinguishable so a handler returning the RAW profile is visible. */
-const STRIPPED_PROFILE = { id: "profile_1", strippedBy: "withoutProfileSecrets" };
+const STRIPPED_PROFILE = {
+  id: "profile_1",
+  strippedBy: "withoutProfileSecrets",
+};
 const RAW_PROFILE = {
   id: "profile_1",
   settings: { apiKey: "sk-plaintext-legacy-not-yet-migrated" },
@@ -135,7 +148,10 @@ type HandlerResult = {
 };
 
 const connect = async (payload: unknown): Promise<HandlerResult> =>
-  (await handlers.get("connect-provider")?.(undefined, payload)) as HandlerResult;
+  (await handlers.get("connect-provider")?.(
+    undefined,
+    payload,
+  )) as HandlerResult;
 
 beforeEach(() => {
   // vi.clearAllMocks() clears calls but not return values, so a value set by
@@ -254,9 +270,9 @@ describe("connect-provider — payload validation", () => {
   });
 
   it("refuses an OpenRouter key pasted into either OpenAI field", async () => {
-    expect((await connect({ provider: "openai", apiKey: "sk-or-abc" })).success).toBe(
-      false,
-    );
+    expect(
+      (await connect({ provider: "openai", apiKey: "sk-or-abc" })).success,
+    ).toBe(false);
     expect(
       (
         await connect({
@@ -289,7 +305,9 @@ describe("connect-provider — payload validation", () => {
   it("does NOT require a key for ollama", async () => {
     probeOllamaMock.mockResolvedValue({
       reachable: true,
-      models: [{ id: "llama3.2:3b", name: "llama3.2", created: 1, provider: "ollama" }],
+      models: [
+        { id: "llama3.2:3b", name: "llama3.2", created: 1, provider: "ollama" },
+      ],
     });
 
     const result = await connect({ provider: "ollama" });
@@ -314,7 +332,12 @@ describe("connect-provider — M1: a stale key must fail, not pass via the cache
     getProfileSecretMock.mockResolvedValue("sk-stale-revoked-key");
     getProfileSettingMock.mockReturnValue([OPENAI_MODEL]);
     fetchAvailableModelsMock.mockImplementation(
-      async (_key: string, _provider: string, _persist: boolean, strict?: boolean) => {
+      async (
+        _key: string,
+        _provider: string,
+        _persist: boolean,
+        strict?: boolean,
+      ) => {
         if (strict) throw new Error("401 Unauthorized");
         return [OPENAI_MODEL];
       },
@@ -342,17 +365,29 @@ describe("connect-provider — M1: a stale key must fail, not pass via the cache
     const result = await connect({ provider: "openai" });
 
     expect(result.success).toBe(true);
-    expect(connectProviderToProfileMock).toHaveBeenCalledWith("profile_1", "openai", [
-      OPENAI_MODEL,
-    ]);
+    expect(connectProviderToProfileMock).toHaveBeenCalledWith(
+      "profile_1",
+      "openai",
+      [OPENAI_MODEL],
+    );
   });
 
   it("stores a newly supplied key only AFTER the live fetch validated it", async () => {
     const result = await connect({ provider: "openai", apiKey: "sk-new" });
 
     expect(result.success).toBe(true);
-    expect(setProfileSecretMock).toHaveBeenCalledWith("profile_1", "openai", "api", "sk-new");
-    expect(fetchAvailableModelsMock).toHaveBeenCalledWith("sk-new", "openai", false, true);
+    expect(setProfileSecretMock).toHaveBeenCalledWith(
+      "profile_1",
+      "openai",
+      "api",
+      "sk-new",
+    );
+    expect(fetchAvailableModelsMock).toHaveBeenCalledWith(
+      "sk-new",
+      "openai",
+      false,
+      true,
+    );
     // ORDER, not just "both happened": kills a write moved above the fetch.
     expect(setProfileSecretMock.mock.invocationCallOrder[0]).toBeGreaterThan(
       fetchAvailableModelsMock.mock.invocationCallOrder[0],
@@ -381,7 +416,11 @@ describe("connect-provider is bound to the profile whose key it stored", () => {
       ["profile_1", []],
       ["profile_2", []],
     ]);
-    const apply = (profileId: string, _provider: string, connected: Model[]) => {
+    const apply = (
+      profileId: string,
+      _provider: string,
+      connected: Model[],
+    ) => {
       if (!models.has(profileId)) return null;
       models.set(profileId, connected);
       return { id: profileId };
@@ -405,7 +444,12 @@ describe("connect-provider is bound to the profile whose key it stored", () => {
     const result = await connect({ provider: "openai", apiKey: "sk-new" });
 
     expect(result.success).toBe(true);
-    expect(setProfileSecretMock).toHaveBeenCalledWith("profile_1", "openai", "api", "sk-new");
+    expect(setProfileSecretMock).toHaveBeenCalledWith(
+      "profile_1",
+      "openai",
+      "api",
+      "sk-new",
+    );
     expect(models.get("profile_1")).toEqual([OPENAI_MODEL]);
     // profile_2 never gets a slice it has no key for.
     expect(models.get("profile_2")).toEqual([]);
@@ -486,9 +530,11 @@ describe("connect-provider — it never seeds a model", () => {
     expect(result.success).toBe(true);
     expect(updateProfileSettingMock).not.toHaveBeenCalled();
     expect(connectProviderToProfileMock).toHaveBeenCalledTimes(1);
-    expect(connectProviderToProfileMock).toHaveBeenCalledWith("profile_1", "openai", [
-      OPENAI_MODEL,
-    ]);
+    expect(connectProviderToProfileMock).toHaveBeenCalledWith(
+      "profile_1",
+      "openai",
+      [OPENAI_MODEL],
+    );
   });
 
   it("leaves selectedModel untouched when it is currently '' (the inherit sentinel)", async () => {
@@ -513,9 +559,11 @@ describe("connect-provider — it never seeds a model", () => {
 
     expect(result.success).toBe(true);
     expect(updateProfileSettingMock).not.toHaveBeenCalled();
-    expect(connectProviderToProfileMock).toHaveBeenCalledWith("profile_1", "openai", [
-      OPENAI_MODEL,
-    ]);
+    expect(connectProviderToProfileMock).toHaveBeenCalledWith(
+      "profile_1",
+      "openai",
+      [OPENAI_MODEL],
+    );
   });
 });
 
@@ -549,15 +597,22 @@ describe("connecting Ollama distinguishes 'down' from 'empty'", () => {
       kind: "message",
       message: { key: "settings.general.providers.ollama.noModels" },
     });
-    expect(connectProviderToProfileMock).toHaveBeenCalledWith("profile_1", "ollama", [], {
-      endpoint: { host: "127.0.0.1", port: 11434 },
-    });
+    expect(connectProviderToProfileMock).toHaveBeenCalledWith(
+      "profile_1",
+      "ollama",
+      [],
+      {
+        endpoint: { host: "127.0.0.1", port: 11434 },
+      },
+    );
   });
 
   it("carries no note when the daemon is reachable with models", async () => {
     probeOllamaMock.mockResolvedValue({
       reachable: true,
-      models: [{ id: "llama3.2:3b", name: "llama3.2", created: 1, provider: "ollama" }],
+      models: [
+        { id: "llama3.2:3b", name: "llama3.2", created: 1, provider: "ollama" },
+      ],
     });
 
     const result = await connect({ provider: "ollama" });
@@ -575,7 +630,6 @@ describe("connecting Ollama distinguishes 'down' from 'empty'", () => {
   });
 });
 
-
 describe("connect-provider — lmstudio", () => {
   it("fails when probeLmStudio reports the server unreachable", async () => {
     probeLmStudioMock.mockResolvedValue({
@@ -591,7 +645,11 @@ describe("connect-provider — lmstudio", () => {
 
   it("connects with a note when reachable but empty", async () => {
     probeLmStudioMock.mockResolvedValue({ reachable: true, models: [] });
-    const result = await connect({ provider: "lmstudio", host: "127.0.0.1", port: 1234 });
+    const result = await connect({
+      provider: "lmstudio",
+      host: "127.0.0.1",
+      port: 1234,
+    });
     expect(result.success).toBe(true);
     expect(isLabel(result.note)).toBe(true);
     expect(connectProviderToProfileMock).toHaveBeenCalledWith(
@@ -607,7 +665,14 @@ describe("connect-provider — lmstudio", () => {
   it("stores an optional api key when provided", async () => {
     probeLmStudioMock.mockResolvedValue({
       reachable: true,
-      models: [{ id: "local-model", name: "local-model", created: 1, provider: "lmstudio" }],
+      models: [
+        {
+          id: "local-model",
+          name: "local-model",
+          created: 1,
+          provider: "lmstudio",
+        },
+      ],
     });
     const result = await connect({
       provider: "lmstudio",

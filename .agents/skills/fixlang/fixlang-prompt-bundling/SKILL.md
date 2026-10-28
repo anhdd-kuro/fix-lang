@@ -1,6 +1,6 @@
 ---
 name: fixlang-prompt-bundling
-description: "Use when editing AI prompt assets (Prompt Master, Strategic Compact) or wondering why prompt edits don't show up in the running app. Covers src/prompts/*.md bundled at build time. Examples: \"update the prompt master skill\", \"my prompt changes aren't taking effect\"."
+description: 'Use when editing AI prompt assets (Prompt Master, Strategic Compact) or wondering why prompt edits don''t show up in the running app. Covers src/prompts/*.md bundled at build time. Examples: "update the prompt master skill", "my prompt changes aren''t taking effect".'
 ---
 
 # FixLang — Prompt Bundling Gotcha
@@ -25,7 +25,7 @@ Do NOT just paste the new `Received:` value. Prove the prompt text is the only d
 
 ## The ask prompt's `<priority>` block is load-bearing
 
-`src/prompts/ask.md` states that the user's request outranks every other block in the file, and the locale block states it is a *default*. Delete either and `App locale: <code>` reads as absolute — asking for a translation into another language gets **refused** ("the specified app locale is English") instead of answered.
+`src/prompts/ask.md` states that the user's request outranks every other block in the file, and the locale block states it is a _default_. Delete either and `App locale: <code>` reads as absolute — asking for a translation into another language gets **refused** ("the specified app locale is English") instead of answered.
 
 Two constraints when editing that file:
 

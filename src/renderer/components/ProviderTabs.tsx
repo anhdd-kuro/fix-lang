@@ -1,5 +1,8 @@
 import React from "react";
-import { PROVIDER_ORDER, type ProviderId } from "~/features/providers/shared/providers";
+import {
+  PROVIDER_ORDER,
+  type ProviderId,
+} from "~/features/providers/shared/providers";
 import { PROVIDER_LABEL_KEYS } from "./modelSelectOptions";
 import { SegmentedControl } from "./SegmentedControl";
 import { useI18n } from "../i18n/useI18n";

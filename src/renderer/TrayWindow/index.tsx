@@ -15,7 +15,7 @@ ReactDOM.createRoot(rootElement).render(
     <I18nProvider>
       <TrayWindowMain />
     </I18nProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );
 
 export default TrayWindowMain;

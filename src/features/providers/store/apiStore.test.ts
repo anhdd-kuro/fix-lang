@@ -195,8 +195,12 @@ describe("connectProviderToActiveProfile — adds a provider's slice without tou
 
     expect(result?.settings.selectedModel).toBe(before.selectedModel);
     expect(result?.settings.settingsCorrect).toEqual(before.settingsCorrect);
-    expect(result?.settings.settingsPromptGen).toEqual(before.settingsPromptGen);
-    expect(result?.settings.settingsSummarize).toEqual(before.settingsSummarize);
+    expect(result?.settings.settingsPromptGen).toEqual(
+      before.settingsPromptGen,
+    );
+    expect(result?.settings.settingsSummarize).toEqual(
+      before.settingsSummarize,
+    );
   });
 
   it("adds the new provider's slice while leaving the other provider's slice intact", () => {
@@ -443,7 +447,9 @@ describe("disconnectProviderFromActiveProfile — clears only that provider's re
     seedConnected();
 
     const result = disconnectProviderFromActiveProfile("openai");
-    const ids = result?.profile.settings.settingsCorrect.presets.map((p) => p.id);
+    const ids = result?.profile.settings.settingsCorrect.presets.map(
+      (p) => p.id,
+    );
 
     expect(ids).toEqual(["correction", "summarize", "legacy"]);
     expect(ids).not.toContain(DEFAULT_BUSINESS_WRITING_PRESET_ID);
@@ -452,7 +458,12 @@ describe("disconnectProviderFromActiveProfile — clears only that provider's re
 });
 
 describe("the profile-bound variants write to the id they are handed, not the active one", () => {
-  const openAIModel: Model = { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" };
+  const openAIModel: Model = {
+    id: "gpt-4o",
+    name: "gpt-4o",
+    created: 1,
+    provider: "openai",
+  };
 
   const seedTwoConnected = (): void => {
     const connected = () =>
@@ -529,7 +540,9 @@ describe("the profile-bound variants write to the id they are handed, not the ac
 
     const result = disconnectProviderFromProfile("profile_1", "openai");
 
-    expect(getProfiles()[0].settings.settingsAutocomplete.model).toBe("openrouter::llama");
+    expect(getProfiles()[0].settings.settingsAutocomplete.model).toBe(
+      "openrouter::llama",
+    );
     expect(result?.cleared.features).not.toContain("autocomplete");
   });
 
@@ -586,7 +599,9 @@ describe("the profile-bound variants write to the id they are handed, not the ac
   it("connects the named profile and leaves the active one alone", () => {
     seedTwoConnected();
 
-    const result = connectProviderToProfile("profile_1", "openrouter", [openRouterModel]);
+    const result = connectProviderToProfile("profile_1", "openrouter", [
+      openRouterModel,
+    ]);
 
     expect(result?.id).toBe("profile_1");
     expect(result?.settings.enabledProviders).toEqual(["openai", "openrouter"]);
@@ -607,7 +622,12 @@ describe("the profile-bound variants write to the id they are handed, not the ac
 
 describe("isModelForProvider", () => {
   it("matches an openai-tagged model only to openai", () => {
-    const model: Model = { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" };
+    const model: Model = {
+      id: "gpt-4o",
+      name: "gpt-4o",
+      created: 1,
+      provider: "openai",
+    };
     expect(isModelForProvider(model, "openai")).toBe(true);
     expect(isModelForProvider(model, "openrouter")).toBe(false);
     expect(isModelForProvider(model, "ollama")).toBe(false);
@@ -626,7 +646,11 @@ describe("isModelForProvider", () => {
   });
 
   it("matches a legacy untagged model (no provider, no local) only to openrouter", () => {
-    const model: Model = { id: "legacy-model", name: "legacy-model", created: 1 };
+    const model: Model = {
+      id: "legacy-model",
+      name: "legacy-model",
+      created: 1,
+    };
     expect(isModelForProvider(model, "openrouter")).toBe(true);
     expect(isModelForProvider(model, "openai")).toBe(false);
     expect(isModelForProvider(model, "ollama")).toBe(false);
@@ -666,10 +690,8 @@ describe("apiStore re-exports from ~/features/providers/shared/providers", () =>
 });
 
 describe("apiStoreSchema — provider removal and enabledProviders", () => {
-  const profileSchemaProperties = apiStoreSchema.profiles.items.properties as Record<
-    string,
-    unknown
-  >;
+  const profileSchemaProperties = apiStoreSchema.profiles.items
+    .properties as Record<string, unknown>;
   const settingsSchemaProperties = (
     profileSchemaProperties.settings as {
       properties: Record<string, unknown>;
@@ -681,10 +703,8 @@ describe("apiStoreSchema — provider removal and enabledProviders", () => {
   });
 
   it("enabledProviders is a bare string array with no ajv `enum`, defaulting to []", () => {
-    const enabledProviders = settingsSchemaProperties.enabledProviders as Record<
-      string,
-      unknown
-    >;
+    const enabledProviders =
+      settingsSchemaProperties.enabledProviders as Record<string, unknown>;
     expect(enabledProviders).toEqual({
       type: "array",
       items: { type: "string" },
@@ -692,7 +712,7 @@ describe("apiStoreSchema — provider removal and enabledProviders", () => {
     });
     expect(enabledProviders).not.toHaveProperty("enum");
     expect(
-      (enabledProviders.items as Record<string, unknown>),
+      enabledProviders.items as Record<string, unknown>,
     ).not.toHaveProperty("enum");
   });
 
@@ -713,11 +733,11 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
     }
   ).properties;
 
-  it("selectedModel defaults to \"\"", () => {
+  it('selectedModel defaults to ""', () => {
     expect(settingsSchemaProperties.selectedModel.default).toBe("");
   });
 
-  it("settingsSummarize.model defaults to \"\" (property and object default)", () => {
+  it('settingsSummarize.model defaults to "" (property and object default)', () => {
     const summarize = settingsSchemaProperties.settingsSummarize as {
       properties: { model: { default?: unknown } };
       default: { model?: unknown };
@@ -726,7 +746,7 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
     expect(summarize.default.model).toBe("");
   });
 
-  it("settingsPromptGen.model defaults to \"\" (property and object default)", () => {
+  it('settingsPromptGen.model defaults to "" (property and object default)', () => {
     const promptGen = settingsSchemaProperties.settingsPromptGen as {
       properties: { model: { default?: unknown } };
       default: { model?: unknown };
@@ -736,10 +756,13 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
   });
 
   it("root configVersion defaults to 0", () => {
-    expect(apiStoreSchema.configVersion).toEqual({ type: "number", default: 0 });
+    expect(apiStoreSchema.configVersion).toEqual({
+      type: "number",
+      default: 0,
+    });
   });
 
-  it("settings.apiKey defaults to \"\" and never carries a value from the environment", () => {
+  it('settings.apiKey defaults to "" and never carries a value from the environment', () => {
     expect(settingsSchemaProperties.apiKey.default).toBe("");
   });
 
@@ -753,7 +776,9 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
         entry[1].length >= 8,
     );
     for (const [name, value] of secrets) {
-      expect(serialised, `schema embeds the value of ${name}`).not.toContain(value);
+      expect(serialised, `schema embeds the value of ${name}`).not.toContain(
+        value,
+      );
     }
   });
 });
@@ -797,10 +822,14 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
   it("both new presets are present in the schema default with isBuiltIn true", () => {
     const presets = settingsCorrectSchema.default.presets ?? [];
     expect(
-      presets.find((p) => (p as { id: string }).id === DEFAULT_BUSINESS_WRITING_PRESET_ID),
+      presets.find(
+        (p) => (p as { id: string }).id === DEFAULT_BUSINESS_WRITING_PRESET_ID,
+      ),
     ).toMatchObject({ isBuiltIn: true, hotkey: "Control+Shift+B" });
     expect(
-      presets.find((p) => (p as { id: string }).id === DEFAULT_STRUCTURED_TEXT_PRESET_ID),
+      presets.find(
+        (p) => (p as { id: string }).id === DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+      ),
     ).toMatchObject({ isBuiltIn: true, hotkey: "Control+Shift+R" });
   });
 
@@ -815,7 +844,9 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
       markdownOutput: true,
     };
 
-    expect(askIn(settingsCorrectSchema.default.presets)).toMatchObject(expected);
+    expect(askIn(settingsCorrectSchema.default.presets)).toMatchObject(
+      expected,
+    );
     expect(
       askIn(settingsCorrectSchema.properties.presets.default),
     ).toMatchObject(expected);
@@ -1240,7 +1271,12 @@ describe("getDefaultModelId", () => {
   it("falls back to a ref built from resolveDefaultModel(settings.models) when selectedModel is empty", () => {
     const models: Model[] = [
       { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
-      { id: "gpt-4o-mini", name: "gpt-4o-mini", created: 2, provider: "openai" },
+      {
+        id: "gpt-4o-mini",
+        name: "gpt-4o-mini",
+        created: 2,
+        provider: "openai",
+      },
     ];
     const profile = buildProfile({
       settings: buildSettings({ selectedModel: "", models }),
@@ -1250,7 +1286,7 @@ describe("getDefaultModelId", () => {
     expect(getDefaultModelId()).toBe(modelRefForModel(models[1]));
   });
 
-  it("returns \"\" when selectedModel is empty and there are no models", () => {
+  it('returns "" when selectedModel is empty and there are no models', () => {
     const profile = buildProfile({
       settings: buildSettings({ selectedModel: "", models: [] }),
     });
@@ -1290,11 +1326,16 @@ describe("resetCurrentProfileSettings — preserves apiKey, models and enabledPr
 
     expect(result.success).toBe(true);
     const [resetProfile] = getProfiles();
-    expect(resetProfile.settings.enabledProviders).toEqual(["openai", "ollama"]);
+    expect(resetProfile.settings.enabledProviders).toEqual([
+      "openai",
+      "ollama",
+    ]);
   });
 
   it("still preserves apiKey and models alongside enabledProviders", () => {
-    const models: Model[] = [{ id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" }];
+    const models: Model[] = [
+      { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
+    ];
     const profile = buildProfile({
       settings: buildSettings({
         apiKey: "secret-key",
@@ -1383,7 +1424,9 @@ describe("createProfile — yields all 8 built-in presets", () => {
 
 describe("withoutProfileSecrets — strips apiKey and keeps every model field", () => {
   it("strips apiKey but returns models and selectedModel intact", () => {
-    const models: Model[] = [{ id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" }];
+    const models: Model[] = [
+      { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
+    ];
     const profile = buildProfile({
       settings: buildSettings({
         apiKey: "secret-key",
@@ -1432,7 +1475,9 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
     buildProfile({
       settings: buildSettings({
         apiKey: "secret-key",
-        models: [{ id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" }],
+        models: [
+          { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
+        ],
         selectedModel: "openai::gpt-4o",
         enabledProviders: ["openai", "openrouter"],
         openaiProjectId: "proj_exporter",
@@ -1460,7 +1505,9 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
     // Names a project inside the exporter's own OpenAI organization.
     expect(result.settings.openaiProjectId).toBe("");
     expect(
-      result.settings.settingsCorrect.presets.every((preset) => preset.model === ""),
+      result.settings.settingsCorrect.presets.every(
+        (preset) => preset.model === "",
+      ),
     ).toBe(true);
     expect(result.settings.settingsPromptGen.model).toBe("");
     expect(result.settings.settingsSummarize.model).toBe("");
@@ -1480,7 +1527,9 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
     expect(result.settings.settingsSummarize.minLength).toBe(3);
     expect(result.settings.settingsSummarize.targetLanguage).toBe("ja");
     expect(
-      result.settings.settingsCorrect.presets.map((preset) => preset.systemPrompt),
+      result.settings.settingsCorrect.presets.map(
+        (preset) => preset.systemPrompt,
+      ),
     ).toEqual(["Fix grammar.", "Summarize."]);
   });
 
@@ -1502,7 +1551,9 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
     );
     expect(
       secretsOnly.settings.settingsCorrect.presets.map((p) => p.model),
-    ).not.toEqual(exportable.settings.settingsCorrect.presets.map((p) => p.model));
+    ).not.toEqual(
+      exportable.settings.settingsCorrect.presets.map((p) => p.model),
+    );
     expect(secretsOnly.settings.settingsPromptGen.model).not.toEqual(
       exportable.settings.settingsPromptGen.model,
     );
@@ -1525,14 +1576,25 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
         openaiProjectId: "",
         settingsCorrect: {
           ...secretsOnly.settings.settingsCorrect,
-          presets: secretsOnly.settings.settingsCorrect.presets.map((preset) => ({
-            ...preset,
-            model: "",
-          })),
+          presets: secretsOnly.settings.settingsCorrect.presets.map(
+            (preset) => ({
+              ...preset,
+              model: "",
+            }),
+          ),
         },
-        settingsPromptGen: { ...secretsOnly.settings.settingsPromptGen, model: "" },
-        settingsSummarize: { ...secretsOnly.settings.settingsSummarize, model: "" },
-        settingsAutocomplete: { ...secretsOnly.settings.settingsAutocomplete, model: "" },
+        settingsPromptGen: {
+          ...secretsOnly.settings.settingsPromptGen,
+          model: "",
+        },
+        settingsSummarize: {
+          ...secretsOnly.settings.settingsSummarize,
+          model: "",
+        },
+        settingsAutocomplete: {
+          ...secretsOnly.settings.settingsAutocomplete,
+          model: "",
+        },
       },
     };
     expect(exportable).toEqual(blanked);
@@ -1647,9 +1709,9 @@ describe("migrateStoredProfilesForModelRefs", () => {
 
     const rawProfiles = apiStore.get("profiles") as Record<string, unknown>[];
     expect(rawProfiles[0].provider).toBe("openai");
-    expect(
-      (rawProfiles[0].settings as SettingsStore).selectedModel,
-    ).toBe("gpt-4o");
+    expect((rawProfiles[0].settings as SettingsStore).selectedModel).toBe(
+      "gpt-4o",
+    );
   });
 
   it("with configVersion forced back to 0 and already-migrated profiles on disk, replaying the driver rewrites nothing", () => {
@@ -1703,7 +1765,9 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
     const fs = await import("node:fs");
     const os = await import("node:os");
     const path = await import("node:path");
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "fixlang-apistore-schema-"));
+    const cwd = fs.mkdtempSync(
+      path.join(os.tmpdir(), "fixlang-apistore-schema-"),
+    );
 
     try {
       // A throwaway cwd: this must never touch a real user config file.
@@ -1744,7 +1808,9 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
     const fs = await import("node:fs");
     const os = await import("node:os");
     const path = await import("node:path");
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "fixlang-apistore-enum-"));
+    const cwd = fs.mkdtempSync(
+      path.join(os.tmpdir(), "fixlang-apistore-enum-"),
+    );
 
     try {
       const realStore = new Conf<{ profiles: Profile[] }>({
@@ -1799,7 +1865,9 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
     const fs = await import("node:fs");
     const os = await import("node:os");
     const path = await import("node:path");
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "fixlang-apistore-combo-"));
+    const cwd = fs.mkdtempSync(
+      path.join(os.tmpdir(), "fixlang-apistore-combo-"),
+    );
 
     try {
       const realStore = new Conf<{ profiles: Profile[] }>({
@@ -1870,7 +1938,9 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
       );
 
       try {
-        const openStore = (): InstanceType<typeof Conf<{ profiles: Profile[] }>> =>
+        const openStore = (): InstanceType<
+          typeof Conf<{ profiles: Profile[] }>
+        > =>
           new Conf<{ profiles: Profile[] }>({
             cwd,
             configName: "config",
@@ -1949,7 +2019,9 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
     const fs = await import("node:fs");
     const os = await import("node:os");
     const path = await import("node:path");
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "fixlang-apistore-options-"));
+    const cwd = fs.mkdtempSync(
+      path.join(os.tmpdir(), "fixlang-apistore-options-"),
+    );
 
     try {
       const realStore = new Conf<{ profiles: Profile[] }>({
@@ -1985,7 +2057,9 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
       const readBack = realStore.get("profiles", []);
 
       expect(readBack).toHaveLength(1);
-      expect(readBack[0].settings.settingsCorrect.presets[0].extraOptions).toEqual({
+      expect(
+        readBack[0].settings.settingsCorrect.presets[0].extraOptions,
+      ).toEqual({
         optionFromAFutureBuild: "some-value",
         cavemanMode: "banana",
       });
@@ -2010,8 +2084,18 @@ describe("resolveDefaultModel", () => {
 
   it("picks the newest model whose id contains both gpt and mini", () => {
     const models: Model[] = [
-      { id: "gpt-4o-mini", name: "gpt-4o-mini", created: 1, provider: "openai" },
-      { id: "gpt-4.1-mini", name: "gpt-4.1-mini", created: 2, provider: "openai" },
+      {
+        id: "gpt-4o-mini",
+        name: "gpt-4o-mini",
+        created: 1,
+        provider: "openai",
+      },
+      {
+        id: "gpt-4.1-mini",
+        name: "gpt-4.1-mini",
+        created: 2,
+        provider: "openai",
+      },
       { id: "gpt-4o", name: "gpt-4o", created: 3, provider: "openai" },
     ];
     expect(resolveDefaultModel(models)?.id).toBe("gpt-4.1-mini");
@@ -2019,8 +2103,18 @@ describe("resolveDefaultModel", () => {
 
   it("falls back to the first model when none match gpt+mini", () => {
     const models: Model[] = [
-      { id: "claude-3-opus", name: "claude-3-opus", created: 1, provider: "openrouter" },
-      { id: "claude-3-sonnet", name: "claude-3-sonnet", created: 2, provider: "openrouter" },
+      {
+        id: "claude-3-opus",
+        name: "claude-3-opus",
+        created: 1,
+        provider: "openrouter",
+      },
+      {
+        id: "claude-3-sonnet",
+        name: "claude-3-sonnet",
+        created: 2,
+        provider: "openrouter",
+      },
     ];
     expect(resolveDefaultModel(models)?.id).toBe("claude-3-opus");
   });
@@ -2039,5 +2133,3 @@ describe("resolveDefaultOpenAIModel — legacy delegate stays byte-for-byte comp
     expect(resolveDefaultOpenAIModel([])).toBe("openai/gpt-4.1-mini");
   });
 });
-
-

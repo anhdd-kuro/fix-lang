@@ -101,7 +101,9 @@ describe("HistoryEntryItem", () => {
     const entry = makeEntry();
     await render(entry);
 
-    expect(container.textContent).toContain(fEn.formatDateTime(entry.timestamp));
+    expect(container.textContent).toContain(
+      fEn.formatDateTime(entry.timestamp),
+    );
   });
 
   it("re-renders the timestamp after a locale switch using the same YYYY-MM-DD HH:mm format", async () => {
@@ -164,7 +166,9 @@ describe("HistoryEntryItem", () => {
     });
     await render(entry);
 
-    const truncating = [...container.querySelectorAll<HTMLElement>(".truncate")];
+    const truncating = [
+      ...container.querySelectorAll<HTMLElement>(".truncate"),
+    ];
     expect(truncating.length).toBeGreaterThanOrEqual(3);
 
     for (const element of truncating) {
@@ -197,6 +201,8 @@ describe("HistoryEntryItem", () => {
     const title = container.querySelector(`p[title="${entry.original}"]`);
 
     expect(control).not.toBeNull();
-    expect(title?.parentElement?.firstElementChild).toBe(control?.parentElement);
+    expect(title?.parentElement?.firstElementChild).toBe(
+      control?.parentElement,
+    );
   });
 });

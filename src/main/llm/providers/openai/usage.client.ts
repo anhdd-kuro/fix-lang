@@ -12,9 +12,16 @@
  * network or need electron. All I/O is async with a 5s AbortController timeout,
  * mirroring the OpenRouter client.
  */
-import { describeKeyShape, findKeyShapeMismatch } from "~/features/providers/shared/providerKeyShapes";
+import {
+  describeKeyShape,
+  findKeyShapeMismatch,
+} from "~/features/providers/shared/providerKeyShapes";
 import { getProvisioningKey } from "~/features/providers/store/provisioningKeyStore";
-import { usageRangeDays, usageRangeStartUnix, type UsageRange } from "~/features/usage/shared/usage";
+import {
+  usageRangeDays,
+  usageRangeStartUnix,
+  type UsageRange,
+} from "~/features/usage/shared/usage";
 import { logger } from "~/main/logging/logService";
 import {
   nextAfterCursor,
@@ -138,7 +145,11 @@ export const createOpenAIUsageClient = (
       });
       if (!response.ok) {
         const reason = reasonForStatus(response.status);
-        logAdminRequest(path, key, { ok: false, status: response.status, reason });
+        logAdminRequest(path, key, {
+          ok: false,
+          status: response.status,
+          reason,
+        });
         return { ok: false, reason };
       }
       return { ok: true, json: await response.json() };

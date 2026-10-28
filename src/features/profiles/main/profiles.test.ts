@@ -32,13 +32,19 @@ import { registerProfileHandlers } from "./profiles";
 const tEn = createTranslator("en");
 const tJa = createTranslator("ja");
 
-const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
+const handlers = new Map<
+  string,
+  (event: unknown, ...args: unknown[]) => unknown
+>();
 const onHandlers = new Map<string, (...args: unknown[]) => unknown>();
 const notificationShow = vi.fn();
 
 vi.mock("electron", () => ({
   ipcMain: {
-    handle: (channel: string, listener: (event: unknown, ...args: unknown[]) => unknown) => {
+    handle: (
+      channel: string,
+      listener: (event: unknown, ...args: unknown[]) => unknown,
+    ) => {
       handlers.set(channel, listener);
     },
     on: (channel: string, listener: (...args: unknown[]) => unknown) => {
@@ -74,7 +80,9 @@ vi.mock("~/features/providers/store/provisioningKeyStore", () => ({
 // not the separate main-process notification copy.
 vi.mock("./profileNotifications", () => ({
   buildProfileNotification: vi.fn().mockReturnValue({ title: "t", body: "b" }),
-  buildProfilesUpdatedNotification: vi.fn().mockReturnValue({ title: "t", body: "b" }),
+  buildProfilesUpdatedNotification: vi
+    .fn()
+    .mockReturnValue({ title: "t", body: "b" }),
 }));
 
 const {
@@ -138,7 +146,9 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     getProfileByIdMock.mockReturnValue(undefined);
     withoutProfileSecretsMock.mockImplementation((profile: unknown) => profile);
     toExportableProfileMock.mockImplementation((profile: unknown) => profile);
-    sanitizeImportedProfileMock.mockImplementation((profile: unknown) => profile);
+    sanitizeImportedProfileMock.mockImplementation(
+      (profile: unknown) => profile,
+    );
     registerProfileHandlers();
   });
 
@@ -152,8 +162,14 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
 
     expect(result.success).toBe(false);
     expect(isLabel(result.error)).toBe(true);
-    const en = resolveLabel(result.error as Parameters<typeof resolveLabel>[0], tEn);
-    const ja = resolveLabel(result.error as Parameters<typeof resolveLabel>[0], tJa);
+    const en = resolveLabel(
+      result.error as Parameters<typeof resolveLabel>[0],
+      tEn,
+    );
+    const ja = resolveLabel(
+      result.error as Parameters<typeof resolveLabel>[0],
+      tJa,
+    );
     expect(en).toBe(tEn("common.error.profileNotFound"));
     expect(ja).toBe(tJa("common.error.profileNotFound"));
     expect(ja).not.toBe(en);
@@ -168,8 +184,14 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     };
 
     expect(result.success).toBe(false);
-    const en = resolveLabel(result.error as Parameters<typeof resolveLabel>[0], tEn);
-    const ja = resolveLabel(result.error as Parameters<typeof resolveLabel>[0], tJa);
+    const en = resolveLabel(
+      result.error as Parameters<typeof resolveLabel>[0],
+      tEn,
+    );
+    const ja = resolveLabel(
+      result.error as Parameters<typeof resolveLabel>[0],
+      tJa,
+    );
     expect(en).toBe(tEn("common.error.profileNotFound"));
     expect(ja).toBe(tJa("common.error.profileNotFound"));
     expect(ja).not.toBe(en);
@@ -181,9 +203,16 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
   it("export-profile serialises toExportableProfile, not the disk-writeback stripper", async () => {
     // `settings` is required: the fire-and-forget legacy migration
     // dereferences `profile.settings.apiKey` and would reject unhandled.
-    const storedProfile = { id: "profile_1", name: "Work", settings: { apiKey: "" } };
+    const storedProfile = {
+      id: "profile_1",
+      name: "Work",
+      settings: { apiKey: "" },
+    };
     getProfileByIdMock.mockReturnValue(storedProfile);
-    toExportableProfileMock.mockReturnValue({ id: "profile_1", strippedBy: "toExportableProfile" });
+    toExportableProfileMock.mockReturnValue({
+      id: "profile_1",
+      strippedBy: "toExportableProfile",
+    });
     withoutProfileSecretsMock.mockReturnValue({
       id: "profile_1",
       strippedBy: "withoutProfileSecrets",
@@ -210,17 +239,23 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
       name: "Work",
       settings: {
         apiKey: "legacy-plaintext-key",
-        models: [{ id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" }],
+        models: [
+          { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
+        ],
         selectedModel: "openai::gpt-4o",
         enabledProviders: ["openai", "openrouter"],
-        settingsCorrect: { presets: [{ id: "correct", model: "openai::gpt-4o" }] },
+        settingsCorrect: {
+          presets: [{ id: "correct", model: "openai::gpt-4o" }],
+        },
       },
     };
     getProfileByIdMock.mockReturnValue(storedProfile);
     getProfilesMock.mockReturnValue([storedProfile]);
     // Mirrors the real narrow helper: secrets out, everything else untouched.
     withoutProfileSecretsMock.mockImplementation((profile: unknown) => {
-      const { settings, ...rest } = profile as { settings: Record<string, unknown> };
+      const { settings, ...rest } = profile as {
+        settings: Record<string, unknown>;
+      };
       const { apiKey: _apiKey, ...restSettings } = settings;
       return { ...rest, settings: restSettings };
     });
@@ -235,13 +270,21 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     // The wide stripper must never appear on the disk-writeback path.
     expect(toExportableProfileMock).not.toHaveBeenCalled();
 
-    const [key, written] = apiStoreSetMock.mock.calls.at(-1) as [string, unknown[]];
+    const [key, written] = apiStoreSetMock.mock.calls.at(-1) as [
+      string,
+      unknown[],
+    ];
     expect(key).toBe("profiles");
     const writtenProfile = written[0] as { settings: Record<string, unknown> };
     expect(writtenProfile.settings.apiKey).toBeUndefined();
-    expect(writtenProfile.settings.models).toEqual(storedProfile.settings.models);
+    expect(writtenProfile.settings.models).toEqual(
+      storedProfile.settings.models,
+    );
     expect(writtenProfile.settings.selectedModel).toBe("openai::gpt-4o");
-    expect(writtenProfile.settings.enabledProviders).toEqual(["openai", "openrouter"]);
+    expect(writtenProfile.settings.enabledProviders).toEqual([
+      "openai",
+      "openrouter",
+    ]);
     expect(writtenProfile.settings.settingsCorrect).toEqual(
       storedProfile.settings.settingsCorrect,
     );
@@ -250,11 +293,20 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
   it("switch-to-next-profile: 'No profiles available' resolves to different EN/JA text via the catalog", async () => {
     switchToNextProfileMock.mockReturnValue(null);
     const handler = handlers.get("switch-to-next-profile");
-    const result = (await handler?.(undefined)) as { success: boolean; error?: unknown };
+    const result = (await handler?.(undefined)) as {
+      success: boolean;
+      error?: unknown;
+    };
 
     expect(result.success).toBe(false);
-    const en = resolveLabel(result.error as Parameters<typeof resolveLabel>[0], tEn);
-    const ja = resolveLabel(result.error as Parameters<typeof resolveLabel>[0], tJa);
+    const en = resolveLabel(
+      result.error as Parameters<typeof resolveLabel>[0],
+      tEn,
+    );
+    const ja = resolveLabel(
+      result.error as Parameters<typeof resolveLabel>[0],
+      tJa,
+    );
     expect(en).toBe(tEn("common.error.noProfilesAvailable"));
     expect(ja).toBe(tJa("common.error.noProfilesAvailable"));
     expect(ja).not.toBe(en);
@@ -269,8 +321,14 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     };
 
     expect(result.success).toBe(false);
-    const en = resolveLabel(result.error as Parameters<typeof resolveLabel>[0], tEn);
-    const ja = resolveLabel(result.error as Parameters<typeof resolveLabel>[0], tJa);
+    const en = resolveLabel(
+      result.error as Parameters<typeof resolveLabel>[0],
+      tEn,
+    );
+    const ja = resolveLabel(
+      result.error as Parameters<typeof resolveLabel>[0],
+      tJa,
+    );
     expect(en).toBe(tEn("common.error.invalidProfileFormat"));
     expect(ja).toBe(tJa("common.error.invalidProfileFormat"));
     expect(ja).not.toBe(en);
@@ -278,7 +336,6 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
 
   it("create-profile: an unexpected non-Error throw falls back to a translatable 'Unknown error' Message", async () => {
     createProfileMock.mockImplementation(() => {
-       
       throw "boom";
     });
     const handler = handlers.get("create-profile");
@@ -288,8 +345,14 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     };
 
     expect(result.success).toBe(false);
-    const en = resolveLabel(result.error as Parameters<typeof resolveLabel>[0], tEn);
-    const ja = resolveLabel(result.error as Parameters<typeof resolveLabel>[0], tJa);
+    const en = resolveLabel(
+      result.error as Parameters<typeof resolveLabel>[0],
+      tEn,
+    );
+    const ja = resolveLabel(
+      result.error as Parameters<typeof resolveLabel>[0],
+      tJa,
+    );
     expect(en).toBe(tEn("models.select.error.unknown"));
     expect(ja).toBe(tJa("models.select.error.unknown"));
     expect(ja).not.toBe(en);
@@ -313,7 +376,10 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     // `applyProfile` (apiStore.ts) is out of scope for this migration — its
     // error text is neither guessed at as translatable nor left untyped; it
     // is boundary-wrapped as an opaque `textLabel` by `wrapStoreResult`.
-    applyProfileMock.mockReturnValue({ success: false, error: "Profile not found" });
+    applyProfileMock.mockReturnValue({
+      success: false,
+      error: "Profile not found",
+    });
     const handler = handlers.get("apply-profile");
     const result = (await handler?.(undefined, { profileId: "x" })) as {
       success: boolean;
@@ -322,8 +388,14 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
 
     expect(result.success).toBe(false);
     expect(result.error).toEqual({ kind: "text", text: "Profile not found" });
-    const en = resolveLabel(result.error as Parameters<typeof resolveLabel>[0], tEn);
-    const ja = resolveLabel(result.error as Parameters<typeof resolveLabel>[0], tJa);
+    const en = resolveLabel(
+      result.error as Parameters<typeof resolveLabel>[0],
+      tEn,
+    );
+    const ja = resolveLabel(
+      result.error as Parameters<typeof resolveLabel>[0],
+      tJa,
+    );
     // Opaque text is identical in both locales by construction — this is the
     // one case in this file where EN and JA must NOT differ.
     expect(en).toBe("Profile not found");

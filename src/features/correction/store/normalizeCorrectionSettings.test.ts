@@ -1701,10 +1701,11 @@ describe("normalizeCorrectionSettings — Ask relinquishes its default hotkey on
   });
 
   it("blanks Ask on a reserved accelerator through the no-presets-array legacy path", () => {
-    const result = normalizeCorrectionSettings({ userInput: "Legacy." }, undefined, [
-      "Control+Shift+A",
-      "Control+Shift+P",
-    ]);
+    const result = normalizeCorrectionSettings(
+      { userInput: "Legacy." },
+      undefined,
+      ["Control+Shift+A", "Control+Shift+P"],
+    );
 
     expect(hotkeyOf(result, DEFAULT_ASK_PRESET_ID)).toBe("");
     expect(hotkeyOf(result, "correction")).toBe("Control+Shift+F");
@@ -1898,7 +1899,10 @@ describe("normalizeCorrectionSettings — combo sanitizer drops malformed entrie
       }),
     );
 
-    expect(result[0].steps.map((step) => step.id)).toEqual(["step-1", "step-2"]);
+    expect(result[0].steps.map((step) => step.id)).toEqual([
+      "step-1",
+      "step-2",
+    ]);
   });
 
   it("keeps inlineInput verbatim, whitespace included", () => {
@@ -2097,7 +2101,10 @@ describe("normalizeCorrectionSettings — combo hotkeys pass through untouched",
 
   it("keeps a hotkey sitting on a reserved app accelerator", () => {
     expect(
-      comboHotkeyWith("Control+Shift+P", ["Control+Shift+G", "Control+Shift+P"]),
+      comboHotkeyWith("Control+Shift+P", [
+        "Control+Shift+G",
+        "Control+Shift+P",
+      ]),
     ).toBe("Control+Shift+P");
   });
 
@@ -2464,7 +2471,9 @@ describe("normalizeCorrectionSettings — the built-in Perfect prompt combo", ()
     );
 
     for (const step of comboFor()?.steps ?? []) {
-      expect(presetsById.get(step.presetId)?.requiresInput ?? false).toBe(false);
+      expect(presetsById.get(step.presetId)?.requiresInput ?? false).toBe(
+        false,
+      );
     }
   });
 });
@@ -2607,9 +2616,7 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
       normalizeCorrectionSettings({
         presets: [storedCorrection],
         selectedPresetId: "correction",
-        combos: [
-          storedPerfectPrompt({ id: "combo-1", name: "My own chain" }),
-        ],
+        combos: [storedPerfectPrompt({ id: "combo-1", name: "My own chain" })],
       }),
     ).find((combo) => combo.id === "combo-1");
 
@@ -2697,7 +2704,9 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
     const once = normalizeCorrectionSettings({
       presets: [storedCorrection],
       selectedPresetId: "correction",
-      combos: [storedPerfectPrompt({ name: "Mine", hotkey: "Control+Shift+K" })],
+      combos: [
+        storedPerfectPrompt({ name: "Mine", hotkey: "Control+Shift+K" }),
+      ],
     });
     const twice = normalizeCorrectionSettings(once);
 
@@ -2765,7 +2774,9 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
     const once = normalizeCorrectionSettings({
       presets: [storedCorrection],
       selectedPresetId: "correction",
-      combos: [storedPerfectPrompt({ steps: legacyTriple(), schemaVersion: 2 })],
+      combos: [
+        storedPerfectPrompt({ steps: legacyTriple(), schemaVersion: 2 }),
+      ],
     });
     const twice = normalizeCorrectionSettings(once);
 
@@ -2828,7 +2839,10 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
     // repointed at a different preset.
     const stored = storedPerfectPrompt({
       steps: [
-        { id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-1`, presetId: "correction" },
+        {
+          id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-1`,
+          presetId: "correction",
+        },
         {
           id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-2`,
           presetId: "structured-text",
@@ -2975,7 +2989,9 @@ describe("normalizeCorrectionSettings — no built-in but Caveman emits an extra
       selectedPresetId: "my-custom",
     });
 
-    const custom = normalized.presets.find((preset) => preset.id === "my-custom");
+    const custom = normalized.presets.find(
+      (preset) => preset.id === "my-custom",
+    );
     expect(custom).toBeDefined();
     expect(custom).not.toHaveProperty("extraOptions");
   });

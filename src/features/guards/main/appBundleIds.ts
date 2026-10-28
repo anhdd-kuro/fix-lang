@@ -58,7 +58,9 @@ export const isExistingAppBundlePath = (value: unknown): value is string =>
  * it into one failure `Label` for the whole call, so the user is told nothing
  * was added rather than silently getting a shorter list than they dropped.
  */
-export const readAppBundleId = async (appPath: string): Promise<string | null> => {
+export const readAppBundleId = async (
+  appPath: string,
+): Promise<string | null> => {
   const plistPath = path.join(appPath, "Contents", "Info.plist");
   if (!existsSync(plistPath)) return null;
   try {
@@ -89,14 +91,20 @@ export const resolveAppBundleIds = async (
     paths.length > MAX_APP_BUNDLE_PATHS ||
     !paths.every(isExistingAppBundlePath)
   ) {
-    return { success: false, error: messageLabel("security.deniedApps.dropInvalid") };
+    return {
+      success: false,
+      error: messageLabel("security.deniedApps.dropInvalid"),
+    };
   }
 
   const bundleIds: string[] = [];
   for (const appPath of paths) {
     const bundleId = await readAppBundleId(appPath);
     if (bundleId === null) {
-      return { success: false, error: messageLabel("security.deniedApps.dropError") };
+      return {
+        success: false,
+        error: messageLabel("security.deniedApps.dropError"),
+      };
     }
     bundleIds.push(bundleId);
   }

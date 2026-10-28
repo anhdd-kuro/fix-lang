@@ -44,11 +44,14 @@ const invokeRestart = async (): Promise<UpdateActionResult> => {
 
 /** Exposes the app-update state and explicit user actions to the renderer. */
 export const updateFeature = {
-  getUpdateState: (): Promise<UpdateState> => invokeUpdateAction("updates:get-state"),
+  getUpdateState: (): Promise<UpdateState> =>
+    invokeUpdateAction("updates:get-state"),
 
-  checkForUpdates: (): Promise<UpdateState> => invokeUpdateAction("updates:check"),
+  checkForUpdates: (): Promise<UpdateState> =>
+    invokeUpdateAction("updates:check"),
 
-  openUpdateRelease: (): Promise<OpenUpdateReleaseResult> => invokeOpenRelease(),
+  openUpdateRelease: (): Promise<OpenUpdateReleaseResult> =>
+    invokeOpenRelease(),
 
   /** Asks main to run `brew upgrade --cask fixlang` and relaunch FixLang. */
   installUpdate: (): Promise<InstallUpdateResult> => invokeInstall(),

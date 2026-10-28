@@ -49,11 +49,16 @@ vi.mock("~/main/ai.request/shared", () => ({
   getCachedModels: getCachedModelsMock,
 }));
 vi.mock("./discover", () => ({ probeOllama: probeOllamaMock }));
-vi.mock("~/main/llm/providers/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
+vi.mock("~/main/llm/providers/lmstudio/client", () => ({
+  probeLmStudio: probeLmStudioMock,
+}));
 import { checkForModelChanges } from "./monitor";
 import type { Model } from "~/features/providers/store/apiStore";
 
-const localModel = (id: string, provider: "ollama" | "lmstudio" = "ollama"): Model => ({
+const localModel = (
+  id: string,
+  provider: "ollama" | "lmstudio" = "ollama",
+): Model => ({
   id,
   name: id.split(":")[0],
   created: 0,

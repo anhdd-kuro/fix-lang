@@ -66,13 +66,18 @@ import {
 import { effectiveModelRef, fixGrammar } from "./correction";
 import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
-import type { CorrectionPreset, CorrectionSettings } from "~/features/providers/store/apiStore";
+import type {
+  CorrectionPreset,
+  CorrectionSettings,
+} from "~/features/providers/store/apiStore";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const makePreset = (overrides: Partial<CorrectionPreset> = {}): CorrectionPreset => ({
+const makePreset = (
+  overrides: Partial<CorrectionPreset> = {},
+): CorrectionPreset => ({
   id: "test-preset-1",
   name: "Test Preset",
   hotkey: "Control+Shift+T",
@@ -127,7 +132,6 @@ describe("fixGrammar — per-preset reasoning", () => {
   });
 });
 
-
 describe("fixGrammar — prompt-optimization user prompt", () => {
   const PROMPT_OPTIMIZATION_REF = "openrouter::google/gemma-2-9b-it";
 
@@ -166,7 +170,9 @@ describe("fixGrammar — empty input early return", () => {
   });
 
   const withPresetModel = (model: string) => {
-    (getProfileSetting as Mock).mockReturnValue(makeSettings(makePreset({ model })));
+    (getProfileSetting as Mock).mockReturnValue(
+      makeSettings(makePreset({ model })),
+    );
   };
 
   it("reports the provider named by the preset's model ref", async () => {
@@ -388,7 +394,9 @@ describe("effectiveModelRef", () => {
   });
 
   it("returns the preset's own (trimmed) model ref when it has one", () => {
-    (getDefaultModelId as Mock).mockReturnValue("openrouter::should-not-be-used");
+    (getDefaultModelId as Mock).mockReturnValue(
+      "openrouter::should-not-be-used",
+    );
 
     expect(effectiveModelRef(makePreset({ model: "  openai::gpt-4o  " }))).toBe(
       "openai::gpt-4o",
@@ -399,13 +407,17 @@ describe("effectiveModelRef", () => {
   it("inherits the global default when the preset's model is empty", () => {
     (getDefaultModelId as Mock).mockReturnValue("ollama::llama3.2:3b");
 
-    expect(effectiveModelRef(makePreset({ model: "" }))).toBe("ollama::llama3.2:3b");
+    expect(effectiveModelRef(makePreset({ model: "" }))).toBe(
+      "ollama::llama3.2:3b",
+    );
   });
 
   it("inherits the global default when the preset's model is whitespace-only", () => {
     (getDefaultModelId as Mock).mockReturnValue("openai::gpt-4o");
 
-    expect(effectiveModelRef(makePreset({ model: "   " }))).toBe("openai::gpt-4o");
+    expect(effectiveModelRef(makePreset({ model: "   " }))).toBe(
+      "openai::gpt-4o",
+    );
   });
 
   it("propagates the inherit sentinel when the global default is also unset", () => {
@@ -477,4 +489,3 @@ describe("normalizeCorrectionSettings — reasoning field", () => {
     expect(preset?.reasoning).toBeUndefined();
   });
 });
-

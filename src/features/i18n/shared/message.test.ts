@@ -65,7 +65,10 @@ describe("messageLabel", () => {
 describe("resolveMessage", () => {
   it("forwards key and params to the translate function", () => {
     const { t, calls } = fakeTranslate();
-    const message: Message = { key: "overview.value.days", params: { count: 2 } };
+    const message: Message = {
+      key: "overview.value.days",
+      params: { count: 2 },
+    };
     const result = resolveMessage(message, t);
     expect(calls).toEqual([["overview.value.days", { count: 2 }]]);
     expect(result).toBe('overview.value.days:{"count":2}');

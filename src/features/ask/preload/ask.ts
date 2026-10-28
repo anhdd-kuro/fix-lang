@@ -1,5 +1,8 @@
 import { ipcRenderer } from "electron";
-import type { AskInputPayload, AskResultPayload } from "~/features/ask/shared/ask";
+import type {
+  AskInputPayload,
+  AskResultPayload,
+} from "~/features/ask/shared/ask";
 
 /**
  * Validates the ask-input payload crossing the preload boundary. Mirrors
@@ -31,7 +34,10 @@ const isAskInputPayload = (value: unknown): value is AskInputPayload => {
   if ("systemPrompt" in value && typeof value.systemPrompt !== "string") {
     return false;
   }
-  if ("contextDirectives" in value && typeof value.contextDirectives !== "string") {
+  if (
+    "contextDirectives" in value &&
+    typeof value.contextDirectives !== "string"
+  ) {
     return false;
   }
   return true;
@@ -73,10 +79,7 @@ export const askFeature = {
   onAskInputData: (
     callback: (payload: AskInputPayload) => void,
   ): (() => void) => {
-    const listener = (
-      _event: Electron.IpcRendererEvent,
-      payload: unknown,
-    ) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
       if (isAskInputPayload(payload)) callback(payload);
     };
     ipcRenderer.on("ask-input-data", listener);
@@ -123,10 +126,7 @@ export const askFeature = {
   onAskResultData: (
     callback: (payload: AskResultPayload) => void,
   ): (() => void) => {
-    const listener = (
-      _event: Electron.IpcRendererEvent,
-      payload: unknown,
-    ) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
       if (isAskResultPayload(payload)) callback(payload);
     };
     ipcRenderer.on("ask-result-data", listener);

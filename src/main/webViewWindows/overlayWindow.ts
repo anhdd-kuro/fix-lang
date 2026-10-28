@@ -1,7 +1,10 @@
 import { BrowserWindow, app, screen } from "electron";
 import { appearanceStore } from "~/features/appearance/store/appearanceStore";
 import { themeStore } from "~/features/theme/store/themeStore";
-import { buildComboProgressStyle, type ComboProgressView } from "./comboProgressView";
+import {
+  buildComboProgressStyle,
+  type ComboProgressView,
+} from "./comboProgressView";
 import spinnerOverlayHtml from "./overlay.html?asset";
 import { applyStandaloneTypography } from "./syncStandaloneTypography";
 import type { ThemeId } from "~/features/theme/store/themeIds";
@@ -47,7 +50,11 @@ export const showOverlaySpinner = () => {
   spinnerTrackingInterval = setInterval(() => {
     if (!overlayWindow || !overlayWindow.isVisible()) return;
     const { x, y } = screen.getCursorScreenPoint();
-    overlayWindow.setPosition(x + OVERLAY_CURSOR_OFFSET, y + OVERLAY_CURSOR_OFFSET, false);
+    overlayWindow.setPosition(
+      x + OVERLAY_CURSOR_OFFSET,
+      y + OVERLAY_CURSOR_OFFSET,
+      false,
+    );
   }, 1000 / 60); // 60Hz polling
 };
 

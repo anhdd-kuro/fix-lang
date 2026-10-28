@@ -46,7 +46,9 @@ describe("secretGuardFeature preload boundary", () => {
 
       const result = await secretGuardFeature.getSecretGuardSettings();
 
-      expect(electronMocks.invoke).toHaveBeenCalledWith("get-secret-guard-settings");
+      expect(electronMocks.invoke).toHaveBeenCalledWith(
+        "get-secret-guard-settings",
+      );
       expect(result).toEqual(validSettings);
     });
 
@@ -62,7 +64,10 @@ describe("secretGuardFeature preload boundary", () => {
     );
 
     it("passes through mode off — a disabled guard is a valid stored choice", async () => {
-      electronMocks.invoke.mockResolvedValue({ mode: "off", highEntropyRule: false });
+      electronMocks.invoke.mockResolvedValue({
+        mode: "off",
+        highEntropyRule: false,
+      });
 
       expect(await secretGuardFeature.getSecretGuardSettings()).toEqual({
         mode: "off",
@@ -75,7 +80,8 @@ describe("secretGuardFeature preload boundary", () => {
     it("forwards a valid payload and reports success", async () => {
       electronMocks.invoke.mockResolvedValue({ success: true });
 
-      const result = await secretGuardFeature.setSecretGuardSettings(validSettings);
+      const result =
+        await secretGuardFeature.setSecretGuardSettings(validSettings);
 
       expect(electronMocks.invoke).toHaveBeenCalledWith(
         "set-secret-guard-settings",
@@ -103,7 +109,8 @@ describe("secretGuardFeature preload boundary", () => {
         error: { kind: "text", text: "nope" },
       });
 
-      const result = await secretGuardFeature.setSecretGuardSettings(validSettings);
+      const result =
+        await secretGuardFeature.setSecretGuardSettings(validSettings);
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();

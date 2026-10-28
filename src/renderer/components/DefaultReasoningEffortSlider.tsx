@@ -5,7 +5,10 @@
  * profile-wide default persistence calls instead of a single preset.
  */
 import React, { useCallback, useEffect, useState } from "react";
-import { DEFAULT_REASONING_EFFORT, type ReasoningEffort } from "~/features/correction/shared/reasoningEffort";
+import {
+  DEFAULT_REASONING_EFFORT,
+  type ReasoningEffort,
+} from "~/features/correction/shared/reasoningEffort";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
 
 type DefaultReasoningEffortSliderProps = {
@@ -19,7 +22,9 @@ type DefaultReasoningEffortSliderProps = {
 export const DefaultReasoningEffortSlider: React.FC<
   DefaultReasoningEffortSliderProps
 > = ({ className, label, labelAdornment }) => {
-  const [effort, setEffort] = useState<ReasoningEffort>(DEFAULT_REASONING_EFFORT);
+  const [effort, setEffort] = useState<ReasoningEffort>(
+    DEFAULT_REASONING_EFFORT,
+  );
 
   const reloadEffort = useCallback((): void => {
     void window.electronAPI
@@ -30,7 +35,10 @@ export const DefaultReasoningEffortSlider: React.FC<
         }
       })
       .catch((error: unknown) => {
-        console.error("DefaultReasoningEffortSlider: failed to load default", error);
+        console.error(
+          "DefaultReasoningEffortSlider: failed to load default",
+          error,
+        );
       });
   }, []);
 
@@ -42,7 +50,8 @@ export const DefaultReasoningEffortSlider: React.FC<
     // Tray stays mounted across profile switches and settings edits in other
     // windows — without these subscriptions the slider would keep showing the
     // previous profile's effort while writes go to the active one.
-    const offProfile = window.electronAPI?.onActiveProfileChanged?.(reloadEffort);
+    const offProfile =
+      window.electronAPI?.onActiveProfileChanged?.(reloadEffort);
     const offSettings = window.electronAPI?.onSettingsUpdated?.(reloadEffort);
     return () => {
       offProfile?.();
@@ -67,7 +76,10 @@ export const DefaultReasoningEffortSlider: React.FC<
               }
             })
             .catch((error: unknown) => {
-              console.error("DefaultReasoningEffortSlider: failed to save", error);
+              console.error(
+                "DefaultReasoningEffortSlider: failed to save",
+                error,
+              );
               setEffort(previous);
             });
         }}

@@ -3,7 +3,11 @@
  * @description IPC handlers for profile management
  */
 import { ipcMain, Notification } from "electron";
-import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/message";
+import {
+  messageLabel,
+  textLabel,
+  type Label,
+} from "~/features/i18n/shared/message";
 import {
   clearLegacyApiKey,
   getLegacyApiKey,
@@ -64,11 +68,19 @@ const migrateLegacySecretsToActiveProfile = async (): Promise<void> => {
       await clearLegacy();
       return;
     }
-    const result = await setProfileSecret(profile.id, "openrouter", kind, legacy);
+    const result = await setProfileSecret(
+      profile.id,
+      "openrouter",
+      kind,
+      legacy,
+    );
     if (result.success) {
       await clearLegacy();
     } else {
-      console.warn(`Profile secret migration failed for ${kind}:`, result.error);
+      console.warn(
+        `Profile secret migration failed for ${kind}:`,
+        result.error,
+      );
     }
   };
 
@@ -82,8 +94,12 @@ const migrateLegacySecretsToActiveProfile = async (): Promise<void> => {
   // Earlier releases also persisted a plaintext apiKey inside profile/root
   // settings. It is copied into safeStorage first, then scrubbed only after a
   // successful write. It is never exported or imported below.
-  const legacyPlaintext = profile.settings.apiKey || (apiStore.get("apiKey") as string) || "";
-  if (legacyPlaintext && !(await hasProfileSecret(profile.id, "openrouter", "api"))) {
+  const legacyPlaintext =
+    profile.settings.apiKey || (apiStore.get("apiKey") as string) || "";
+  if (
+    legacyPlaintext &&
+    !(await hasProfileSecret(profile.id, "openrouter", "api"))
+  ) {
     const result = await setProfileSecret(
       profile.id,
       "openrouter",
@@ -95,7 +111,9 @@ const migrateLegacySecretsToActiveProfile = async (): Promise<void> => {
 
   if (legacyPlaintext) {
     const profiles = getProfiles();
-    const index = profiles.findIndex((candidate) => candidate.id === profile.id);
+    const index = profiles.findIndex(
+      (candidate) => candidate.id === profile.id,
+    );
     if (index !== -1) {
       profiles[index] = withoutProfileSecrets(profiles[index]);
       apiStore.set("profiles", profiles);

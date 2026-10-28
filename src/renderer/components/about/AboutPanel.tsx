@@ -10,7 +10,11 @@
  */
 import { useState } from "react";
 import { twJoin } from "tailwind-merge";
-import { ABOUT_TABS, resolveActiveAboutTab, type AboutTabId } from "./aboutTabs";
+import {
+  ABOUT_TABS,
+  resolveActiveAboutTab,
+  type AboutTabId,
+} from "./aboutTabs";
 import { UserGuidePanel } from "./UserGuidePanel";
 import { useI18n } from "../../i18n/useI18n";
 import { Button } from "../Button";

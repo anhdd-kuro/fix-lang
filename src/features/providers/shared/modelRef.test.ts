@@ -98,8 +98,12 @@ describe("stripModelRefPrefix", () => {
   // Kills a looping strip, which would silently accept a nested ref that
   // resolveModelRef, makeAIRequest and the picker all reject.
   it("removes exactly one prefix from a nested ref, leaving the inner ref intact", () => {
-    expect(stripModelRefPrefix("openai::ollama::llama3.2:3b")).toBe("ollama::llama3.2:3b");
-    expect(stripModelRefPrefix("openai::openai::gpt-4o")).toBe("openai::gpt-4o");
+    expect(stripModelRefPrefix("openai::ollama::llama3.2:3b")).toBe(
+      "ollama::llama3.2:3b",
+    );
+    expect(stripModelRefPrefix("openai::openai::gpt-4o")).toBe(
+      "openai::gpt-4o",
+    );
   });
 
   it("is deliberately NOT a fixed point on a nested ref — single-pass, no loop", () => {
@@ -132,7 +136,9 @@ describe("formatModelRef preconditions", () => {
     expect(prefix("gpt-4o")).toBe("openrouter::gpt-4o");
     expect(prefix("openrouter::gpt-4o")).toBe("openrouter::gpt-4o");
     expect(prefix(prefix("gpt-4o"))).toBe("openrouter::gpt-4o");
-    expect(resolveModelRef(prefix(prefix("gpt-4o")), models)?.model).toBe(models[0]);
+    expect(resolveModelRef(prefix(prefix("gpt-4o")), models)?.model).toBe(
+      models[0],
+    );
   });
 });
 
@@ -147,12 +153,21 @@ describe("isModelRef", () => {
 
 describe("modelRefForModel", () => {
   it("formats using the model's tagged provider", () => {
-    const model: Model = { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" };
+    const model: Model = {
+      id: "gpt-4o",
+      name: "gpt-4o",
+      created: 1,
+      provider: "openai",
+    };
     expect(modelRefForModel(model)).toBe("openai::gpt-4o");
   });
 
   it("falls back to openrouter when the model has no provider tag", () => {
-    const model: Model = { id: "legacy-model", name: "legacy-model", created: 1 };
+    const model: Model = {
+      id: "legacy-model",
+      name: "legacy-model",
+      created: 1,
+    };
     expect(modelRefForModel(model)).toBe("openrouter::legacy-model");
   });
 
@@ -176,7 +191,9 @@ describe("modelRefForModel", () => {
       local: { path: "/models/gpt-4o" },
     };
     expect(modelRefForModel(model)).toBe("openai::gpt-4o");
-    expect(resolveModelRef(modelRefForModel(model), [model])?.model).toBe(model);
+    expect(resolveModelRef(modelRefForModel(model), [model])?.model).toBe(
+      model,
+    );
   });
 
   it("falls back to providerOfModel for a cache entry whose provider tag is unrecognized", () => {
@@ -193,7 +210,9 @@ describe("modelRefForModel", () => {
   });
 
   it("returns the inherit sentinel for a model with an empty id", () => {
-    expect(modelRefForModel({ id: "", name: "", created: 1, provider: "openai" })).toBe("");
+    expect(
+      modelRefForModel({ id: "", name: "", created: 1, provider: "openai" }),
+    ).toBe("");
   });
 });
 
@@ -206,7 +225,12 @@ describe("modelRefForModel / resolveModelRef round trip", () => {
     },
     {
       label: "tagged local",
-      model: { id: "custom-local", name: "custom-local", created: 1, provider: "ollama" },
+      model: {
+        id: "custom-local",
+        name: "custom-local",
+        created: 1,
+        provider: "ollama",
+      },
       provider: "ollama",
     },
     {
@@ -251,7 +275,12 @@ describe("formatModelRef", () => {
 });
 
 describe("resolveModelRef", () => {
-  const openaiModel: Model = { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" };
+  const openaiModel: Model = {
+    id: "gpt-4o",
+    name: "gpt-4o",
+    created: 1,
+    provider: "openai",
+  };
   const openrouterModel: Model = {
     id: "shared-id",
     name: "shared-id (openrouter)",

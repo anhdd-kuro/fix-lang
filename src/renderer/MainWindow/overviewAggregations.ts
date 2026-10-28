@@ -105,7 +105,7 @@ export const streaks = (entries: HistoryEntry[], now: Date): Streaks => {
     Math.round(
       (new Date(`${b}T00:00:00`).getTime() -
         new Date(`${a}T00:00:00`).getTime()) /
-        (24 * 60 * 60 * 1000)
+        (24 * 60 * 60 * 1000),
     );
   for (let i = 1; i < sorted.length; i++) {
     if (dayDiff(sorted[i - 1], sorted[i]) === 1) {
@@ -232,7 +232,7 @@ const presetLabelFor = (presetName: string): Label =>
  * first-seen order.
  */
 export const perPresetBreakdown = (
-  entries: HistoryEntry[]
+  entries: HistoryEntry[],
 ): PresetBreakdownRow[] => {
   const counts = new Map<string, number>();
   for (const e of entries) {
@@ -256,7 +256,7 @@ export const perPresetBreakdown = (
  * Order matches `perPresetBreakdown` (desc by count).
  */
 export const perPresetWeights = (
-  entries: HistoryEntry[]
+  entries: HistoryEntry[],
 ): PresetWeightRow[] => {
   const rows = perPresetBreakdown(entries);
   const total = rows.reduce((sum, row) => sum + row.count, 0);
@@ -295,17 +295,17 @@ export type PresetCountsOverTime = {
 export const presetCountsOverTime = (
   entries: HistoryEntry[],
   range: OverviewRange,
-  now: Date
+  now: Date,
 ): PresetCountsOverTime => {
   const days = denseDayKeys(entries, range, now);
   const dayIndex = new Map(days.map((day, index) => [day, index]));
   const presetRows = perPresetBreakdown(entries);
   const presetNames = presetRows.map((row) => row.presetName);
   const presetIndex = new Map(
-    presetNames.map((presetName, index) => [presetName, index])
+    presetNames.map((presetName, index) => [presetName, index]),
   );
-  const countsByPreset = presetNames.map(
-    () => new Array<number>(days.length).fill(0)
+  const countsByPreset = presetNames.map(() =>
+    new Array<number>(days.length).fill(0),
   );
 
   for (const entry of entries) {
@@ -334,7 +334,7 @@ export const presetCountsOverTime = (
     counts: countsByPreset[index],
   }));
   const totalsByDay = days.map((_, dayIdx) =>
-    countsByPreset.reduce((sum, row) => sum + row[dayIdx], 0)
+    countsByPreset.reduce((sum, row) => sum + row[dayIdx], 0),
   );
 
   return { days, series, totalsByDay };
@@ -351,7 +351,7 @@ export type HeatmapBucket = { date: string; count: number };
 export const heatmapBuckets = (
   entries: HistoryEntry[],
   range: OverviewRange,
-  now: Date
+  now: Date,
 ): HeatmapBucket[] => {
   // Count corrections per local-day.
   const perDay = new Map<string, number>();
@@ -403,7 +403,7 @@ export const SESSION_GAP_MINUTES = 30;
  */
 export const sessionCount = (
   entries: HistoryEntry[],
-  gapMinutes: number = SESSION_GAP_MINUTES
+  gapMinutes: number = SESSION_GAP_MINUTES,
 ): Sessions => {
   if (entries.length === 0) {
     return 0;
@@ -454,9 +454,14 @@ export const hourBlockHeatmap = (
   entries: HistoryEntry[],
   range: OverviewRange,
   now: Date,
-  minDays: number = HEATMAP_MIN_DAYS
+  minDays: number = HEATMAP_MIN_DAYS,
 ): HourBlockHeatmap => {
-  const days = denseDayKeys(entries, range, now, Math.max(HEATMAP_MIN_DAYS, minDays));
+  const days = denseDayKeys(
+    entries,
+    range,
+    now,
+    Math.max(HEATMAP_MIN_DAYS, minDays),
+  );
   const dayIndex = new Map(days.map((d, i) => [d, i]));
   const cells = days.map(() => new Array<number>(HOUR_BLOCKS).fill(0));
 
@@ -487,7 +492,7 @@ export const hourBlockHeatmap = (
  */
 export const sevenDayHourBlockHeatmap = (
   entries: HistoryEntry[],
-  now: Date
+  now: Date,
 ): HourBlockHeatmap => {
   const days = denseDayKeys(entries, "7d", now);
   const dayIndex = new Map(days.map((d, i) => [d, i]));
@@ -637,7 +642,7 @@ const tokenTotalOf = (entry: HistoryEntry): number => {
 };
 
 const aggregateByLocalDay = (
-  entries: HistoryEntry[]
+  entries: HistoryEntry[],
 ): Map<string, TokenActivityStats> => {
   const perDay = new Map<string, TokenActivityStats>();
   for (const entry of entries) {
@@ -651,7 +656,7 @@ const aggregateByLocalDay = (
 };
 
 const aggregateBySundayWeek = (
-  entries: HistoryEntry[]
+  entries: HistoryEntry[],
 ): Map<string, TokenActivityStats> => {
   const perWeek = new Map<string, TokenActivityStats>();
   for (const entry of entries) {
@@ -669,7 +674,7 @@ const aggregateBySundayWeek = (
 
 const asTokenActivityLevel = (
   count: number,
-  max: number
+  max: number,
 ): TokenActivityIntensityLevel =>
   intensityLevel(count, max) as TokenActivityIntensityLevel;
 
@@ -681,7 +686,7 @@ const asTokenActivityLevel = (
 export const tokenActivityCalendar = (
   entries: HistoryEntry[],
   mode: TokenActivityMode,
-  now: Date
+  now: Date,
 ): TokenActivityCalendar => {
   const start = rollingYearStart(now);
   const end = startOfLocalDay(now);
@@ -714,7 +719,10 @@ export const tokenActivityCalendar = (
     while (cursor.getTime() <= end.getTime()) {
       const key = dayKeyOf(cursor);
       const weekKey = dayKeyOf(sundayStart(cursor));
-      const stats = perWeek.get(weekKey) ?? { tokenTotal: 0, correctionCount: 0 };
+      const stats = perWeek.get(weekKey) ?? {
+        tokenTotal: 0,
+        correctionCount: 0,
+      };
       visibleDays.push({
         date: key,
         tokenTotal: stats.tokenTotal,
@@ -751,7 +759,7 @@ export const tokenActivityCalendar = (
 
   const maxTokenTotal = visibleDays.reduce(
     (max, day) => Math.max(max, day.tokenTotal),
-    0
+    0,
   );
   const cells: TokenActivityCalendarCell[] = [];
   for (let i = 0; i < leadingPlaceholders; i++) {
@@ -795,8 +803,7 @@ export const tokenActivityCalendar = (
   }
 
   const lastCell = cells.at(-1);
-  const columns =
-    lastCell === undefined ? 0 : lastCell.column + 1;
+  const columns = lastCell === undefined ? 0 : lastCell.column + 1;
 
   return {
     mode,

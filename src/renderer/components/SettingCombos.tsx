@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   COMBO_MAX_STEPS,
   COMBO_MIN_STEPS,
@@ -668,7 +674,9 @@ export const SettingCombos: React.FC = () => {
                 value={renameDraft}
                 aria-label={t("settings.correction.combos.renameLabel")}
                 onChange={(event) => setRenameDraft(event.target.value)}
-                onKeyDown={(event) => handleRenameKeyDown(renamingComboId, event)}
+                onKeyDown={(event) =>
+                  handleRenameKeyDown(renamingComboId, event)
+                }
                 onBlur={() => commitRenameCombo(renamingComboId)}
                 className="mb-2 h-9 w-60 py-0"
               />
@@ -684,401 +692,439 @@ export const SettingCombos: React.FC = () => {
             {combos
               .filter((combo) => combo.id === activeCombo.id)
               .map((combo) => {
-              const fieldMessages = mapComboErrorsToFieldMessages(
-                comboErrorsById.get(combo.id) ?? [],
-                combo,
-                comboStepPresets,
-              );
+                const fieldMessages = mapComboErrorsToFieldMessages(
+                  comboErrorsById.get(combo.id) ?? [],
+                  combo,
+                  comboStepPresets,
+                );
 
-              // Save-time cost/provider estimate (risk 5 + 6) — recomputed
-              // per render, not memoized: at most 5 steps, cheap arithmetic
-              // plus a fuzzy price lookup, and it must track every edit to
-              // this combo's steps or presets' models immediately.
-              const estimate = estimateCombo({
-                steps: combo.steps,
-                presetsById: comboEstimatePresetsById,
-                globalDefaultModelRef: comboGlobalDefaultModelRef,
-                models: comboEstimateModels,
-                priceMap: comboEstimatePriceMap,
-              });
-
-              // Sub-cent "ok" combos (the common case at the 800-char
-              // baseline) must not format identically to a genuine "zero" —
-              // `resolveComboCostDisplay` carries the same min/max
-              // fraction-digit rule `historyCost.ts` already enforces for
-              // history rows, so this is `formatNumber` driven by that
-              // resolved precision rather than a bare `formatCurrency` call
-              // (which is fixed at 2 digits and collapses both to "$0.00").
-              const costAmountLabel = (() => {
-                const display = resolveComboCostDisplay(estimate.cost);
-                if (display.kind === "na") return "";
-                return formatNumber(display.valueUsd, {
-                  style: "currency",
-                  currency: "USD",
-                  minimumFractionDigits: display.minimumFractionDigits,
-                  maximumFractionDigits: display.maximumFractionDigits,
+                // Save-time cost/provider estimate (risk 5 + 6) — recomputed
+                // per render, not memoized: at most 5 steps, cheap arithmetic
+                // plus a fuzzy price lookup, and it must track every edit to
+                // this combo's steps or presets' models immediately.
+                const estimate = estimateCombo({
+                  steps: combo.steps,
+                  presetsById: comboEstimatePresetsById,
+                  globalDefaultModelRef: comboGlobalDefaultModelRef,
+                  models: comboEstimateModels,
+                  priceMap: comboEstimatePriceMap,
                 });
-              })();
 
-              return (
-                <div
-                  key={combo.id}
-                  id={`combo-panel-${combo.id}`}
-                  role="tabpanel"
-                  aria-labelledby={`combo-tab-${combo.id}`}
-                  tabIndex={0}
-                  className="rounded-lg border border-card-control-border bg-background/40 p-3"
-                >
-                  <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-                    <div className="flex flex-1 flex-col gap-1">
-                      <label
-                        htmlFor={`combo-${combo.id}-name`}
-                        className="text-sm text-card-foreground"
+                // Sub-cent "ok" combos (the common case at the 800-char
+                // baseline) must not format identically to a genuine "zero" —
+                // `resolveComboCostDisplay` carries the same min/max
+                // fraction-digit rule `historyCost.ts` already enforces for
+                // history rows, so this is `formatNumber` driven by that
+                // resolved precision rather than a bare `formatCurrency` call
+                // (which is fixed at 2 digits and collapses both to "$0.00").
+                const costAmountLabel = (() => {
+                  const display = resolveComboCostDisplay(estimate.cost);
+                  if (display.kind === "na") return "";
+                  return formatNumber(display.valueUsd, {
+                    style: "currency",
+                    currency: "USD",
+                    minimumFractionDigits: display.minimumFractionDigits,
+                    maximumFractionDigits: display.maximumFractionDigits,
+                  });
+                })();
+
+                return (
+                  <div
+                    key={combo.id}
+                    id={`combo-panel-${combo.id}`}
+                    role="tabpanel"
+                    aria-labelledby={`combo-tab-${combo.id}`}
+                    tabIndex={0}
+                    className="rounded-lg border border-card-control-border bg-background/40 p-3"
+                  >
+                    <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                      <div className="flex flex-1 flex-col gap-1">
+                        <label
+                          htmlFor={`combo-${combo.id}-name`}
+                          className="text-sm text-card-foreground"
+                        >
+                          {t("settings.correction.combos.nameLabel")}
+                        </label>
+                        <Input
+                          id={`combo-${combo.id}-name`}
+                          type="text"
+                          value={combo.name}
+                          onChange={(event) =>
+                            updateCombo(combo.id, { name: event.target.value })
+                          }
+                          className="max-w-sm w-full"
+                        />
+                        {fieldMessages.nameErrors.map((message, index) => (
+                          <p
+                            key={index}
+                            className="text-xs text-destructive"
+                            role="alert"
+                          >
+                            {tm(message)}
+                          </p>
+                        ))}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={() => handleRemoveCombo(combo.id)}
+                        className="h-9 rounded-md border border-destructive/50 px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive motion-reduce:transition-none"
                       >
-                        {t("settings.correction.combos.nameLabel")}
-                      </label>
-                      <Input
-                        id={`combo-${combo.id}-name`}
-                        type="text"
-                        value={combo.name}
-                        onChange={(event) =>
-                          updateCombo(combo.id, { name: event.target.value })
-                        }
-                        className="max-w-sm w-full"
-                      />
-                      {fieldMessages.nameErrors.map((message, index) => (
+                        {t("common.delete")}
+                      </Button>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="flex flex-col gap-2">
+                        <label
+                          htmlFor={`combo-${combo.id}-hotkey`}
+                          className="text-sm text-card-foreground"
+                        >
+                          {t("settings.correction.hotkeyLabel")}
+                        </label>
+                        <Input
+                          id={`combo-${combo.id}-hotkey`}
+                          type="text"
+                          value={combo.hotkey}
+                          onKeyDown={(event) => {
+                            if (
+                              event.key === "Backspace" ||
+                              event.key === "Delete"
+                            ) {
+                              event.preventDefault();
+                              updateCombo(combo.id, { hotkey: "" });
+                              return;
+                            }
+
+                            updateCombo(combo.id, {
+                              hotkey: captureHotkey(event),
+                            });
+                          }}
+                          placeholder={t("settings.hotkeys.pressShortcut")}
+                          readOnly
+                          className="w-full"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => updateCombo(combo.id, { hotkey: "" })}
+                          className="self-start rounded-md border border-card-control-border px-3 py-2 text-xs font-semibold text-card-foreground transition-colors hover:border-ring hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                        >
+                          {t("settings.correction.clearHotkey")}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          {t("settings.correction.combos.hotkeyHint")}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label
+                          htmlFor={`combo-${combo.id}-output-mode`}
+                          className="text-sm text-card-foreground"
+                        >
+                          {t("settings.correction.outputMode.label")}
+                        </label>
+                        <SearchableSelect<ComboOutputModeOption>
+                          id={`combo-${combo.id}-output-mode-control`}
+                          inputId={`combo-${combo.id}-output-mode`}
+                          className="w-full text-sm"
+                          value={
+                            outputModeOptions.find(
+                              (option) =>
+                                option.value ===
+                                (combo.outputMode ?? "inherit"),
+                            ) ?? null
+                          }
+                          options={outputModeOptions}
+                          noOptionsMessage={t("common.select.noOptions")}
+                          onChange={(option) => {
+                            if (option) {
+                              updateCombo(combo.id, {
+                                outputMode: option.value,
+                              });
+                            }
+                          }}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {t("settings.correction.combos.outputModeHint")}
+                        </p>
+                        <Checkbox
+                          name={`combo-${combo.id}-markdown-output`}
+                          checked={combo.markdownOutput ?? false}
+                          onChange={(markdownOutput) =>
+                            updateCombo(combo.id, { markdownOutput })
+                          }
+                          label={t("settings.correction.markdownOutput.label")}
+                          className="text-card-foreground"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Cost/provider transparency (risk 5 + 6): the provider
+                      list is the headline — three steps on three providers
+                      sends the selection to three vendors from one hotkey,
+                      and that has to be visible here, not something the user
+                      infers from three separate preset screens. */}
+                    <div className="mt-4 flex flex-col gap-2 rounded-md border border-card-control-border/60 bg-secondary/40 p-3 text-xs text-muted-foreground">
+                      <p>
+                        {t("settings.correction.combos.estimate.tokens", {
+                          baselineChars: COMBO_ESTIMATE_BASELINE_CHARS,
+                          tokens: estimate.totalTokens,
+                        })}
+                      </p>
+                      <p>
+                        {estimate.cost.status === "na"
+                          ? t("settings.correction.combos.estimate.costNa")
+                          : t("settings.correction.combos.estimate.cost", {
+                              baselineChars: COMBO_ESTIMATE_BASELINE_CHARS,
+                              cost: costAmountLabel,
+                            })}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span>
+                          {t(
+                            "settings.correction.combos.estimate.providersLabel",
+                          )}
+                        </span>
+                        {estimate.providers.length === 0 ? (
+                          <span>
+                            {t(
+                              "settings.correction.combos.estimate.providersUnknown",
+                            )}
+                          </span>
+                        ) : (
+                          <ul className="inline-flex flex-wrap items-center gap-1">
+                            {estimate.providers.map((provider) => (
+                              <li
+                                key={provider}
+                                className="inline-block rounded-full border border-card-control-border bg-muted px-2 py-0.5 text-xxs font-semibold text-foreground"
+                              >
+                                {t(PROVIDER_LABEL_KEYS[provider])}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      {estimate.hasUnresolvedProvider && (
+                        <p>
+                          {t(
+                            "settings.correction.combos.estimate.providersUnresolvedHint",
+                          )}
+                        </p>
+                      )}
+                      {estimate.hasMultipleProviders && (
+                        <p
+                          className="font-medium text-destructive"
+                          role="alert"
+                        >
+                          {t(
+                            "settings.correction.combos.estimate.warningProviders",
+                          )}
+                        </p>
+                      )}
+                      {estimate.exceedsWarningThreshold && (
+                        <p
+                          className="font-medium text-destructive"
+                          role="alert"
+                        >
+                          {t(
+                            "settings.correction.combos.estimate.warningTokens",
+                          )}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex flex-col">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <h4 className="text-sm font-semibold text-foreground">
+                          {t("settings.correction.combos.stepsHeading")}
+                        </h4>
+                        <span className="text-xs text-muted-foreground">
+                          {t("settings.correction.combos.stepCountHint", {
+                            min: COMBO_MIN_STEPS,
+                            max: COMBO_MAX_STEPS,
+                          })}
+                        </span>
+                      </div>
+
+                      {fieldMessages.stepCountErrors.map((message, index) => (
                         <p
                           key={index}
-                          className="text-xs text-destructive"
+                          className="mb-2 text-xs text-destructive"
                           role="alert"
                         >
                           {tm(message)}
                         </p>
                       ))}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      onClick={() => handleRemoveCombo(combo.id)}
-                      className="h-9 rounded-md border border-destructive/50 px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive motion-reduce:transition-none"
-                    >
-                      {t("common.delete")}
-                    </Button>
-                  </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="flex flex-col gap-2">
-                      <label
-                        htmlFor={`combo-${combo.id}-hotkey`}
-                        className="text-sm text-card-foreground"
-                      >
-                        {t("settings.correction.hotkeyLabel")}
-                      </label>
-                      <Input
-                        id={`combo-${combo.id}-hotkey`}
-                        type="text"
-                        value={combo.hotkey}
-                        onKeyDown={(event) => {
-                          if (event.key === "Backspace" || event.key === "Delete") {
-                            event.preventDefault();
-                            updateCombo(combo.id, { hotkey: "" });
-                            return;
-                          }
+                      <ul className="flex flex-col gap-2">
+                        {combo.steps.map((step, stepIndex) => {
+                          const needsInlineInput = comboStepNeedsInlineInput(
+                            step,
+                            comboStepPresets,
+                          );
+                          const stepErrors =
+                            fieldMessages.stepErrorsById[step.id] ?? [];
+                          const isDraggedStep =
+                            stepDrag?.comboId === combo.id &&
+                            stepDrag.stepId === step.id;
+                          const isDropTarget =
+                            stepDrag?.comboId === combo.id &&
+                            stepDrag.overIndex === stepIndex &&
+                            stepDrag.stepId !== step.id;
 
-                          updateCombo(combo.id, { hotkey: captureHotkey(event) });
-                        }}
-                        placeholder={t("settings.hotkeys.pressShortcut")}
-                        readOnly
-                        className="w-full"
-                      />
+                          return (
+                            <li
+                              key={step.id}
+                              onDragOver={(event) =>
+                                handleComboStepDragOver(combo, stepIndex, event)
+                              }
+                              onDrop={(event) =>
+                                handleComboStepDrop(combo, stepIndex, event)
+                              }
+                              className={`flex flex-col gap-2 rounded-md border p-2 transition-colors motion-reduce:transition-none ${
+                                isDropTarget
+                                  ? "border-ring bg-secondary/40"
+                                  : "border-card-control-border/60"
+                              } ${isDraggedStep ? "opacity-60" : ""}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                {/* Drag handle is also the keyboard reorder path:
+                                  ArrowUp / ArrowDown move the focused step. */}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  draggable
+                                  aria-label={t(
+                                    "settings.correction.combos.dragStep",
+                                    {
+                                      number: stepIndex + 1,
+                                    },
+                                  )}
+                                  title={t(
+                                    "settings.correction.combos.dragStep",
+                                    {
+                                      number: stepIndex + 1,
+                                    },
+                                  )}
+                                  onDragStart={(event) =>
+                                    handleComboStepDragStart(
+                                      combo,
+                                      stepIndex,
+                                      event,
+                                    )
+                                  }
+                                  onDragEnd={handleComboStepDragEnd}
+                                  onKeyDown={(event) =>
+                                    handleComboStepDragHandleKeyDown(
+                                      combo,
+                                      stepIndex,
+                                      event,
+                                    )
+                                  }
+                                  className="h-9 w-6 shrink-0 cursor-grab rounded-md px-0 text-sm text-muted-foreground active:cursor-grabbing"
+                                >
+                                  {"⠿"}
+                                </Button>
+                                <span className="w-5 shrink-0 text-right text-xs font-bold text-muted-foreground">
+                                  {stepIndex + 1}.
+                                </span>
+                                <SearchableSelect<ComboStepPresetOption>
+                                  ariaLabel={t(
+                                    "settings.correction.combos.stepPresetLabel",
+                                    { number: stepIndex + 1 },
+                                  )}
+                                  className="min-w-0 flex-1 text-sm"
+                                  value={
+                                    comboStepPresetOptions.find(
+                                      (option) =>
+                                        option.value === step.presetId,
+                                    ) ?? null
+                                  }
+                                  options={comboStepPresetOptions}
+                                  noOptionsMessage={t(
+                                    "common.select.noOptions",
+                                  )}
+                                  onChange={(option) => {
+                                    if (option) {
+                                      handleComboStepPresetChange(
+                                        combo,
+                                        stepIndex,
+                                        option.value,
+                                      );
+                                    }
+                                  }}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  aria-label={t(
+                                    "settings.correction.combos.removeStep",
+                                  )}
+                                  onClick={() =>
+                                    handleRemoveComboStep(combo, stepIndex)
+                                  }
+                                  className="h-9 w-9 shrink-0 rounded-md px-0 text-lg font-semibold leading-none"
+                                >
+                                  {"×"}
+                                </Button>
+                              </div>
+
+                              {needsInlineInput && (
+                                <div className="ml-15 flex flex-col gap-1">
+                                  <label
+                                    htmlFor={`combo-${combo.id}-step-${step.id}-input`}
+                                    className="text-xs text-muted-foreground"
+                                  >
+                                    {t(
+                                      "settings.correction.combos.inlineInputLabel",
+                                    )}
+                                  </label>
+                                  <Input
+                                    id={`combo-${combo.id}-step-${step.id}-input`}
+                                    type="text"
+                                    value={step.inlineInput ?? ""}
+                                    onChange={(event) =>
+                                      handleComboStepInlineInputChange(
+                                        combo,
+                                        stepIndex,
+                                        event.target.value,
+                                      )
+                                    }
+                                    placeholder={t(
+                                      "settings.correction.combos.inlineInputPlaceholder",
+                                    )}
+                                    className="w-full"
+                                  />
+                                </div>
+                              )}
+
+                              {stepErrors.map((message, index) => (
+                                <p
+                                  key={index}
+                                  className="ml-15 text-xs text-destructive"
+                                  role="alert"
+                                >
+                                  {tm(message)}
+                                </p>
+                              ))}
+                            </li>
+                          );
+                        })}
+                      </ul>
+
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => updateCombo(combo.id, { hotkey: "" })}
-                        className="self-start rounded-md border border-card-control-border px-3 py-2 text-xs font-semibold text-card-foreground transition-colors hover:border-ring hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                        onClick={() => handleAddComboStep(combo)}
+                        disabled={!canAddComboStep(combo.steps)}
+                        className="mt-2 w-fit self-start rounded-md border border-card-control-border px-3 py-2 text-xs font-semibold text-card-foreground transition-colors hover:border-ring hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
                       >
-                        {t("settings.correction.clearHotkey")}
+                        {t("settings.correction.combos.addStep")}
                       </Button>
-                      <p className="text-xs text-muted-foreground">
-                        {t("settings.correction.combos.hotkeyHint")}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label
-                        htmlFor={`combo-${combo.id}-output-mode`}
-                        className="text-sm text-card-foreground"
-                      >
-                        {t("settings.correction.outputMode.label")}
-                      </label>
-                      <SearchableSelect<ComboOutputModeOption>
-                        id={`combo-${combo.id}-output-mode-control`}
-                        inputId={`combo-${combo.id}-output-mode`}
-                        className="w-full text-sm"
-                        value={
-                          outputModeOptions.find(
-                            (option) =>
-                              option.value === (combo.outputMode ?? "inherit"),
-                          ) ?? null
-                        }
-                        options={outputModeOptions}
-                        noOptionsMessage={t("common.select.noOptions")}
-                        onChange={(option) => {
-                          if (option) {
-                            updateCombo(combo.id, {
-                              outputMode: option.value,
-                            });
-                          }
-                        }}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        {t("settings.correction.combos.outputModeHint")}
-                      </p>
-                      <Checkbox
-                        name={`combo-${combo.id}-markdown-output`}
-                        checked={combo.markdownOutput ?? false}
-                        onChange={(markdownOutput) =>
-                          updateCombo(combo.id, { markdownOutput })
-                        }
-                        label={t("settings.correction.markdownOutput.label")}
-                        className="text-card-foreground"
-                      />
                     </div>
                   </div>
-
-                  {/* Cost/provider transparency (risk 5 + 6): the provider
-                      list is the headline — three steps on three providers
-                      sends the selection to three vendors from one hotkey,
-                      and that has to be visible here, not something the user
-                      infers from three separate preset screens. */}
-                  <div className="mt-4 flex flex-col gap-2 rounded-md border border-card-control-border/60 bg-secondary/40 p-3 text-xs text-muted-foreground">
-                    <p>
-                      {t("settings.correction.combos.estimate.tokens", {
-                        baselineChars: COMBO_ESTIMATE_BASELINE_CHARS,
-                        tokens: estimate.totalTokens,
-                      })}
-                    </p>
-                    <p>
-                      {estimate.cost.status === "na"
-                        ? t("settings.correction.combos.estimate.costNa")
-                        : t("settings.correction.combos.estimate.cost", {
-                            baselineChars: COMBO_ESTIMATE_BASELINE_CHARS,
-                            cost: costAmountLabel,
-                          })}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span>
-                        {t("settings.correction.combos.estimate.providersLabel")}
-                      </span>
-                      {estimate.providers.length === 0 ? (
-                        <span>
-                          {t(
-                            "settings.correction.combos.estimate.providersUnknown",
-                          )}
-                        </span>
-                      ) : (
-                        <ul className="inline-flex flex-wrap items-center gap-1">
-                          {estimate.providers.map((provider) => (
-                            <li
-                              key={provider}
-                              className="inline-block rounded-full border border-card-control-border bg-muted px-2 py-0.5 text-xxs font-semibold text-foreground"
-                            >
-                              {t(PROVIDER_LABEL_KEYS[provider])}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                    {estimate.hasUnresolvedProvider && (
-                      <p>
-                        {t(
-                          "settings.correction.combos.estimate.providersUnresolvedHint",
-                        )}
-                      </p>
-                    )}
-                    {estimate.hasMultipleProviders && (
-                      <p className="font-medium text-destructive" role="alert">
-                        {t("settings.correction.combos.estimate.warningProviders")}
-                      </p>
-                    )}
-                    {estimate.exceedsWarningThreshold && (
-                      <p className="font-medium text-destructive" role="alert">
-                        {t("settings.correction.combos.estimate.warningTokens")}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="mt-4 flex flex-col">
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <h4 className="text-sm font-semibold text-foreground">
-                        {t("settings.correction.combos.stepsHeading")}
-                      </h4>
-                      <span className="text-xs text-muted-foreground">
-                        {t("settings.correction.combos.stepCountHint", {
-                          min: COMBO_MIN_STEPS,
-                          max: COMBO_MAX_STEPS,
-                        })}
-                      </span>
-                    </div>
-
-                    {fieldMessages.stepCountErrors.map((message, index) => (
-                      <p
-                        key={index}
-                        className="mb-2 text-xs text-destructive"
-                        role="alert"
-                      >
-                        {tm(message)}
-                      </p>
-                    ))}
-
-                    <ul className="flex flex-col gap-2">
-                      {combo.steps.map((step, stepIndex) => {
-                        const needsInlineInput = comboStepNeedsInlineInput(
-                          step,
-                          comboStepPresets,
-                        );
-                        const stepErrors = fieldMessages.stepErrorsById[step.id] ?? [];
-                        const isDraggedStep =
-                          stepDrag?.comboId === combo.id &&
-                          stepDrag.stepId === step.id;
-                        const isDropTarget =
-                          stepDrag?.comboId === combo.id &&
-                          stepDrag.overIndex === stepIndex &&
-                          stepDrag.stepId !== step.id;
-
-                        return (
-                          <li
-                            key={step.id}
-                            onDragOver={(event) =>
-                              handleComboStepDragOver(combo, stepIndex, event)
-                            }
-                            onDrop={(event) =>
-                              handleComboStepDrop(combo, stepIndex, event)
-                            }
-                            className={`flex flex-col gap-2 rounded-md border p-2 transition-colors motion-reduce:transition-none ${
-                              isDropTarget
-                                ? "border-ring bg-secondary/40"
-                                : "border-card-control-border/60"
-                            } ${isDraggedStep ? "opacity-60" : ""}`}
-                          >
-                            <div className="flex items-center gap-2">
-                              {/* Drag handle is also the keyboard reorder path:
-                                  ArrowUp / ArrowDown move the focused step. */}
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                draggable
-                                aria-label={t("settings.correction.combos.dragStep", {
-                                  number: stepIndex + 1,
-                                })}
-                                title={t("settings.correction.combos.dragStep", {
-                                  number: stepIndex + 1,
-                                })}
-                                onDragStart={(event) =>
-                                  handleComboStepDragStart(combo, stepIndex, event)
-                                }
-                                onDragEnd={handleComboStepDragEnd}
-                                onKeyDown={(event) =>
-                                  handleComboStepDragHandleKeyDown(
-                                    combo,
-                                    stepIndex,
-                                    event,
-                                  )
-                                }
-                                className="h-9 w-6 shrink-0 cursor-grab rounded-md px-0 text-sm text-muted-foreground active:cursor-grabbing"
-                              >
-                                {"⠿"}
-                              </Button>
-                              <span className="w-5 shrink-0 text-right text-xs font-bold text-muted-foreground">
-                                {stepIndex + 1}.
-                              </span>
-                              <SearchableSelect<ComboStepPresetOption>
-                                ariaLabel={t(
-                                  "settings.correction.combos.stepPresetLabel",
-                                  { number: stepIndex + 1 },
-                                )}
-                                className="min-w-0 flex-1 text-sm"
-                                value={
-                                  comboStepPresetOptions.find(
-                                    (option) => option.value === step.presetId,
-                                  ) ?? null
-                                }
-                                options={comboStepPresetOptions}
-                                noOptionsMessage={t("common.select.noOptions")}
-                                onChange={(option) => {
-                                  if (option) {
-                                    handleComboStepPresetChange(
-                                      combo,
-                                      stepIndex,
-                                      option.value,
-                                    );
-                                  }
-                                }}
-                              />
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                aria-label={t("settings.correction.combos.removeStep")}
-                                onClick={() => handleRemoveComboStep(combo, stepIndex)}
-                                className="h-9 w-9 shrink-0 rounded-md px-0 text-lg font-semibold leading-none"
-                              >
-                                {"×"}
-                              </Button>
-                            </div>
-
-                            {needsInlineInput && (
-                              <div className="ml-15 flex flex-col gap-1">
-                                <label
-                                  htmlFor={`combo-${combo.id}-step-${step.id}-input`}
-                                  className="text-xs text-muted-foreground"
-                                >
-                                  {t("settings.correction.combos.inlineInputLabel")}
-                                </label>
-                                <Input
-                                  id={`combo-${combo.id}-step-${step.id}-input`}
-                                  type="text"
-                                  value={step.inlineInput ?? ""}
-                                  onChange={(event) =>
-                                    handleComboStepInlineInputChange(
-                                      combo,
-                                      stepIndex,
-                                      event.target.value,
-                                    )
-                                  }
-                                  placeholder={t(
-                                    "settings.correction.combos.inlineInputPlaceholder",
-                                  )}
-                                  className="w-full"
-                                />
-                              </div>
-                            )}
-
-                            {stepErrors.map((message, index) => (
-                              <p
-                                key={index}
-                                className="ml-15 text-xs text-destructive"
-                                role="alert"
-                              >
-                                {tm(message)}
-                              </p>
-                            ))}
-                          </li>
-                        );
-                      })}
-                    </ul>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleAddComboStep(combo)}
-                      disabled={!canAddComboStep(combo.steps)}
-                      className="mt-2 w-fit self-start rounded-md border border-card-control-border px-3 py-2 text-xs font-semibold text-card-foreground transition-colors hover:border-ring hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
-                    >
-                      {t("settings.correction.combos.addStep")}
-                    </Button>
-                  </div>
-                </div>
-              );
+                );
               })}
           </>
         )}

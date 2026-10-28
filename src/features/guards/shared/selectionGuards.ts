@@ -26,8 +26,18 @@ import type { ClipboardAge } from "~/main/clipboard/clipboardObserver";
 export type SelectionGuardVerdict =
   | { kind: "allow" }
   | { kind: "confirm"; reason: "large-selection"; chars: number; limit: number }
-  | { kind: "confirm"; reason: "stale-clipboard"; ageMs: number; limitMs: number }
-  | { kind: "confirm"; reason: "unknown-clipboard-age"; ageMs: number; limitMs: number }
+  | {
+      kind: "confirm";
+      reason: "stale-clipboard";
+      ageMs: number;
+      limitMs: number;
+    }
+  | {
+      kind: "confirm";
+      reason: "unknown-clipboard-age";
+      ageMs: number;
+      limitMs: number;
+    }
   | { kind: "block"; reason: "denied-app"; bundleId: string };
 
 export type SelectionGuardInput = {
@@ -94,21 +104,32 @@ const evaluateClipboardAge = (
 
   const limitMs = limitSeconds * 1_000;
   if (age.origin === "baseline") {
-    return { kind: "confirm", reason: "unknown-clipboard-age", ageMs: age.ms, limitMs };
+    return {
+      kind: "confirm",
+      reason: "unknown-clipboard-age",
+      ageMs: age.ms,
+      limitMs,
+    };
   }
   return age.ms > limitMs
     ? { kind: "confirm", reason: "stale-clipboard", ageMs: age.ms, limitMs }
     : ALLOW;
 };
 
-const evaluateSizeCap = (text: string, limit: number): SelectionGuardVerdict => {
+const evaluateSizeCap = (
+  text: string,
+  limit: number,
+): SelectionGuardVerdict => {
   if (limit <= 0) return ALLOW;
   return text.length > limit
     ? { kind: "confirm", reason: "large-selection", chars: text.length, limit }
     : ALLOW;
 };
 
-export type SelectionGuardConfirmVerdict = Extract<SelectionGuardVerdict, { kind: "confirm" }>;
+export type SelectionGuardConfirmVerdict = Extract<
+  SelectionGuardVerdict,
+  { kind: "confirm" }
+>;
 
 /**
  * The measurable half of a confirm verdict, ready to spread into a log line.
@@ -127,8 +148,13 @@ export const selectionGuardLogContext = (
     ? { textLength: verdict.chars, charLimit: verdict.limit }
     : { selectionAgeMs: verdict.ageMs, ageLimitMs: verdict.limitMs };
 
-export const evaluateSelectionGuards = (input: SelectionGuardInput): SelectionGuardVerdict => {
-  const denyVerdict = evaluateDenyList(input.activeApp, input.settings.deniedBundleIds);
+export const evaluateSelectionGuards = (
+  input: SelectionGuardInput,
+): SelectionGuardVerdict => {
+  const denyVerdict = evaluateDenyList(
+    input.activeApp,
+    input.settings.deniedBundleIds,
+  );
   if (denyVerdict.kind !== "allow") return denyVerdict;
 
   const ageVerdict = evaluateClipboardAge(

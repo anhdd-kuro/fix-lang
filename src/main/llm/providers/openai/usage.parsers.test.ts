@@ -66,7 +66,9 @@ describe("parseCosts", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.data.totalUsd).toBeCloseTo(3.75, 10);
-    expect(result.data.daily.map((point) => [point.date, point.costUsd])).toEqual([
+    expect(
+      result.data.daily.map((point) => [point.date, point.costUsd]),
+    ).toEqual([
       ["2026-07-01", 1.75],
       ["2026-07-02", 2],
     ]);
@@ -113,7 +115,10 @@ describe("parseCosts", () => {
   });
 
   it("reports parse_error for a payload that is not a page", () => {
-    expect(parseCosts({ nope: true })).toEqual({ ok: false, reason: "parse_error" });
+    expect(parseCosts({ nope: true })).toEqual({
+      ok: false,
+      reason: "parse_error",
+    });
     expect(parseCosts(null)).toEqual({ ok: false, reason: "parse_error" });
   });
 
@@ -130,11 +135,26 @@ describe("parseCompletionsUsage", () => {
     const result = parseCompletionsUsage(
       page([
         usageBucket(DAY_1, [
-          { model: "gpt-5", input_tokens: 100, output_tokens: 10, num_model_requests: 2 },
-          { model: "gpt-5-mini", input_tokens: 20, output_tokens: 5, num_model_requests: 9 },
+          {
+            model: "gpt-5",
+            input_tokens: 100,
+            output_tokens: 10,
+            num_model_requests: 2,
+          },
+          {
+            model: "gpt-5-mini",
+            input_tokens: 20,
+            output_tokens: 5,
+            num_model_requests: 9,
+          },
         ]),
         usageBucket(DAY_2, [
-          { model: "gpt-5", input_tokens: 50, output_tokens: 5, num_model_requests: 1 },
+          {
+            model: "gpt-5",
+            input_tokens: 50,
+            output_tokens: 5,
+            num_model_requests: 1,
+          },
         ]),
       ]),
     );
@@ -191,7 +211,10 @@ describe("parseCompletionsUsage", () => {
   });
 
   it("reports parse_error for a non-page payload", () => {
-    expect(parseCompletionsUsage([])).toEqual({ ok: false, reason: "parse_error" });
+    expect(parseCompletionsUsage([])).toEqual({
+      ok: false,
+      reason: "parse_error",
+    });
   });
 });
 
@@ -241,12 +264,17 @@ describe("parseProjectCosts", () => {
 
     expect(projects.ok && costs.ok).toBe(true);
     if (!projects.ok || !costs.ok) return;
-    const summed = projects.data.projects.reduce((sum, r) => sum + r.costUsd, 0);
+    const summed = projects.data.projects.reduce(
+      (sum, r) => sum + r.costUsd,
+      0,
+    );
     expect(summed).toBeCloseTo(costs.data.totalUsd);
   });
 
   it("keeps spend with no project_id under the empty key instead of dropping it", () => {
-    const result = parseProjectCosts(page([projectBucket(DAY_1, [{ amount: 4 }])]));
+    const result = parseProjectCosts(
+      page([projectBucket(DAY_1, [{ amount: 4 }])]),
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -273,7 +301,10 @@ describe("parseProjectCosts", () => {
   });
 
   it("reports parse_error for a non-page payload", () => {
-    expect(parseProjectCosts(null)).toEqual({ ok: false, reason: "parse_error" });
+    expect(parseProjectCosts(null)).toEqual({
+      ok: false,
+      reason: "parse_error",
+    });
   });
 });
 
@@ -331,7 +362,11 @@ describe("withProjectNames", () => {
 describe("nextAfterCursor", () => {
   it("reads last_id, not next_page — the list endpoints paginate differently", () => {
     expect(
-      nextAfterCursor({ has_more: true, last_id: "proj_z", next_page: "wrong" }),
+      nextAfterCursor({
+        has_more: true,
+        last_id: "proj_z",
+        next_page: "wrong",
+      }),
     ).toBe("proj_z");
     expect(nextAfterCursor({ has_more: false, last_id: "proj_z" })).toBeNull();
     expect(nextAfterCursor({ has_more: true, last_id: null })).toBeNull();
@@ -341,11 +376,15 @@ describe("nextAfterCursor", () => {
 
 describe("nextPageCursor", () => {
   it("returns the cursor only while the API says there is more", () => {
-    expect(nextPageCursor(page([], { has_more: true, next_page: "cursor-2" }))).toBe(
-      "cursor-2",
-    );
-    expect(nextPageCursor(page([], { has_more: false, next_page: "cursor-2" }))).toBeNull();
-    expect(nextPageCursor(page([], { has_more: true, next_page: null }))).toBeNull();
+    expect(
+      nextPageCursor(page([], { has_more: true, next_page: "cursor-2" })),
+    ).toBe("cursor-2");
+    expect(
+      nextPageCursor(page([], { has_more: false, next_page: "cursor-2" })),
+    ).toBeNull();
+    expect(
+      nextPageCursor(page([], { has_more: true, next_page: null })),
+    ).toBeNull();
     expect(nextPageCursor("nope")).toBeNull();
   });
 });

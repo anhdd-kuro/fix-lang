@@ -5,7 +5,12 @@ import { Checkbox } from "./Checkbox";
 import { HotkeyInput } from "./HotkeyInput";
 import { Input, Textarea } from "./Input";
 import { ModelSelect } from "./ModelSelect";
-import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
+import {
+  plainStatus,
+  wrappedError,
+  resolveStatus,
+  type StatusDescriptor,
+} from "./statusDescriptor";
 import Tooltip from "./Tooltip";
 import {
   DEFAULT_PROMPT_GEN_PROMPT,
@@ -362,10 +367,7 @@ export const SettingPromptGen: React.FC = () => {
       </fieldset>
 
       <div className="flex flex-col gap-2 mt-8">
-        <Button
-          type="submit"
-          className="px-3 py-2 rounded"
-        >
+        <Button type="submit" className="px-3 py-2 rounded">
           {resolveStatus(status, t, tm, tl) || t("common.save")}
         </Button>
         <Button

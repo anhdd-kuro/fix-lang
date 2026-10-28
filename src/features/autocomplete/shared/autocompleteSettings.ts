@@ -62,7 +62,8 @@ export const MAX_DAILY_COST_CAP_USD = 100;
  * typed one meant "stop spending", not "spend the default".
  */
 export const normalizeDailyCostCapUsd = (raw: unknown): number => {
-  if (typeof raw !== "number" || !Number.isFinite(raw)) return DEFAULT_DAILY_COST_CAP_USD;
+  if (typeof raw !== "number" || !Number.isFinite(raw))
+    return DEFAULT_DAILY_COST_CAP_USD;
   return Math.min(MAX_DAILY_COST_CAP_USD, Math.max(0, raw));
 };
 
@@ -81,11 +82,18 @@ export const normalizeDailyCostCapUsd = (raw: unknown): number => {
  * Junk also reads as `false`, for the same reason: only an explicit `true`
  * turns the feature on.
  */
-export const normalizeAutocompleteSettings = (raw: unknown): AutocompleteSettings => {
-  const value = (raw ?? {}) as Partial<Record<keyof AutocompleteSettings, unknown>>;
+export const normalizeAutocompleteSettings = (
+  raw: unknown,
+): AutocompleteSettings => {
+  const value = (raw ?? {}) as Partial<
+    Record<keyof AutocompleteSettings, unknown>
+  >;
   return {
     enabled: value.enabled === true,
-    model: typeof value.model === "string" ? value.model.trim() : AUTOCOMPLETE_INHERIT_ASK_MODEL,
+    model:
+      typeof value.model === "string"
+        ? value.model.trim()
+        : AUTOCOMPLETE_INHERIT_ASK_MODEL,
     dailyCostCapUsd: normalizeDailyCostCapUsd(value.dailyCostCapUsd),
   };
 };

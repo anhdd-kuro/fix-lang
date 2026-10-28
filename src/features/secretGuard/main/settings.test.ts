@@ -45,7 +45,9 @@ vi.mock("electron-store", () => {
 type Handler = (event: unknown, raw?: unknown) => unknown;
 
 const getHandler = (channel: string): Handler => {
-  const call = electronMocks.handle.mock.calls.find(([name]) => name === channel);
+  const call = electronMocks.handle.mock.calls.find(
+    ([name]) => name === channel,
+  );
   if (!call) throw new Error(`no handler registered for channel "${channel}"`);
   return call[1] as Handler;
 };
@@ -91,7 +93,9 @@ describe("registerSecretGuardHandlers", () => {
 
   it("accepts every member of SECRET_GUARD_MODES", async () => {
     for (const mode of SECRET_GUARD_MODES) {
-      expect(await write({ mode, highEntropyRule: false })).toEqual({ success: true });
+      expect(await write({ mode, highEntropyRule: false })).toEqual({
+        success: true,
+      });
     }
   });
 
@@ -118,7 +122,10 @@ describe("registerSecretGuardHandlers", () => {
     ["an unknown mode", { mode: "maybe", highEntropyRule: false }],
     ["a wrong-case mode", { mode: "Confirm", highEntropyRule: false }],
     ["a numeric mode", { mode: 1, highEntropyRule: false }],
-    ["a truthy non-boolean entropy flag", { mode: "confirm", highEntropyRule: 1 }],
+    [
+      "a truthy non-boolean entropy flag",
+      { mode: "confirm", highEntropyRule: 1 },
+    ],
     ["a string entropy flag", { mode: "confirm", highEntropyRule: "true" }],
     ["a null entropy flag", { mode: "confirm", highEntropyRule: null }],
   ])("rejects %s rather than coercing it", async (_label, payload) => {

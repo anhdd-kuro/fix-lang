@@ -109,7 +109,9 @@ const resolveDeniedAppsView = (
       ? plainStatus("security.deniedApps.empty")
       : null,
   recentHint:
-    recentApps.length === 0 ? plainStatus("security.deniedApps.recentEmpty") : null,
+    recentApps.length === 0
+      ? plainStatus("security.deniedApps.recentEmpty")
+      : null,
 });
 
 const resolveSecretGuardView = (
@@ -118,7 +120,9 @@ const resolveSecretGuardView = (
   mode: settings.mode,
   highEntropyRule: settings.highEntropyRule,
   maskHint:
-    settings.mode === "mask" ? plainStatus("security.secretGuard.maskHint") : null,
+    settings.mode === "mask"
+      ? plainStatus("security.secretGuard.maskHint")
+      : null,
 });
 
 /**
@@ -213,9 +217,15 @@ export const withDeniedBundleIds = (
     const next = withDeniedBundleId(current, rawBundleId);
     // Distinguishes "did not fit" from "invalid or already denied": only the
     // former is worth telling the user about, and only a full list can cause it.
-    if (next === current && current.deniedBundleIds.length >= MAX_DENIED_BUNDLE_IDS) {
+    if (
+      next === current &&
+      current.deniedBundleIds.length >= MAX_DENIED_BUNDLE_IDS
+    ) {
       const normalized = normalizeBundleId(rawBundleId);
-      if (normalized !== null && !isBundleIdDenied(normalized, current.deniedBundleIds)) {
+      if (
+        normalized !== null &&
+        !isBundleIdDenied(normalized, current.deniedBundleIds)
+      ) {
         droppedForCapacity += 1;
       }
     }

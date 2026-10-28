@@ -55,15 +55,19 @@ vi.mock("~/features/correction/store/keybindingStore", () => ({
   },
 }));
 vi.mock("~/features/correction/store/outputModeStore", () => ({
-  outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("paste") },
+  outputModeStore: {
+    getCorrectionOutputMode: vi.fn().mockReturnValue("paste"),
+  },
 }));
 vi.mock("../../utils", () => ({
   getHighlightedTextWithActiveApp: vi
     .fn()
-    .mockImplementation(async (onFrontmostReadAndKeystrokeSent?: () => void) => {
-      onFrontmostReadAndKeystrokeSent?.();
-      return { text: "some selected text", activeApp: null };
-    }),
+    .mockImplementation(
+      async (onFrontmostReadAndKeystrokeSent?: () => void) => {
+        onFrontmostReadAndKeystrokeSent?.();
+        return { text: "some selected text", activeApp: null };
+      },
+    ),
   pasteText: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../ai.request", () => ({ fixGrammar: vi.fn() }));
@@ -91,7 +95,9 @@ vi.mock("./askEnvironment", () => ({
     timeZone: "Asia/Tokyo",
     recentTransforms: [],
   }),
-  buildAskDirectives: vi.fn().mockReturnValue("App locale: en\nSystem language: en-US"),
+  buildAskDirectives: vi
+    .fn()
+    .mockReturnValue("App locale: en\nSystem language: en-US"),
 }));
 vi.mock("./utils", () => ({
   checkShortcut: vi.fn(),

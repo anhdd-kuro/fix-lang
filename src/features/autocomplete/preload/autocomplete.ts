@@ -47,7 +47,9 @@ const isSuggestReply = (value: unknown): value is AutocompleteSuggestReply => {
   return true;
 };
 
-const isUsageSnapshot = (value: unknown): value is AutocompleteUsageSnapshot => {
+const isUsageSnapshot = (
+  value: unknown,
+): value is AutocompleteUsageSnapshot => {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
   if (!isDayRollup(record.today)) return false;
@@ -83,7 +85,10 @@ const emptyRollup = (): AutocompleteDayRollup => ({
  * this is a bug — but on a path that runs per keystroke, "no ghost text" beats
  * a console full of rejections.
  */
-const invokeOrNull = async (channel: string, ...args: unknown[]): Promise<unknown> => {
+const invokeOrNull = async (
+  channel: string,
+  ...args: unknown[]
+): Promise<unknown> => {
   try {
     return await ipcRenderer.invoke(channel, ...args);
   } catch {
@@ -102,7 +107,9 @@ export const autocompleteFeature = {
     request: AutocompleteSuggestRequest,
   ): Promise<AutocompleteSuggestReply> => {
     const result = await invokeOrNull("autocomplete-suggest", request);
-    return isSuggestReply(result) ? result : { requestId: request.requestId, suggestion: null };
+    return isSuggestReply(result)
+      ? result
+      : { requestId: request.requestId, suggestion: null };
   },
 
   /**
@@ -132,7 +139,9 @@ export const autocompleteFeature = {
       reason: report.reason,
       prefixLength: report.prefixLength,
       suppressedSincePrevious: report.suppressedSincePrevious,
-      ...(report.requestId === undefined ? {} : { requestId: report.requestId }),
+      ...(report.requestId === undefined
+        ? {}
+        : { requestId: report.requestId }),
     });
   },
 
@@ -141,7 +150,12 @@ export const autocompleteFeature = {
     const result = await invokeOrNull("autocomplete-usage");
     return isUsageSnapshot(result)
       ? result
-      : { today: emptyRollup(), month: emptyRollup(), days: [], dailyCostCapUsd: 0 };
+      : {
+          today: emptyRollup(),
+          month: emptyRollup(),
+          days: [],
+          dailyCostCapUsd: 0,
+        };
   },
 };
 

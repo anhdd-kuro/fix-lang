@@ -48,10 +48,16 @@ const {
   clearProfileSecretMock: vi.fn(),
   withoutProfileSecretsMock: vi.fn(),
 }));
-const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
+const handlers = new Map<
+  string,
+  (event: unknown, ...args: unknown[]) => unknown
+>();
 vi.mock("electron", () => ({
   ipcMain: {
-    handle: (channel: string, listener: (event: unknown, ...args: unknown[]) => unknown) => {
+    handle: (
+      channel: string,
+      listener: (event: unknown, ...args: unknown[]) => unknown,
+    ) => {
       handlers.set(channel, listener);
     },
     on: vi.fn(),
@@ -63,11 +69,16 @@ vi.mock("~/main/ai.request", () => ({
 }));
 vi.mock("~/main/keybindings", () => ({ reloadHotkeys: vi.fn() }));
 vi.mock("~/main/llm", () => ({
-  createOllamaClient: () => ({ pull: vi.fn(), delete: vi.fn(), chat: vi.fn() }), ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
+  createOllamaClient: () => ({ pull: vi.fn(), delete: vi.fn(), chat: vi.fn() }),
+  ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
 }));
-vi.mock("~/main/llm/models/compatibility", () => ({ checkModelCompatibility: vi.fn() }));
+vi.mock("~/main/llm/models/compatibility", () => ({
+  checkModelCompatibility: vi.fn(),
+}));
 vi.mock("~/main/llm/models/discover", () => ({ probeOllama: probeOllamaMock }));
-vi.mock("~/main/llm/providers/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
+vi.mock("~/main/llm/providers/lmstudio/client", () => ({
+  probeLmStudio: probeLmStudioMock,
+}));
 vi.mock("~/main/llm/models/recommended", () => ({
   findRecommendedModel: vi.fn(),
   getRecommendedModels: vi.fn(),
@@ -86,8 +97,9 @@ vi.mock("~/features/providers/store/apiStore", () => ({
   getCurrentProfileId: getCurrentProfileIdMock,
   getDefaultModelId: vi.fn(),
   getProfileSetting: getProfileSettingMock,
-    getProviderEndpoint: () => undefined,
-    sanitizeProviderEndpoints: (raw: unknown) => (raw && typeof raw === "object" ? raw : {}),
+  getProviderEndpoint: () => undefined,
+  sanitizeProviderEndpoints: (raw: unknown) =>
+    raw && typeof raw === "object" ? raw : {},
   resetCurrentProfileSettings: vi.fn(),
   updateProfileSetting: updateProfileSettingMock,
   withoutProfileSecrets: withoutProfileSecretsMock,
@@ -114,7 +126,12 @@ import { registerApiHandlers, type ProviderStates } from "./api";
 import type { Model, ProviderId } from "~/features/providers/shared/providers";
 import type { SecretKind } from "~/features/providers/store/profileSecretStore";
 
-const OPENAI_MODEL: Model = { id: "gpt-4o", name: "gpt-4o", created: 3, provider: "openai" };
+const OPENAI_MODEL: Model = {
+  id: "gpt-4o",
+  name: "gpt-4o",
+  created: 3,
+  provider: "openai",
+};
 const OPENROUTER_MODEL: Model = {
   id: "anthropic/claude-3.5-sonnet",
   name: "Claude",
@@ -130,7 +147,10 @@ const OLLAMA_MODEL: Model = {
 };
 
 /** Distinguishable so a handler returning the RAW profile is visible. */
-const STRIPPED_PROFILE = { id: "profile_1", strippedBy: "withoutProfileSecrets" };
+const STRIPPED_PROFILE = {
+  id: "profile_1",
+  strippedBy: "withoutProfileSecrets",
+};
 
 /** Drives `getProfileSetting` for the two keys `api.ts` reads; anything else answers `[]`. */
 const seedProfile = (settings: {
@@ -296,12 +316,13 @@ describe("get-provider-states answers every provider in one round-trip", () => {
       openrouterKey: "sk-or-v1-REAL-OPENROUTER-SECRET-abcdef",
       provisioningKey: "sk-or-prov-REAL-PROVISIONING-SECRET-xyz",
     };
-    getProfileSecretMock.mockImplementation(async (_id: string, provider: ProviderId, kind: SecretKind) =>
-      provider === "openai"
-        ? SECRETS.openaiKey
-        : kind === "provisioning"
-          ? SECRETS.provisioningKey
-          : SECRETS.openrouterKey,
+    getProfileSecretMock.mockImplementation(
+      async (_id: string, provider: ProviderId, kind: SecretKind) =>
+        provider === "openai"
+          ? SECRETS.openaiKey
+          : kind === "provisioning"
+            ? SECRETS.provisioningKey
+            : SECRETS.openrouterKey,
     );
     hasProfileSecretMock.mockResolvedValue(true);
     seedProfile({
@@ -320,7 +341,9 @@ describe("get-provider-states answers every provider in one round-trip", () => {
     }
     // No string leaf at all: a masked form, prefix or placeholder would all be
     // strings, catching shapes the substring checks cannot enumerate.
-    const leaves = Object.values(states).flatMap((state) => Object.values(state));
+    const leaves = Object.values(states).flatMap((state) =>
+      Object.values(state),
+    );
     expect(leaves.length).toBeGreaterThan(0);
     for (const leaf of leaves) {
       expect(typeof leaf === "boolean" || typeof leaf === "number").toBe(true);
@@ -329,9 +352,24 @@ describe("get-provider-states answers every provider in one round-trip", () => {
     const numbers = leaves.filter((leaf) => typeof leaf === "number");
     expect(numbers).toEqual([1, 1, 0, 0, 0, 0]);
     for (const [provider, state] of Object.entries(states)) {
-      const expectedKeys = provider === "bedrock"
-        ? ["accessKeySet", "apiKeySet", "configured", "connected", "modelCount", "provisioningKeySet", "secretKeySet"]
-        : ["apiKeySet", "configured", "connected", "modelCount", "provisioningKeySet"];
+      const expectedKeys =
+        provider === "bedrock"
+          ? [
+              "accessKeySet",
+              "apiKeySet",
+              "configured",
+              "connected",
+              "modelCount",
+              "provisioningKeySet",
+              "secretKeySet",
+            ]
+          : [
+              "apiKeySet",
+              "configured",
+              "connected",
+              "modelCount",
+              "provisioningKeySet",
+            ];
       expect(Object.keys(state).sort()).toEqual(expectedKeys);
     }
     // The handler never even asks for a decrypted key.
@@ -359,7 +397,11 @@ describe("disconnect-provider", () => {
 
     expect(result.success).toBe(true);
     expect(clearProfileSecretMock).toHaveBeenCalledTimes(1);
-    expect(clearProfileSecretMock).toHaveBeenCalledWith("profile_1", "lmstudio", "api");
+    expect(clearProfileSecretMock).toHaveBeenCalledWith(
+      "profile_1",
+      "lmstudio",
+      "api",
+    );
     expect(disconnectProviderFromProfileMock).toHaveBeenCalledWith(
       "profile_1",
       "lmstudio",
@@ -391,11 +433,16 @@ describe("disconnect-provider", () => {
       cleared: { selectedModel: false, presetIds: [], features: [] },
     });
 
-    const result = (await invoke("disconnect-provider", "ollama")) as { success: boolean };
+    const result = (await invoke("disconnect-provider", "ollama")) as {
+      success: boolean;
+    };
 
     expect(result.success).toBe(true);
     expect(clearProfileSecretMock).not.toHaveBeenCalled();
-    expect(disconnectProviderFromProfileMock).toHaveBeenCalledWith("profile_1", "ollama");
+    expect(disconnectProviderFromProfileMock).toHaveBeenCalledWith(
+      "profile_1",
+      "ollama",
+    );
   });
 
   it("rejects an unknown provider without deleting anything", async () => {
@@ -433,7 +480,10 @@ describe("disconnect-provider", () => {
   });
 
   it("reports a failed credential delete without disconnecting", async () => {
-    clearProfileSecretMock.mockResolvedValue({ success: false, error: "EPERM" });
+    clearProfileSecretMock.mockResolvedValue({
+      success: false,
+      error: "EPERM",
+    });
 
     const result = (await invoke("disconnect-provider", "openai")) as {
       success: boolean;
@@ -489,8 +539,9 @@ describe("disconnect-provider is bound to the profile whose credentials it clear
       return { profile: { id: profileId }, cleared: NOTHING_CLEARED };
     };
     disconnectProviderFromProfileMock.mockImplementation(disconnect);
-    disconnectProviderFromActiveProfileMock.mockImplementation((provider: ProviderId) =>
-      disconnect(getCurrentProfileIdMock() as string, provider),
+    disconnectProviderFromActiveProfileMock.mockImplementation(
+      (provider: ProviderId) =>
+        disconnect(getCurrentProfileIdMock() as string, provider),
     );
     return enabled;
   };
@@ -508,10 +559,16 @@ describe("disconnect-provider is bound to the profile whose credentials it clear
     const enabled = seedTwoConnectedProfiles();
     switchProfileDuringClear();
 
-    const result = (await invoke("disconnect-provider", "openai")) as { success: boolean };
+    const result = (await invoke("disconnect-provider", "openai")) as {
+      success: boolean;
+    };
 
     expect(result.success).toBe(true);
-    expect(clearProfileSecretMock).toHaveBeenCalledWith("profile_1", "openai", "api");
+    expect(clearProfileSecretMock).toHaveBeenCalledWith(
+      "profile_1",
+      "openai",
+      "api",
+    );
     expect(enabled.get("profile_1")).toEqual([]);
     // profile_2 nobody disconnected keeps its refs — and its key on disk.
     expect(enabled.get("profile_2")).toEqual(["openai"]);
@@ -555,7 +612,9 @@ describe("fetch-ai-models fans out across every connected provider", () => {
 
     expect(result.success).toBe(true);
     expect(result.models).toEqual([OPENAI_MODEL, OPENROUTER_MODEL]);
-    expect(result.errors).toEqual({ ollama: "connect ECONNREFUSED 127.0.0.1:11434" });
+    expect(result.errors).toEqual({
+      ollama: "connect ECONNREFUSED 127.0.0.1:11434",
+    });
     expect(fetchModelsForProvidersMock).toHaveBeenCalledWith(
       ["openai", "openrouter", "ollama"],
       // Ollama needs no key and is asked for none.
@@ -569,7 +628,11 @@ describe("fetch-ai-models fans out across every connected provider", () => {
 
     await invoke("fetch-ai-models");
 
-    expect(fetchModelsForProvidersMock).toHaveBeenCalledWith(["openai"], { openai: "" }, false);
+    expect(fetchModelsForProvidersMock).toHaveBeenCalledWith(
+      ["openai"],
+      { openai: "" },
+      false,
+    );
   });
 
   it("filters a disconnected provider's stale slice out of the returned list", async () => {
@@ -581,7 +644,9 @@ describe("fetch-ai-models fans out across every connected provider", () => {
       errors: {},
     });
 
-    const result = (await invoke("fetch-ai-models", true)) as { models?: Model[] };
+    const result = (await invoke("fetch-ai-models", true)) as {
+      models?: Model[];
+    };
 
     expect(result.models).toEqual([OPENAI_MODEL]);
   });
@@ -611,7 +676,9 @@ describe("fetch-ai-models fans out across every connected provider", () => {
   it("asks for nothing when no provider is connected", async () => {
     seedProfile({ enabledProviders: [] });
 
-    const result = (await invoke("fetch-ai-models", true)) as { success: boolean };
+    const result = (await invoke("fetch-ai-models", true)) as {
+      success: boolean;
+    };
 
     expect(result.success).toBe(true);
     expect(fetchModelsForProvidersMock).toHaveBeenCalledWith([], {}, true);
@@ -624,7 +691,11 @@ describe("fetch-ai-models fans out across every connected provider", () => {
 
     await invoke("fetch-ai-models", true);
 
-    expect(fetchModelsForProvidersMock).toHaveBeenCalledWith(["openai"], { openai: "" }, true);
+    expect(fetchModelsForProvidersMock).toHaveBeenCalledWith(
+      ["openai"],
+      { openai: "" },
+      true,
+    );
   });
 });
 
@@ -652,7 +723,10 @@ describe("get-cached-models is restricted to connected providers", () => {
   });
 
   it("returns nothing when no provider is connected", async () => {
-    seedProfile({ models: [OPENAI_MODEL, OPENROUTER_MODEL], enabledProviders: [] });
+    seedProfile({
+      models: [OPENAI_MODEL, OPENROUTER_MODEL],
+      enabledProviders: [],
+    });
 
     expect(await invoke("get-cached-models")).toEqual([]);
   });
@@ -667,7 +741,9 @@ describe("set-selected-model — accepts only a resolvable ref on a connected pr
   });
 
   it("accepts '' and stores it as the inherit sentinel", async () => {
-    const result = (await invoke("set-selected-model", "")) as { success: boolean };
+    const result = (await invoke("set-selected-model", "")) as {
+      success: boolean;
+    };
 
     expect(result.success).toBe(true);
     expect(updateProfileSettingMock).toHaveBeenCalledWith("selectedModel", "");
@@ -679,7 +755,10 @@ describe("set-selected-model — accepts only a resolvable ref on a connected pr
     };
 
     expect(result.success).toBe(true);
-    expect(updateProfileSettingMock).toHaveBeenCalledWith("selectedModel", "openai::gpt-4o");
+    expect(updateProfileSettingMock).toHaveBeenCalledWith(
+      "selectedModel",
+      "openai::gpt-4o",
+    );
   });
 
   it("rejects a ref whose provider is NOT connected, even though the model is cached", async () => {
@@ -698,7 +777,10 @@ describe("set-selected-model — accepts only a resolvable ref on a connected pr
   });
 
   it("rejects an unresolvable ref", async () => {
-    const result = (await invoke("set-selected-model", "openai::not-a-real-model")) as {
+    const result = (await invoke(
+      "set-selected-model",
+      "openai::not-a-real-model",
+    )) as {
       success: boolean;
     };
 
@@ -708,14 +790,19 @@ describe("set-selected-model — accepts only a resolvable ref on a connected pr
 
   it("rejects a non-string payload", async () => {
     for (const payload of [null, undefined, 42, { id: "gpt-4o" }]) {
-      const result = (await invoke("set-selected-model", payload)) as { success: boolean };
+      const result = (await invoke("set-selected-model", payload)) as {
+        success: boolean;
+      };
       expect(result.success).toBe(false);
     }
     expect(updateProfileSettingMock).not.toHaveBeenCalled();
   });
 
   it("no longer rejects a model just because another provider is 'active'", async () => {
-    const result = (await invoke("set-selected-model", "ollama::llama3.2:3b")) as {
+    const result = (await invoke(
+      "set-selected-model",
+      "ollama::llama3.2:3b",
+    )) as {
       success: boolean;
     };
 
@@ -731,18 +818,30 @@ describe("set-selected-model stores the canonical ref, never the raw input", () 
   it("upgrades a bare id to the composite ref before storing it", async () => {
     seedProfile({ models: [OPENAI_MODEL], enabledProviders: ["openai"] });
 
-    const result = (await invoke("set-selected-model", "gpt-4o")) as { success: boolean };
+    const result = (await invoke("set-selected-model", "gpt-4o")) as {
+      success: boolean;
+    };
 
     expect(result.success).toBe(true);
     // Storing the bare "gpt-4o" would route by PROVIDER_ORDER scan and bill
     // whichever provider lists that id first.
-    expect(updateProfileSettingMock).toHaveBeenCalledWith("selectedModel", "openai::gpt-4o");
-    expect(updateProfileSettingMock).not.toHaveBeenCalledWith("selectedModel", "gpt-4o");
+    expect(updateProfileSettingMock).toHaveBeenCalledWith(
+      "selectedModel",
+      "openai::gpt-4o",
+    );
+    expect(updateProfileSettingMock).not.toHaveBeenCalledWith(
+      "selectedModel",
+      "gpt-4o",
+    );
   });
 
   it("an EXPLICIT ref names its provider even when another provider serves the same id", async () => {
     // The prefix decides; the cache order does not.
-    const collidingOpenAI: Model = { ...OPENAI_MODEL, id: "gpt-4o", provider: "openai" };
+    const collidingOpenAI: Model = {
+      ...OPENAI_MODEL,
+      id: "gpt-4o",
+      provider: "openai",
+    };
     const collidingOpenRouter: Model = {
       id: "gpt-4o",
       name: "gpt-4o",
@@ -754,7 +853,10 @@ describe("set-selected-model stores the canonical ref, never the raw input", () 
       enabledProviders: ["openrouter"],
     });
 
-    const result = (await invoke("set-selected-model", "openrouter::gpt-4o")) as {
+    const result = (await invoke(
+      "set-selected-model",
+      "openrouter::gpt-4o",
+    )) as {
       success: boolean;
     };
 
@@ -769,7 +871,11 @@ describe("set-selected-model stores the canonical ref, never the raw input", () 
     // Deliberate: `resolveModelRef` scans PROVIDER_ORDER, so a bare id matches
     // the DISCONNECTED openai first and the gate rejects it. Failing closed
     // beats guessing a provider — a different key, a different price.
-    const collidingOpenAI: Model = { ...OPENAI_MODEL, id: "gpt-4o", provider: "openai" };
+    const collidingOpenAI: Model = {
+      ...OPENAI_MODEL,
+      id: "gpt-4o",
+      provider: "openai",
+    };
     const collidingOpenRouter: Model = {
       id: "gpt-4o",
       name: "gpt-4o",
@@ -781,7 +887,9 @@ describe("set-selected-model stores the canonical ref, never the raw input", () 
       enabledProviders: ["openrouter"],
     });
 
-    const result = (await invoke("set-selected-model", "gpt-4o")) as { success: boolean };
+    const result = (await invoke("set-selected-model", "gpt-4o")) as {
+      success: boolean;
+    };
 
     expect(result.success).toBe(false);
     expect(updateProfileSettingMock).not.toHaveBeenCalled();
@@ -790,11 +898,17 @@ describe("set-selected-model stores the canonical ref, never the raw input", () 
   it("trims surrounding whitespace before resolving", async () => {
     seedProfile({ models: [OPENAI_MODEL], enabledProviders: ["openai"] });
 
-    const result = (await invoke("set-selected-model", "  openai::gpt-4o  ")) as {
+    const result = (await invoke(
+      "set-selected-model",
+      "  openai::gpt-4o  ",
+    )) as {
       success: boolean;
     };
 
     expect(result.success).toBe(true);
-    expect(updateProfileSettingMock).toHaveBeenCalledWith("selectedModel", "openai::gpt-4o");
+    expect(updateProfileSettingMock).toHaveBeenCalledWith(
+      "selectedModel",
+      "openai::gpt-4o",
+    );
   });
 });

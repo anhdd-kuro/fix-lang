@@ -9,7 +9,11 @@
  * is or ever was a live credential.
  */
 import { describe, expect, it } from "vitest";
-import { isFullyMaskable, scanForSecrets, type SecretMatch } from "./detectSecrets";
+import {
+  isFullyMaskable,
+  scanForSecrets,
+  type SecretMatch,
+} from "./detectSecrets";
 import {
   CREDENTIAL_NAME_SEGMENTS,
   MAX_CREDENTIAL_VALUE_LENGTH,
@@ -24,15 +28,22 @@ import {
  * literals; every value below is fabricated, but the scanner cannot know that.
  * The joined value is byte-identical to what it replaced.
  */
-const credentialFixture = (...parts: readonly string[]): string => parts.join("");
+const credentialFixture = (...parts: readonly string[]): string =>
+  parts.join("");
 
 const AWS_DOC_ACCESS_KEY_ID = credentialFixture("AKIA", "IOSFODNN7EXAMPLE");
 const AWS_DOC_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
 const JWT_IO_CANONICAL =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
 const RFC7617_BASIC = "QWxhZGRpbjpvcGVuIHNlc2FtZQ==";
-const GITHUB_DOC_PAT = credentialFixture("ghp_", "16C7e42F292c6912E7710c838347Ae178B4a");
-const STRIPE_DOC_TEST_KEY = credentialFixture("sk_test_", "4eC39HqLyjWDarjtT1zdp7dc");
+const GITHUB_DOC_PAT = credentialFixture(
+  "ghp_",
+  "16C7e42F292c6912E7710c838347Ae178B4a",
+);
+const STRIPE_DOC_TEST_KEY = credentialFixture(
+  "sk_test_",
+  "4eC39HqLyjWDarjtT1zdp7dc",
+);
 const STRIPE_DOC_PUBLISHABLE_KEY = "pk_live_TYooMQauvdEDq54NiTphI7jx";
 
 const ANTHROPIC_API03_KEY = credentialFixture(
@@ -43,7 +54,10 @@ const ANTHROPIC_API03_KEY_PROSE = credentialFixture(
   "sk-ant-api03-",
   "anotherEXAMPLEfakevalue0123456789abcd",
 );
-const ANTHROPIC_API03_TOO_SHORT = credentialFixture("sk-ant-api03-", "tooshort");
+const ANTHROPIC_API03_TOO_SHORT = credentialFixture(
+  "sk-ant-api03-",
+  "tooshort",
+);
 
 const OPENROUTER_V1_KEY = credentialFixture(
   "sk-or-v1-",
@@ -58,7 +72,10 @@ const OPENROUTER_V1_KEY_ASSIGNED = credentialFixture(
   "abcdefabcdefabcdefabcdefabcdefabcdef1234",
 );
 
-const GITHUB_OAUTH_TOKEN = credentialFixture("gho_", "16C7e42F292c6912E7710c838347Ae178B4a");
+const GITHUB_OAUTH_TOKEN = credentialFixture(
+  "gho_",
+  "16C7e42F292c6912E7710c838347Ae178B4a",
+);
 const GITHUB_PAT_TOO_SHORT = credentialFixture("ghp_", "shortvalue");
 
 const SLACK_BOT_TOKEN = credentialFixture(
@@ -70,30 +87,75 @@ const SLACK_USER_TOKEN = credentialFixture(
   "2401234567890-2401234567891-fakeUserTokenValue",
 );
 
-const GOOGLE_API_KEY_BROWSER = credentialFixture("AIza", "SyD_EXAMPLEfakegooglekey12345678901");
-const GOOGLE_API_KEY_PROSE = credentialFixture("AIza", "SyB-EXAMPLEfakegooglekey09876543210");
-const GOOGLE_API_KEY_QUERY = credentialFixture("AIza", "SyC_EXAMPLEfakegooglekeyABCDEFGHIJ0");
-const GOOGLE_API_KEY_TRUNCATED = credentialFixture("AIza", "SyD_EXAMPLEfakegooglekey1234567890");
+const GOOGLE_API_KEY_BROWSER = credentialFixture(
+  "AIza",
+  "SyD_EXAMPLEfakegooglekey12345678901",
+);
+const GOOGLE_API_KEY_PROSE = credentialFixture(
+  "AIza",
+  "SyB-EXAMPLEfakegooglekey09876543210",
+);
+const GOOGLE_API_KEY_QUERY = credentialFixture(
+  "AIza",
+  "SyC_EXAMPLEfakegooglekeyABCDEFGHIJ0",
+);
+const GOOGLE_API_KEY_TRUNCATED = credentialFixture(
+  "AIza",
+  "SyD_EXAMPLEfakegooglekey1234567890",
+);
 
 const GITLAB_PAT = credentialFixture("glpat-", "EXAMPLEfakeToken1234");
-const GITLAB_PAT_PROSE = credentialFixture("glpat-", "EXAMPLEfakeSecondToken99");
-const GITLAB_PAT_UNDERSCORES = credentialFixture("glpat-", "EXAMPLE_fake_third_token_1");
+const GITLAB_PAT_PROSE = credentialFixture(
+  "glpat-",
+  "EXAMPLEfakeSecondToken99",
+);
+const GITLAB_PAT_UNDERSCORES = credentialFixture(
+  "glpat-",
+  "EXAMPLE_fake_third_token_1",
+);
 
-const STRIPE_LIVE_SECRET_KEY = credentialFixture("sk_live_", "EXAMPLEfake1234567890");
-const STRIPE_RESTRICTED_KEY = credentialFixture("rk_live_", "EXAMPLEfake1234567890");
+const STRIPE_LIVE_SECRET_KEY = credentialFixture(
+  "sk_live_",
+  "EXAMPLEfake1234567890",
+);
+const STRIPE_RESTRICTED_KEY = credentialFixture(
+  "rk_live_",
+  "EXAMPLEfake1234567890",
+);
 
-const NPM_CLASSIC_TOKEN = credentialFixture("npm_", "EXAMPLEfakeNpmToken1234567890abcdefg");
-const NPM_TOKEN_NPMRC = credentialFixture("npm_", "ANOTHERfakeNpmToken1234567890abcde00");
-const NPM_TOKEN_PROSE = credentialFixture("npm_", "THIRDfakeNpmTokenValue1234567890abcd");
+const NPM_CLASSIC_TOKEN = credentialFixture(
+  "npm_",
+  "EXAMPLEfakeNpmToken1234567890abcdefg",
+);
+const NPM_TOKEN_NPMRC = credentialFixture(
+  "npm_",
+  "ANOTHERfakeNpmToken1234567890abcde00",
+);
+const NPM_TOKEN_PROSE = credentialFixture(
+  "npm_",
+  "THIRDfakeNpmTokenValue1234567890abcd",
+);
 const NPM_TOKEN_TOO_SHORT = credentialFixture("npm_", "shorttoken");
-const NPM_CONFIG_REGISTRY_LOOKALIKE = credentialFixture("npm_", "config_registry");
+const NPM_CONFIG_REGISTRY_LOOKALIKE = credentialFixture(
+  "npm_",
+  "config_registry",
+);
 
-const SHOPIFY_ADMIN_TOKEN = credentialFixture("shpat_", "0123456789abcdef0123456789abcdef");
+const SHOPIFY_ADMIN_TOKEN = credentialFixture(
+  "shpat_",
+  "0123456789abcdef0123456789abcdef",
+);
 const SHOPIFY_TOKEN_TOO_SHORT = credentialFixture("shpat_", "notlongenough");
 
-const DIGITALOCEAN_TOKEN_TOO_SHORT = credentialFixture("dop_v1_", "0123456789abcdef");
+const DIGITALOCEAN_TOKEN_TOO_SHORT = credentialFixture(
+  "dop_v1_",
+  "0123456789abcdef",
+);
 
-const AWS_ACCESS_KEY_TOO_LONG = credentialFixture("AKIA", "IOSFODNN7EXAMPLETOOLONGTOBEANID");
+const AWS_ACCESS_KEY_TOO_LONG = credentialFixture(
+  "AKIA",
+  "IOSFODNN7EXAMPLETOOLONGTOBEANID",
+);
 
 const PEM_BODY = [
   "MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu",
@@ -153,7 +215,8 @@ const POSITIVES: readonly PositiveCase[] = [
   },
   {
     ruleId: "private-key-block",
-    description: "a terminated PGP block, the shape `gpg --export-secret-keys --armor` writes",
+    description:
+      "a terminated PGP block, the shape `gpg --export-secret-keys --armor` writes",
     text: `here it is\n${PGP_PRIVATE_KEY_BLOCK}\nrotate it`,
     secret: PGP_PRIVATE_KEY_BLOCK,
   },
@@ -177,7 +240,8 @@ const POSITIVES: readonly PositiveCase[] = [
   },
   {
     ruleId: "url-credentials",
-    description: "a DSN password containing @, the default symbol set of every password manager",
+    description:
+      "a DSN password containing @, the default symbol set of every password manager",
     text: "mongodb+srv://admin:P@ss123@cluster0.abc.mongodb.net/test",
     secret: "P@ss123",
   },
@@ -220,8 +284,14 @@ const POSITIVES: readonly PositiveCase[] = [
   {
     ruleId: "anthropic-key",
     description: "an admin key",
-    text: credentialFixture("sk-ant-", "admin01-EXAMPLEfakeadminkeymaterial0123456789ab"),
-    secret: credentialFixture("sk-ant-", "admin01-EXAMPLEfakeadminkeymaterial0123456789ab"),
+    text: credentialFixture(
+      "sk-ant-",
+      "admin01-EXAMPLEfakeadminkeymaterial0123456789ab",
+    ),
+    secret: credentialFixture(
+      "sk-ant-",
+      "admin01-EXAMPLEfakeadminkeymaterial0123456789ab",
+    ),
   },
   {
     ruleId: "anthropic-key",
@@ -400,7 +470,10 @@ const POSITIVES: readonly PositiveCase[] = [
   {
     ruleId: "shopify-token",
     description: "a custom app token",
-    text: credentialFixture("header X-Shopify-Access-Token shpca", "_fedcba9876543210fedcba9876543210"),
+    text: credentialFixture(
+      "header X-Shopify-Access-Token shpca",
+      "_fedcba9876543210fedcba9876543210",
+    ),
     secret: credentialFixture("shpca", "_fedcba9876543210fedcba9876543210"),
   },
   {
@@ -503,13 +576,15 @@ const POSITIVES: readonly PositiveCase[] = [
   },
   {
     ruleId: "credential-assignment",
-    description: "a key in a query string, after a candidate the accept stage rejects",
+    description:
+      "a key in a query string, after a candidate the accept stage rejects",
     text: "https://api.example.com/v1/items?x=1&api_key=s3cr3tV4lu3XYZ",
     secret: "s3cr3tV4lu3XYZ",
   },
   {
     ruleId: "credential-assignment",
-    description: "a password in a url query string that starts with a rejected name",
+    description:
+      "a password in a url query string that starts with a rejected name",
     text: "url=https://a.example.com/cb?password=Hunter2Winter",
     secret: "Hunter2Winter",
   },
@@ -590,7 +665,10 @@ const NEGATIVES: readonly NegativeCase[] = [
   {
     ruleId: "openrouter-key",
     description: "a v2 prefix that does not exist",
-    text: credentialFixture("sk-or-", "v2-0123456789abcdef0123456789abcdef0123456789abcdef"),
+    text: credentialFixture(
+      "sk-or-",
+      "v2-0123456789abcdef0123456789abcdef0123456789abcdef",
+    ),
   },
   {
     ruleId: "openrouter-key",
@@ -635,7 +713,10 @@ const NEGATIVES: readonly NegativeCase[] = [
   {
     ruleId: "slack-token",
     description: "a missing type letter",
-    text: credentialFixture("xox", "-2401234567890-2401234567891-fakeSlackTokenValue"),
+    text: credentialFixture(
+      "xox",
+      "-2401234567890-2401234567891-fakeSlackTokenValue",
+    ),
   },
   {
     ruleId: "slack-token",
@@ -664,7 +745,8 @@ const NEGATIVES: readonly NegativeCase[] = [
   },
   {
     ruleId: "stripe-secret-key",
-    description: "Stripe's publishable live key, which is designed to ship in client JS",
+    description:
+      "Stripe's publishable live key, which is designed to ship in client JS",
     text: STRIPE_DOC_PUBLISHABLE_KEY,
   },
   {
@@ -803,36 +885,62 @@ const spanReportsSecret = (span: string, secret: string): boolean =>
 
 describe("scanForSecrets", () => {
   describe("positives", () => {
-    it.each(POSITIVES)("$ruleId — $description", ({ ruleId, text, secret, options }) => {
-      const result = scanForSecrets(text, options);
-      expect(result.ruleIds).toContain(ruleId);
-      const spans = result.matches.map((match) => text.slice(match.start, match.end));
-      expect(spans.some((span) => spanReportsSecret(span, secret))).toBe(true);
-    });
+    it.each(POSITIVES)(
+      "$ruleId — $description",
+      ({ ruleId, text, secret, options }) => {
+        const result = scanForSecrets(text, options);
+        expect(result.ruleIds).toContain(ruleId);
+        const spans = result.matches.map((match) =>
+          text.slice(match.start, match.end),
+        );
+        expect(spans.some((span) => spanReportsSecret(span, secret))).toBe(
+          true,
+        );
+      },
+    );
   });
 
   describe("negatives", () => {
-    it.each(NEGATIVES)("$ruleId — $description", ({ ruleId, text, options }) => {
-      const result = scanForSecrets(text, options);
-      expect(result.ruleIds).not.toContain(ruleId);
-    });
+    it.each(NEGATIVES)(
+      "$ruleId — $description",
+      ({ ruleId, text, options }) => {
+        const result = scanForSecrets(text, options);
+        expect(result.ruleIds).not.toContain(ruleId);
+      },
+    );
   });
 
   describe("every rule carries its own evidence", () => {
-    it.each(SECRET_RULES.map((rule) => rule.id))("%s has 3+ positives and 2+ negatives", (id) => {
-      expect(POSITIVES.filter((entry) => entry.ruleId === id).length).toBeGreaterThanOrEqual(3);
-      expect(NEGATIVES.filter((entry) => entry.ruleId === id).length).toBeGreaterThanOrEqual(2);
-    });
+    it.each(SECRET_RULES.map((rule) => rule.id))(
+      "%s has 3+ positives and 2+ negatives",
+      (id) => {
+        expect(
+          POSITIVES.filter((entry) => entry.ruleId === id).length,
+        ).toBeGreaterThanOrEqual(3);
+        expect(
+          NEGATIVES.filter((entry) => entry.ruleId === id).length,
+        ).toBeGreaterThanOrEqual(2);
+      },
+    );
   });
 
   describe("the pinned must-not-match strings", () => {
-    it.each(MUST_NOT_MATCH)("%s yields nothing with the opt-in rule off", (text) => {
-      expect(scanForSecrets(text)).toEqual({ matches: [], ruleIds: [] });
-    });
+    it.each(MUST_NOT_MATCH)(
+      "%s yields nothing with the opt-in rule off",
+      (text) => {
+        expect(scanForSecrets(text)).toEqual({ matches: [], ruleIds: [] });
+      },
+    );
 
-    it.each(MUST_NOT_MATCH)("%s yields nothing with the opt-in rule on", (text) => {
-      expect(scanForSecrets(text, { highEntropyRule: true })).toEqual({ matches: [], ruleIds: [] });
-    });
+    it.each(MUST_NOT_MATCH)(
+      "%s yields nothing with the opt-in rule on",
+      (text) => {
+        expect(scanForSecrets(text, { highEntropyRule: true })).toEqual({
+          matches: [],
+          ruleIds: [],
+        });
+      },
+    );
   });
 
   // The normal case when a user selects half a file. Without the second
@@ -843,20 +951,26 @@ describe("scanForSecrets", () => {
     const result = scanForSecrets(text);
     expect(result.ruleIds).toContain("private-key-block");
     expect(result.matches).toHaveLength(1);
-    expect(text.slice(result.matches[0].start, result.matches[0].end)).toBe(text);
+    expect(text.slice(result.matches[0].start, result.matches[0].end)).toBe(
+      text,
+    );
   });
 
   it("matches an unterminated PGP private key block to the end of the text", () => {
     const text = `-----BEGIN PGP PRIVATE KEY BLOCK-----\n\n${PGP_BODY}`;
     const result = scanForSecrets(text);
     expect(result.ruleIds).toContain("private-key-block");
-    expect(text.slice(result.matches[0].start, result.matches[0].end)).toBe(text);
+    expect(text.slice(result.matches[0].start, result.matches[0].end)).toBe(
+      text,
+    );
   });
 
   it("prefers the terminated block when one is present", () => {
     const text = `${pemBlock("RSA")}\ntrailing prose that must survive`;
     const result = scanForSecrets(text);
-    expect(text.slice(result.matches[0].start, result.matches[0].end)).toBe(pemBlock("RSA"));
+    expect(text.slice(result.matches[0].start, result.matches[0].end)).toBe(
+      pemBlock("RSA"),
+    );
   });
 
   it("names a rule whose span was absorbed into a higher-priority span", () => {
@@ -881,7 +995,9 @@ describe("scanForSecrets", () => {
       const result = scanForSecrets(text);
       expect(result.ruleIds).toContain("credential-assignment");
       expect(result.matches).toHaveLength(1);
-      expect(text.slice(result.matches[0].start, result.matches[0].end)).toBe(LONG_VALUE);
+      expect(text.slice(result.matches[0].start, result.matches[0].end)).toBe(
+        LONG_VALUE,
+      );
     });
 
     /**
@@ -893,7 +1009,10 @@ describe("scanForSecrets", () => {
       const value = `${"a1B2c3D4".repeat(24)}abcdefg\u{1F600}trailingSecretBits1234`;
       const text = `SESSION_TOKEN=${value} end`;
       const result = scanForSecrets(text);
-      const matched = text.slice(result.matches[0].start, result.matches[0].end);
+      const matched = text.slice(
+        result.matches[0].start,
+        result.matches[0].end,
+      );
       expect(matched).toBe(value);
       expect(matched).not.toMatch(
         /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/,
@@ -942,7 +1061,9 @@ describe("scanForSecrets", () => {
     const FRAGMENTS: readonly string[] = [
       ...CREDENTIAL_NAME_SEGMENTS,
       ...[...CREDENTIAL_NAME_SEGMENTS].map((word) => word.toUpperCase()),
-      ...[...CREDENTIAL_NAME_SEGMENTS].map((word) => `${word[0].toUpperCase()}${word.slice(1)}`),
+      ...[...CREDENTIAL_NAME_SEGMENTS].map(
+        (word) => `${word[0].toUpperCase()}${word.slice(1)}`,
+      ),
       "monkey",
       "donkey",
       "turkey",
@@ -987,7 +1108,9 @@ describe("scanForSecrets", () => {
 
     it("generates a corpus large enough to be evidence", () => {
       expect(NAMES.length).toBeGreaterThan(5_000);
-      expect(NAMES.filter((name) => isCredentialName(name)).length).toBeGreaterThan(1_000);
+      expect(
+        NAMES.filter((name) => isCredentialName(name)).length,
+      ).toBeGreaterThan(1_000);
     });
 
     /**
@@ -999,9 +1122,14 @@ describe("scanForSecrets", () => {
      * place the gate answers on its own.
      */
     const patternAccepts = (name: string): boolean => {
-      const rule = SECRET_RULES.find((candidate) => candidate.id === "credential-assignment");
-      if (rule === undefined) throw new Error("credential-assignment rule is missing");
-      return new RegExp(rule.pattern.source, rule.pattern.flags).test(`${name}=Hunter2Winter`);
+      const rule = SECRET_RULES.find(
+        (candidate) => candidate.id === "credential-assignment",
+      );
+      if (rule === undefined)
+        throw new Error("credential-assignment rule is missing");
+      return new RegExp(rule.pattern.source, rule.pattern.flags).test(
+        `${name}=Hunter2Winter`,
+      );
     };
 
     it("lets through exactly the names isCredentialName accepts", () => {
@@ -1009,9 +1137,13 @@ describe("scanForSecrets", () => {
       const invented: string[] = [];
       for (const name of NAMES) {
         if (isCredentialName(name) && !patternAccepts(name)) missed.push(name);
-        if (!isCredentialName(name) && patternAccepts(name)) invented.push(name);
+        if (!isCredentialName(name) && patternAccepts(name))
+          invented.push(name);
       }
-      expect({ missed: missed.slice(0, 10), invented: invented.slice(0, 10) }).toEqual({
+      expect({
+        missed: missed.slice(0, 10),
+        invented: invented.slice(0, 10),
+      }).toEqual({
         missed: [],
         invented: [],
       });
@@ -1021,7 +1153,9 @@ describe("scanForSecrets", () => {
       const missed = NAMES.filter(
         (name) =>
           isCredentialName(name) &&
-          !scanForSecrets(`${name}=Hunter2Winter`).ruleIds.includes("credential-assignment"),
+          !scanForSecrets(`${name}=Hunter2Winter`).ruleIds.includes(
+            "credential-assignment",
+          ),
       );
       expect(missed.slice(0, 10)).toEqual([]);
     });
@@ -1029,12 +1163,16 @@ describe("scanForSecrets", () => {
     it.each([...CREDENTIAL_NAME_SEGMENTS])(
       "still matches an assignment whose name is the credential word %s",
       (segment) => {
-        for (const name of [segment, segment.toUpperCase(), `app_${segment}_1`]) {
+        for (const name of [
+          segment,
+          segment.toUpperCase(),
+          `app_${segment}_1`,
+        ]) {
           const text = `${name}=Hunter2Winter`;
           const result = scanForSecrets(text);
-          expect(result.matches.map((match) => text.slice(match.start, match.end))).toEqual([
-            "Hunter2Winter",
-          ]);
+          expect(
+            result.matches.map((match) => text.slice(match.start, match.end)),
+          ).toEqual(["Hunter2Winter"]);
         }
       },
     );
@@ -1052,8 +1190,9 @@ describe("scanForSecrets", () => {
     };
 
     it("scans a 542 000-character form-encoded body with no credential in it", () => {
-      const text = Array.from({ length: 26_000 }, (_unused, index) =>
-        `field${index}=value${index}abcd`,
+      const text = Array.from(
+        { length: 26_000 },
+        (_unused, index) => `field${index}=value${index}abcd`,
       ).join("&");
       expect(text.length).toBeGreaterThan(500_000);
       expect(scanMs(text)).toBeLessThan(BUDGET_MS);
@@ -1064,10 +1203,13 @@ describe("scanForSecrets", () => {
     });
 
     it("scans a 32 000-parameter url with zero credentials in it", () => {
-      const query = Array.from({ length: 32_000 }, (_unused, index) =>
-        `param${index}=value${index}`,
+      const query = Array.from(
+        { length: 32_000 },
+        (_unused, index) => `param${index}=value${index}`,
       ).join("&");
-      expect(scanMs(`https://example.com/search?${query}`)).toBeLessThan(BUDGET_MS);
+      expect(scanMs(`https://example.com/search?${query}`)).toBeLessThan(
+        BUDGET_MS,
+      );
     });
 
     /**
@@ -1083,7 +1225,14 @@ describe("scanForSecrets", () => {
      * semicolon in it — a pipe-joined dump — because the value has to be free to
      * run to the end of the text before the name is rejected.
      */
-    it.each(["apikey", "monkey", "secrets", "tokens", "credentials", "keyword"])(
+    it.each([
+      "apikey",
+      "monkey",
+      "secrets",
+      "tokens",
+      "credentials",
+      "keyword",
+    ])(
       "scans a 500 000-character pipe-joined run of `%s=` without going quadratic",
       (name) => {
         const text = Array.from(
@@ -1148,20 +1297,26 @@ describe("scanForSecrets", () => {
       const value = longValue(MAX_CREDENTIAL_VALUE_LENGTH - 1);
       const text = `SESSION_TOKEN=${value} end`;
       const result = scanForSecrets(text);
-      expect(result.matches.map((match) => text.slice(match.start, match.end))).toEqual([value]);
+      expect(
+        result.matches.map((match) => text.slice(match.start, match.end)),
+      ).toEqual([value]);
     });
 
     it("matches a value exactly at the maximum in full", () => {
       const value = longValue(MAX_CREDENTIAL_VALUE_LENGTH);
       const text = `SESSION_TOKEN=${value} end`;
       const result = scanForSecrets(text);
-      expect(result.matches.map((match) => text.slice(match.start, match.end))).toEqual([value]);
+      expect(
+        result.matches.map((match) => text.slice(match.start, match.end)),
+      ).toEqual([value]);
     });
 
     it("yields nothing at all for a value one character over the maximum", () => {
       const value = longValue(MAX_CREDENTIAL_VALUE_LENGTH + 1);
       const text = `SESSION_TOKEN=${value} end`;
-      expect(scanForSecrets(text).ruleIds).not.toContain("credential-assignment");
+      expect(scanForSecrets(text).ruleIds).not.toContain(
+        "credential-assignment",
+      );
     });
 
     /**
@@ -1199,7 +1354,9 @@ describe("scanForSecrets", () => {
 
       it("yields nothing for an astral value one code point over the maximum", () => {
         const text = `SESSION_TOKEN=${astralValue(MAX_CREDENTIAL_VALUE_LENGTH + 1)} end`;
-        expect(scanForSecrets(text).ruleIds).not.toContain("credential-assignment");
+        expect(scanForSecrets(text).ruleIds).not.toContain(
+          "credential-assignment",
+        );
       });
     });
   });
@@ -1281,18 +1438,25 @@ describe("scanForSecrets", () => {
       "db_password=Tr0ub4dor'Xyz=99",
       'api_key=s3cr3t"V4lu3=1',
     ])("%s yields nothing rather than a cut span", (text) => {
-      expect(scanForSecrets(text).ruleIds).not.toContain("credential-assignment");
+      expect(scanForSecrets(text).ruleIds).not.toContain(
+        "credential-assignment",
+      );
     });
 
     it.each([
       ['{"url": "https://x.example.io/a?password=abc123"}', "abc123"],
       ["{'url': 'https://x.example.io/a?password=abc123'}", "abc123"],
-      ['{"callback":"https://x.example.io/cb?api_key=s3cr3tV4lu3XYZ"}', "s3cr3tV4lu3XYZ"],
+      [
+        '{"callback":"https://x.example.io/cb?api_key=s3cr3tV4lu3XYZ"}',
+        "s3cr3tV4lu3XYZ",
+      ],
       ["`https://x.example.io/a?password=abc123`", "abc123"],
       ['<a href="https://x.example.io?password=abc123">', "abc123"],
     ])("%s still masks the credential inside it", (text, secret) => {
       const matches = scanForSecrets(text).matches;
-      expect(matches.map((match) => text.slice(match.start, match.end))).toContain(secret);
+      expect(
+        matches.map((match) => text.slice(match.start, match.end)),
+      ).toContain(secret);
     });
   });
 
@@ -1337,7 +1501,8 @@ describe("scanForSecrets", () => {
    * reading broke.
    */
   describe("no generated password is ever masked in part", () => {
-    const ALPHANUMERIC = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const ALPHANUMERIC =
+      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     /** 1Password and Bitwarden emit exactly this symbol set by default. */
     const PASSWORD_MANAGER_DEFAULT = `${ALPHANUMERIC}!@#$%^&*`;
     /** KeePass's "special characters" box is the whole printable ASCII punctuation set. */
@@ -1352,7 +1517,11 @@ describe("scanForSecrets", () => {
       };
     };
 
-    const generatePasswords = (alphabet: string, count: number, seed: number): string[] => {
+    const generatePasswords = (
+      alphabet: string,
+      count: number,
+      seed: number,
+    ): string[] => {
       const random = createRandom(seed);
       return Array.from({ length: count }, () => {
         const length = 10 + Math.floor(random() * 11);
@@ -1390,7 +1559,9 @@ describe("scanForSecrets", () => {
       }, 0);
 
     const CENSUS_SIZE = 12_000;
-    const CENSUS_SEEDS = [0x5eed_1234, 0x5eed_4321, 0x7a69, 0x0bad_c0de, 0x1337_beef];
+    const CENSUS_SEEDS = [
+      0x5eed_1234, 0x5eed_4321, 0x7a69, 0x0bad_c0de, 0x1337_beef,
+    ];
 
     const ALPHABETS: readonly [string, string][] = [
       ["alphanumeric", ALPHANUMERIC],
@@ -1410,7 +1581,10 @@ describe("scanForSecrets", () => {
       ["a single-quoted assignment", (password) => `password='${password}'`],
       ["a double-quoted assignment", (password) => `password="${password}"`],
       ["a markdown code span", (password) => `\`password=${password}\``],
-      ["a JSON string wrapper", (password) => `{"note": "password=${password}"}`],
+      [
+        "a JSON string wrapper",
+        (password) => `{"note": "password=${password}"}`,
+      ],
     ];
 
     const CENSUS = SHAPES.flatMap(([shape, buildText]) =>
@@ -1425,14 +1599,21 @@ describe("scanForSecrets", () => {
       ),
     );
 
-    it.each(CENSUS)("%s of %s passwords", (_shape, _alphabet, characters, buildText) => {
-      const partials = CENSUS_SEEDS.reduce(
-        (total, seed) =>
-          total + countPartialMasks(generatePasswords(characters, CENSUS_SIZE, seed), buildText),
-        0,
-      );
-      expect(partials).toBe(0);
-    });
+    it.each(CENSUS)(
+      "%s of %s passwords",
+      (_shape, _alphabet, characters, buildText) => {
+        const partials = CENSUS_SEEDS.reduce(
+          (total, seed) =>
+            total +
+            countPartialMasks(
+              generatePasswords(characters, CENSUS_SIZE, seed),
+              buildText,
+            ),
+          0,
+        );
+        expect(partials).toBe(0);
+      },
+    );
 
     /**
      * The one shape the census found that no rate makes reliable: a password
@@ -1531,7 +1712,13 @@ describe("scanForSecrets", () => {
       const text = "password=Correct Horse Battery";
       const match = firstMatch(text);
       expect(typeof match.maskable).toBe("boolean");
-      expect(Object.keys(match).sort()).toEqual(["end", "length", "maskable", "ruleId", "start"]);
+      expect(Object.keys(match).sort()).toEqual([
+        "end",
+        "length",
+        "maskable",
+        "ruleId",
+        "start",
+      ]);
     });
 
     it("reports an empty scan as fully maskable", () => {
@@ -1587,7 +1774,9 @@ describe("scanForSecrets", () => {
     it("contained branch, reversed sort order: a dropped true span cannot raise a kept false span", () => {
       const text = `aws_key=xyz-${AWS_DOC_ACCESS_KEY_ID} more`;
       const match = onlyMatch(text);
-      expect(text.slice(match.start, match.end)).toBe(`xyz-${AWS_DOC_ACCESS_KEY_ID}`);
+      expect(text.slice(match.start, match.end)).toBe(
+        `xyz-${AWS_DOC_ACCESS_KEY_ID}`,
+      );
       expect(match.maskable).toBe(false);
     });
 
@@ -1600,7 +1789,9 @@ describe("scanForSecrets", () => {
     it("extending branch: a span that grows past a true one still comes out false", () => {
       const text = `aws_key=${AWS_DOC_ACCESS_KEY_ID}:suffix more`;
       const match = onlyMatch(text);
-      expect(text.slice(match.start, match.end)).toBe(`${AWS_DOC_ACCESS_KEY_ID}:suffix`);
+      expect(text.slice(match.start, match.end)).toBe(
+        `${AWS_DOC_ACCESS_KEY_ID}:suffix`,
+      );
       expect(match.maskable).toBe(false);
     });
   });
@@ -1618,7 +1809,8 @@ describe("scanForSecrets", () => {
     ].join("\n");
 
     it("carries no matched text on a match", () => {
-      for (const match of scanForSecrets(busyText, { highEntropyRule: true }).matches) {
+      for (const match of scanForSecrets(busyText, { highEntropyRule: true })
+        .matches) {
         expect(Object.keys(match).sort()).toEqual([
           "end",
           "length",
@@ -1630,15 +1822,20 @@ describe("scanForSecrets", () => {
     });
 
     it("reports length as end minus start", () => {
-      for (const match of scanForSecrets(busyText, { highEntropyRule: true }).matches) {
+      for (const match of scanForSecrets(busyText, { highEntropyRule: true })
+        .matches) {
         expect(match.length).toBe(match.end - match.start);
       }
     });
 
     it("returns non-overlapping spans in ascending order", () => {
-      const matches = scanForSecrets(busyText, { highEntropyRule: true }).matches;
+      const matches = scanForSecrets(busyText, {
+        highEntropyRule: true,
+      }).matches;
       for (let index = 1; index < matches.length; index += 1) {
-        expect(matches[index].start).toBeGreaterThanOrEqual(matches[index - 1].end);
+        expect(matches[index].start).toBeGreaterThanOrEqual(
+          matches[index - 1].end,
+        );
       }
     });
 
@@ -1652,12 +1849,19 @@ describe("scanForSecrets", () => {
       const prose =
         "Could you please rewrite this paragraph so it sounds more confident? " +
         "The meeting is on Tuesday and I want to summarize the three decisions we made.";
-      expect(scanForSecrets(prose, { highEntropyRule: true })).toEqual({ matches: [], ruleIds: [] });
+      expect(scanForSecrets(prose, { highEntropyRule: true })).toEqual({
+        matches: [],
+        ruleIds: [],
+      });
     });
 
     it("finds nothing in Japanese prose", () => {
-      const prose = "この段落をもっと自然な日本語に直してください。会議は火曜日です。";
-      expect(scanForSecrets(prose, { highEntropyRule: true })).toEqual({ matches: [], ruleIds: [] });
+      const prose =
+        "この段落をもっと自然な日本語に直してください。会議は火曜日です。";
+      expect(scanForSecrets(prose, { highEntropyRule: true })).toEqual({
+        matches: [],
+        ruleIds: [],
+      });
     });
 
     it("returns nothing for empty text", () => {

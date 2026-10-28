@@ -5,7 +5,11 @@ import {
   resolvePresetOptionValue,
   withPresetOptions,
 } from "~/features/correction/shared/presetOptions";
-import { msg, messageLabel, type Message } from "~/features/i18n/shared/message";
+import {
+  msg,
+  messageLabel,
+  type Message,
+} from "~/features/i18n/shared/message";
 import {
   DEFAULT_ASK_PRESET_ID,
   DEFAULT_ASK_PRESET_PROMPT,
@@ -28,10 +32,7 @@ import { useI18n } from "../i18n/useI18n";
 import { splitHotkey } from "./about/userGuideView";
 import { Button } from "./Button";
 import { Checkbox } from "./Checkbox";
-import {
-  collectComboErrors,
-  hasBlockingComboErrors,
-} from "./comboEditorView";
+import { collectComboErrors, hasBlockingComboErrors } from "./comboEditorView";
 import { captureHotkey } from "./hotkeyCapture";
 import { Input, Textarea } from "./Input";
 import { ModelSelect } from "./ModelSelect";
@@ -291,7 +292,6 @@ export const SettingCorrection: React.FC = () => {
     [combos, correctionSettings.presets],
   );
 
-
   const loadSettings = async () => {
     try {
       setIsLoading(true);
@@ -455,7 +455,6 @@ export const SettingCorrection: React.FC = () => {
     setStatus(null);
     setStatusIsError(false);
   };
-
 
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

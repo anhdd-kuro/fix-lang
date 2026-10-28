@@ -10,8 +10,14 @@
  * importing them from this module.
  */
 import { resolveLmStudioEndpoint } from "~/features/providers/shared/lmstudioEndpoint";
-import { parseModelRef, resolveModelRef } from "~/features/providers/shared/modelRef";
-import { describeKeyShape, findKeyShapeMismatch } from "~/features/providers/shared/providerKeyShapes";
+import {
+  parseModelRef,
+  resolveModelRef,
+} from "~/features/providers/shared/modelRef";
+import {
+  describeKeyShape,
+  findKeyShapeMismatch,
+} from "~/features/providers/shared/providerKeyShapes";
 import {
   modelsForProvider,
   PROVIDER_ORDER,
@@ -51,13 +57,19 @@ const isCachedForProvider = isModelForProvider;
 const getStoredModels = (): Model[] =>
   getProfileSetting("models") || (apiStore.get("models") as Model[]) || [];
 
-const cacheModelsForProvider = (provider: ProviderId, models: Model[]): void => {
+const cacheModelsForProvider = (
+  provider: ProviderId,
+  models: Model[],
+): void => {
   const retained = getStoredModels().filter(
     (model) => !isCachedForProvider(model, provider),
   );
   updateProfileSetting("models", [
     ...retained,
-    ...models.map((model) => ({ ...model, provider: model.provider ?? provider })),
+    ...models.map((model) => ({
+      ...model,
+      provider: model.provider ?? provider,
+    })),
   ]);
 };
 
@@ -128,7 +140,12 @@ const withoutKeyEcho = (text: string, apiKey: string): string => {
 const logModelFetch = (
   provider: ProviderId,
   apiKey: string,
-  outcome: { ok: boolean; liveFetch?: boolean; modelCount?: number; error?: string },
+  outcome: {
+    ok: boolean;
+    liveFetch?: boolean;
+    modelCount?: number;
+    error?: string;
+  },
 ): void => {
   const context = {
     provider,
@@ -137,8 +154,12 @@ const logModelFetch = (
     ...(apiKey.trim() && findKeyShapeMismatch(provider, "api", apiKey)
       ? { keyBelongsToAnotherProvider: true }
       : {}),
-    ...(outcome.liveFetch !== undefined ? { liveFetch: outcome.liveFetch } : {}),
-    ...(outcome.modelCount !== undefined ? { modelCount: outcome.modelCount } : {}),
+    ...(outcome.liveFetch !== undefined
+      ? { liveFetch: outcome.liveFetch }
+      : {}),
+    ...(outcome.modelCount !== undefined
+      ? { modelCount: outcome.modelCount }
+      : {}),
     // Two passes before this text is persisted: the exact key is removed here,
     // and `redactLogMessage` strips masked echoes and any other `sk-…` form.
     ...(outcome.error !== undefined
@@ -244,7 +265,9 @@ export const fetchAvailableModels = async (
  */
 export const getCachedModels = (provider?: ProviderId): Model[] => {
   const models = getStoredModels();
-  return provider ? models.filter((model) => isCachedForProvider(model, provider)) : models;
+  return provider
+    ? models.filter((model) => isCachedForProvider(model, provider))
+    : models;
 };
 
 const readFreshDisplayCache = (provider: ProviderId): Model[] | null => {
@@ -306,9 +329,14 @@ export const fetchModelsForProviders = async (
   providers: readonly ProviderId[],
   keys: Partial<Record<ProviderId, string>>,
   refetch: boolean,
-): Promise<{ models: Model[]; errors: Partial<Record<ProviderId, string>> }> => {
+): Promise<{
+  models: Model[];
+  errors: Partial<Record<ProviderId, string>>;
+}> => {
   const previousModels = getStoredModels();
-  const requested = PROVIDER_ORDER.filter((provider) => providers.includes(provider));
+  const requested = PROVIDER_ORDER.filter((provider) =>
+    providers.includes(provider),
+  );
 
   const settled = await Promise.allSettled(
     requested.map(async (provider): Promise<ProviderFetch> => {
@@ -353,7 +381,8 @@ export const fetchModelsForProviders = async (
   const emitted = new Set<Model>();
   for (const provider of PROVIDER_ORDER) {
     const slice =
-      fetchedByProvider.get(provider) ?? modelsForProvider(previousModels, provider);
+      fetchedByProvider.get(provider) ??
+      modelsForProvider(previousModels, provider);
     for (const model of slice) {
       // A legacy untagged entry matches two provider groups; emit it once.
       if (emitted.has(model)) continue;
@@ -391,7 +420,9 @@ export const isLocalModelId = (
   return models.some(
     (m) =>
       m.id === servedId &&
-      (m.local !== undefined || m.provider === "ollama" || m.provider === "lmstudio"),
+      (m.local !== undefined ||
+        m.provider === "ollama" ||
+        m.provider === "lmstudio"),
   );
 };
 

@@ -28,7 +28,11 @@ export class LocalizedError extends Error {
   readonly messageKey: TKey;
   readonly messageParams?: TranslateParams;
 
-  constructor(devMessage: string, messageKey: TKey, messageParams?: TranslateParams) {
+  constructor(
+    devMessage: string,
+    messageKey: TKey,
+    messageParams?: TranslateParams,
+  ) {
     super(devMessage);
     this.name = "LocalizedError";
     this.messageKey = messageKey;
@@ -101,7 +105,11 @@ export const notifyRequestError = (
 export const isAbortError = (error: unknown): boolean => {
   const seen = new Set<unknown>();
   let current = error;
-  while (current !== null && typeof current === "object" && !seen.has(current)) {
+  while (
+    current !== null &&
+    typeof current === "object" &&
+    !seen.has(current)
+  ) {
     seen.add(current);
     const { name } = current as { name?: unknown };
     if (name === "AbortError" || name === "TimeoutError") {

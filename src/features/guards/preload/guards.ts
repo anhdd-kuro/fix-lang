@@ -27,7 +27,11 @@ import {
   isSecurityStats,
   isSecurityStatsRange,
 } from "~/features/guards/shared/securityStats";
-import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/message";
+import {
+  messageLabel,
+  textLabel,
+  type Label,
+} from "~/features/i18n/shared/message";
 import { asLabel } from "~/features/settings/preload/ipcLabel";
 import type { AppBundleIdsResult } from "~/features/guards/shared/appBundleIds";
 import type { SelectionGuardSettings } from "~/features/guards/shared/guardSettings";
@@ -153,15 +157,22 @@ export const selectionGuardsFeature = {
    * for existence) in main — this boundary cannot trust its own caller's
    * TypeScript types at runtime, and main cannot trust this boundary.
    */
-  resolveAppBundleIds: async (paths: readonly string[]): Promise<AppBundleIdsResult> => {
+  resolveAppBundleIds: async (
+    paths: readonly string[],
+  ): Promise<AppBundleIdsResult> => {
     if (
       !Array.isArray(paths) ||
       paths.length > MAX_APP_BUNDLE_PATHS ||
       !paths.every(hasAppBundlePathShape)
     ) {
-      return { success: false, error: messageLabel("security.deniedApps.dropInvalid") };
+      return {
+        success: false,
+        error: messageLabel("security.deniedApps.dropInvalid"),
+      };
     }
-    const result: unknown = await ipcRenderer.invoke("resolve-app-bundle-ids", [...paths]);
+    const result: unknown = await ipcRenderer.invoke("resolve-app-bundle-ids", [
+      ...paths,
+    ]);
     return isAppBundleIdsResult(result)
       ? result
       : { success: false, error: textLabel("Malformed app bundle ids reply") };
@@ -180,11 +191,16 @@ export const selectionGuardsFeature = {
    * an all-zero roll-up reads as "no guard ever fired", which is a different
    * claim from "the numbers could not be read".
    */
-  getSecurityStats: async (range: SecurityStatsRange): Promise<SecurityStats> => {
+  getSecurityStats: async (
+    range: SecurityStatsRange,
+  ): Promise<SecurityStats> => {
     if (!isSecurityStatsRange(range)) {
       throw new Error("Malformed security stats range");
     }
-    const result: unknown = await ipcRenderer.invoke("get-security-stats", range);
+    const result: unknown = await ipcRenderer.invoke(
+      "get-security-stats",
+      range,
+    );
     if (!isSecurityStats(result)) {
       throw new Error("Malformed security stats reply");
     }

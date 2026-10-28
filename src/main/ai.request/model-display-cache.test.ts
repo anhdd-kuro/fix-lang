@@ -69,9 +69,14 @@ vi.mock("~/main/llm/models/discover", () => ({
   getLocalModels: vi.fn().mockResolvedValue([]),
 }));
 vi.mock("~/main/llm/providers/ollama/client", () => ({
-  createOllamaClient: () => ({ chat: vi.fn() }), ollamaClient: { chat: vi.fn() },
+  createOllamaClient: () => ({ chat: vi.fn() }),
+  ollamaClient: { chat: vi.fn() },
 }));
-import type { Model, Profile, SettingsStore } from "~/features/providers/store/apiStore";
+import type {
+  Model,
+  Profile,
+  SettingsStore,
+} from "~/features/providers/store/apiStore";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -180,7 +185,8 @@ describe("fetchModelsForDisplay — cache-first display path", () => {
   });
 
   it("performs a provider call once the TTL has expired", async () => {
-    const { fetchModelsForDisplay, MODEL_DISPLAY_CACHE_TTL_MS } = await loadFresh([]);
+    const { fetchModelsForDisplay, MODEL_DISPLAY_CACHE_TTL_MS } =
+      await loadFresh([]);
 
     await fetchModelsForDisplay("key", "openai");
     expect(openAIModelsListMock).toHaveBeenCalledTimes(1);

@@ -30,7 +30,9 @@ export const listDayFoldersNewestFirst = async (
   try {
     const names = await readdir(logsDirectory, { withFileTypes: true });
     return names
-      .filter((entry) => entry.isDirectory() && DAY_FOLDER_PATTERN.test(entry.name))
+      .filter(
+        (entry) => entry.isDirectory() && DAY_FOLDER_PATTERN.test(entry.name),
+      )
       .map((entry) => entry.name)
       .sort((left, right) => right.localeCompare(left));
   } catch {
@@ -137,7 +139,8 @@ export const queryPersistedLogs = async (
     }
   }
 
-  const oldest = collected.length > 0 ? collected[collected.length - 1] : undefined;
+  const oldest =
+    collected.length > 0 ? collected[collected.length - 1] : undefined;
   return {
     entries: collected,
     nextCursor: oldest !== undefined ? oldest.timestamp : null,

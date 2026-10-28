@@ -24,7 +24,10 @@ const loggerMock = vi.hoisted(() => ({
 
 vi.mock("~/main/logging/logService", () => ({ logger: loggerMock }));
 
-const appOf = (name: string, bundleId: string | null = `com.example.${name.toLowerCase()}`): ActiveApp => ({
+const appOf = (
+  name: string,
+  bundleId: string | null = `com.example.${name.toLowerCase()}`,
+): ActiveApp => ({
   name,
   bundleId,
 });
@@ -45,7 +48,8 @@ describe("recentActiveApps", () => {
   });
 
   it("records an app and returns it most-recent-first", async () => {
-    const { recordActiveApp, getRecentActiveApps } = await import("./recentActiveApps");
+    const { recordActiveApp, getRecentActiveApps } =
+      await import("./recentActiveApps");
 
     recordActiveApp(appOf("Slack"));
     recordActiveApp(appOf("Notes"));
@@ -54,7 +58,8 @@ describe("recentActiveApps", () => {
   });
 
   it("moves a repeat sighting to the front instead of duplicating it", async () => {
-    const { recordActiveApp, getRecentActiveApps } = await import("./recentActiveApps");
+    const { recordActiveApp, getRecentActiveApps } =
+      await import("./recentActiveApps");
 
     recordActiveApp(appOf("Slack"));
     recordActiveApp(appOf("Notes"));
@@ -64,9 +69,8 @@ describe("recentActiveApps", () => {
   });
 
   it("is bounded to RECENT_ACTIVE_APPS_MAX (12), dropping the oldest entry", async () => {
-    const { recordActiveApp, getRecentActiveApps, RECENT_ACTIVE_APPS_MAX } = await import(
-      "./recentActiveApps"
-    );
+    const { recordActiveApp, getRecentActiveApps, RECENT_ACTIVE_APPS_MAX } =
+      await import("./recentActiveApps");
     expect(RECENT_ACTIVE_APPS_MAX).toBe(12);
 
     for (let i = 0; i < RECENT_ACTIVE_APPS_MAX + 3; i++) {
@@ -82,18 +86,26 @@ describe("recentActiveApps", () => {
   });
 
   it("dedupes by bundleId even when the reported name changed", async () => {
-    const { recordActiveApp, getRecentActiveApps } = await import("./recentActiveApps");
+    const { recordActiveApp, getRecentActiveApps } =
+      await import("./recentActiveApps");
 
     recordActiveApp({ name: "Slack", bundleId: "com.tinyspeck.slackmacgap" });
-    recordActiveApp({ name: "Slack (renamed)", bundleId: "com.tinyspeck.slackmacgap" });
+    recordActiveApp({
+      name: "Slack (renamed)",
+      bundleId: "com.tinyspeck.slackmacgap",
+    });
 
     const recent = getRecentActiveApps();
     expect(recent).toHaveLength(1);
-    expect(recent[0]).toEqual({ name: "Slack (renamed)", bundleId: "com.tinyspeck.slackmacgap" });
+    expect(recent[0]).toEqual({
+      name: "Slack (renamed)",
+      bundleId: "com.tinyspeck.slackmacgap",
+    });
   });
 
   it("falls back to matching by name when bundleId is null", async () => {
-    const { recordActiveApp, getRecentActiveApps } = await import("./recentActiveApps");
+    const { recordActiveApp, getRecentActiveApps } =
+      await import("./recentActiveApps");
 
     recordActiveApp({ name: "Terminal", bundleId: null });
     recordActiveApp({ name: "Terminal", bundleId: null });
@@ -102,7 +114,8 @@ describe("recentActiveApps", () => {
   });
 
   it("exposes the current list as a read-only snapshot, not a live reference", async () => {
-    const { recordActiveApp, getRecentActiveApps } = await import("./recentActiveApps");
+    const { recordActiveApp, getRecentActiveApps } =
+      await import("./recentActiveApps");
 
     recordActiveApp(appOf("Slack"));
     const first = getRecentActiveApps();
@@ -132,7 +145,12 @@ describe("recentActiveApps", () => {
   });
 
   it("never writes to disk — no fs, electron-store, or userData import in source", () => {
-    const source = readFileSync(path.join(__dirname, "recentActiveApps.ts"), "utf8");
-    expect(source).not.toMatch(/from ["']node:fs|from ["']fs["']|electron-store|getPath/);
+    const source = readFileSync(
+      path.join(__dirname, "recentActiveApps.ts"),
+      "utf8",
+    );
+    expect(source).not.toMatch(
+      /from ["']node:fs|from ["']fs["']|electron-store|getPath/,
+    );
   });
 });

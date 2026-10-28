@@ -6,7 +6,10 @@
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { alacrittyToTmTheme, parseAlacrittyToml } from "../src/themes/alacrittyToTmTheme";
+import {
+  alacrittyToTmTheme,
+  parseAlacrittyToml,
+} from "../src/themes/alacrittyToTmTheme";
 import { THEME_TERMINAL_JSON_DIR, TERMINALCOLORS_BASE } from "./themes-paths";
 
 const THEME_PAGE_PATTERN = /href="(\/themes\/[^"#?]+\/)"/g;

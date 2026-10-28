@@ -12,7 +12,11 @@
  */
 export type SecretGuardMode = "off" | "confirm" | "mask";
 
-export const SECRET_GUARD_MODES: readonly SecretGuardMode[] = ["off", "confirm", "mask"];
+export const SECRET_GUARD_MODES: readonly SecretGuardMode[] = [
+  "off",
+  "confirm",
+  "mask",
+];
 
 export type SecretGuardSettings = {
   mode: SecretGuardMode;
@@ -36,10 +40,16 @@ const isSecretGuardMode = (value: unknown): value is SecretGuardMode =>
  * because only an explicit opt-in should switch on the rule that produces false
  * positives.
  */
-export const normalizeSecretGuardSettings = (raw: unknown): SecretGuardSettings => {
-  const value = (raw ?? {}) as Partial<Record<keyof SecretGuardSettings, unknown>>;
+export const normalizeSecretGuardSettings = (
+  raw: unknown,
+): SecretGuardSettings => {
+  const value = (raw ?? {}) as Partial<
+    Record<keyof SecretGuardSettings, unknown>
+  >;
   return {
-    mode: isSecretGuardMode(value.mode) ? value.mode : DEFAULT_SECRET_GUARD_SETTINGS.mode,
+    mode: isSecretGuardMode(value.mode)
+      ? value.mode
+      : DEFAULT_SECRET_GUARD_SETTINGS.mode,
     highEntropyRule: value.highEntropyRule === true,
   };
 };

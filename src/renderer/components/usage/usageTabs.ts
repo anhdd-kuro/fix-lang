@@ -10,7 +10,10 @@
  * the panel itself prompts for the key — but it does decide the ORDER, so the
  * tab that opens first is one that can actually render numbers.
  */
-import { PROVIDER_ORDER, type ProviderId } from "~/features/providers/shared/providers";
+import {
+  PROVIDER_ORDER,
+  type ProviderId,
+} from "~/features/providers/shared/providers";
 import type { MessageKey } from "~/features/i18n/shared/message";
 
 /** Providers with an account-level usage API. Mirrors the main-process registry. */
@@ -123,7 +126,10 @@ export const buildUsageBar = (
   providerTabs.length === 0
     ? [PROVIDERS_EMPTY_BAR_TAB, AUTOCOMPLETE_BAR_TAB]
     : [
-        ...providerTabs.map((tab) => ({ key: tab.provider, labelKey: tab.labelKey })),
+        ...providerTabs.map((tab) => ({
+          key: tab.provider,
+          labelKey: tab.labelKey,
+        })),
         AUTOCOMPLETE_BAR_TAB,
       ];
 

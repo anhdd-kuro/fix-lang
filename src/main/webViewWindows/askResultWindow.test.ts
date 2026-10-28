@@ -245,12 +245,15 @@ describe("askResultWindow", () => {
   });
 
   it("retitles every open window to the freshly-built locale title, skipping destroyed ones", async () => {
-    const { showAskResultWindow, syncAskResultWindowLocale } = await loadModule();
+    const { showAskResultWindow, syncAskResultWindowLocale } =
+      await loadModule();
     showAskResultWindow(PAYLOAD_A as never);
     showAskResultWindow(PAYLOAD_B as never);
     const [winA, winB] = createdWindows;
     winB.isDestroyed.mockReturnValue(true);
-    windowTitlesMocks.buildAskResultWindowTitle.mockReturnValue("AIへの質問の結果");
+    windowTitlesMocks.buildAskResultWindowTitle.mockReturnValue(
+      "AIへの質問の結果",
+    );
 
     syncAskResultWindowLocale();
 

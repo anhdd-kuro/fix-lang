@@ -9,7 +9,11 @@
  * formatted string — `tooltipMessageForCell` takes a `fmt.date` callback
  * (not a locale) so it stays as pure as the aggregation layer it sits next to.
  */
-import { msg, type Message, type MessageKey } from "~/features/i18n/shared/message";
+import {
+  msg,
+  type Message,
+  type MessageKey,
+} from "~/features/i18n/shared/message";
 import type {
   TokenActivityCalendarCell,
   TokenActivityMode,
@@ -58,7 +62,9 @@ const addDays = (date: Date, days: number): Date => {
  * Locale-free — the renderer formats `start`/`end` via `fmt.date` before
  * interpolating them into a `Message`.
  */
-export const weeklyRangeOf = (dayKey: string): { start: string; end: string } => {
+export const weeklyRangeOf = (
+  dayKey: string,
+): { start: string; end: string } => {
   const day = dateFromDayKey(dayKey);
   const start = addDays(day, -day.getDay());
   const end = addDays(start, 6);
@@ -84,7 +90,8 @@ export type DayKeyFormatter = { date: (dayKey: string) => string };
 export const dayKeyDateFormatter = (
   formatDate: (date: Date, options?: Intl.DateTimeFormatOptions) => string,
 ): DayKeyFormatter => ({
-  date: (dayKey) => formatDate(dateFromDayKey(dayKey), { month: "short", day: "numeric" }),
+  date: (dayKey) =>
+    formatDate(dateFromDayKey(dayKey), { month: "short", day: "numeric" }),
 });
 
 /**
@@ -107,7 +114,11 @@ export const tooltipMessageForCell = (
   if (mode === "daily") {
     const date = fmt.date(cell.date);
     return count > 0
-      ? msg("overview.tokenActivity.tooltip.daily.withCorrections", { tokens, date, count })
+      ? msg("overview.tokenActivity.tooltip.daily.withCorrections", {
+          tokens,
+          date,
+          count,
+        })
       : msg("overview.tokenActivity.tooltip.daily", { tokens, date });
   }
 
@@ -132,7 +143,11 @@ export const tooltipMessageForCell = (
   // cumulative
   const date = fmt.date(cell.date);
   return count > 0
-    ? msg("overview.tokenActivity.tooltip.cumulative.withCorrections", { tokens, date, count })
+    ? msg("overview.tokenActivity.tooltip.cumulative.withCorrections", {
+        tokens,
+        date,
+        count,
+      })
     : msg("overview.tokenActivity.tooltip.cumulative", { tokens, date });
 };
 

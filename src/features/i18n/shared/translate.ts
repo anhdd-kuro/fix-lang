@@ -60,7 +60,11 @@ const missingParamWarnings = new Set<string>();
 const isDevDiagnostics = (): boolean =>
   typeof process !== "undefined" && process.env.NODE_ENV !== "production";
 
-const warnOnce = (seen: Set<string>, dedupeKey: string, message: string): void => {
+const warnOnce = (
+  seen: Set<string>,
+  dedupeKey: string,
+  message: string,
+): void => {
   if (!isDevDiagnostics() || seen.has(dedupeKey)) {
     return;
   }
@@ -191,9 +195,13 @@ const interpolate = (
   });
 };
 
-const toFiniteCount = (params: TranslateParams | undefined): number | undefined => {
+const toFiniteCount = (
+  params: TranslateParams | undefined,
+): number | undefined => {
   const count = params?.count;
-  return typeof count === "number" && Number.isFinite(count) ? count : undefined;
+  return typeof count === "number" && Number.isFinite(count)
+    ? count
+    : undefined;
 };
 
 /**

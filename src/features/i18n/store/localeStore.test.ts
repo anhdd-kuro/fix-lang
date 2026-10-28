@@ -8,12 +8,18 @@
  * early and the file stops parsing.)
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getLocale, initializeLocaleFromSystem, setLocale } from "~/features/i18n/store/localeStore";
+import {
+  getLocale,
+  initializeLocaleFromSystem,
+  setLocale,
+} from "~/features/i18n/store/localeStore";
 import type { Locale } from "~/features/i18n/shared/registry";
 
 // Shared mutable backing store for the mock, reset in beforeEach so each test
 // starts from a clean "nothing persisted yet" state.
-const { storeData } = vi.hoisted(() => ({ storeData: {} as Record<string, unknown> }));
+const { storeData } = vi.hoisted(() => ({
+  storeData: {} as Record<string, unknown>,
+}));
 
 vi.mock("electron-store", () => {
   class MockStore {

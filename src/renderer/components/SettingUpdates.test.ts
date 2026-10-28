@@ -520,9 +520,9 @@ describe("SettingUpdates", () => {
     expectOutlineStyles(
       buttonNamed(container, tEn("settings.updates.checkButton")),
     );
-    expect(buttonNamed(container, tEn("settings.updates.checkButton")).type).toBe(
-      "button",
-    );
+    expect(
+      buttonNamed(container, tEn("settings.updates.checkButton")).type,
+    ).toBe("button");
     await click(download);
     expect(api.openUpdateRelease).toHaveBeenCalledTimes(1);
   });
@@ -690,7 +690,10 @@ describe("SettingUpdates", () => {
       }),
     );
 
-    const restart = buttonNamed(container, tEn("settings.updates.restartButton"));
+    const restart = buttonNamed(
+      container,
+      tEn("settings.updates.restartButton"),
+    );
     expectPrimaryStyles(restart);
     expect(restart.type).toBe("button");
     await click(restart);
@@ -708,7 +711,10 @@ describe("SettingUpdates", () => {
     });
     api.restartForUpdate.mockReturnValueOnce(pendingRestart);
 
-    const restart = buttonNamed(container, tEn("settings.updates.restartButton"));
+    const restart = buttonNamed(
+      container,
+      tEn("settings.updates.restartButton"),
+    );
     await click(restart);
 
     expect(restart.disabled).toBe(true);

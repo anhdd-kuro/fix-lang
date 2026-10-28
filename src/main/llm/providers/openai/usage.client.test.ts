@@ -114,7 +114,9 @@ describe("createOpenAIUsageClient", () => {
     // costs + completions + project costs. The empty project card bills no
     // extra /projects request — there is no row a name could land on.
     expect(seen).toHaveLength(3);
-    expect(seen.every((r) => r.headers.Authorization === `Bearer ${KEY}`)).toBe(true);
+    expect(seen.every((r) => r.headers.Authorization === `Bearer ${KEY}`)).toBe(
+      true,
+    );
     expect(JSON.stringify(usage)).not.toContain(KEY);
   });
 
@@ -131,17 +133,17 @@ describe("createOpenAIUsageClient", () => {
       .filter((url) => url.includes("/costs"))
       .map((url) => new URL(url));
     const costs =
-      costsUrls.find((url) => url.searchParams.get("group_by") === "line_item") ??
-      new URL("https://example.invalid");
+      costsUrls.find(
+        (url) => url.searchParams.get("group_by") === "line_item",
+      ) ?? new URL("https://example.invalid");
     const completions = new URL(
       urls.find((url) => url.includes("/usage/completions")) ?? "",
     );
 
     // Both cost groupings are requested separately so either can fail alone.
-    expect(costsUrls.map((url) => url.searchParams.get("group_by")).sort()).toEqual([
-      "line_item",
-      "project_id",
-    ]);
+    expect(
+      costsUrls.map((url) => url.searchParams.get("group_by")).sort(),
+    ).toEqual(["line_item", "project_id"]);
     // 7d window ending on 2026-07-28 UTC starts at 2026-07-22T00:00:00Z; the
     // midnight alignment is what keeps a mid-afternoon refresh returning the
     // same buckets as a morning one.
@@ -335,7 +337,9 @@ describe("createOpenAIUsageClient project spend", () => {
     const requested: (string | null)[] = [];
     const client = clientWith(async (url) => {
       if (!url.includes("/projects")) {
-        return okResponse(projectCostPage([{ amount: 1, project_id: "proj_b" }]));
+        return okResponse(
+          projectCostPage([{ amount: 1, project_id: "proj_b" }]),
+        );
       }
       const after = new URL(url).searchParams.get("after");
       requested.push(after);

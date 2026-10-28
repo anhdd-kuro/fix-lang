@@ -62,8 +62,14 @@ export const buildModelOptionLabel = (
   const isLocalModel = model.local !== undefined;
 
   if (isLocalModel) {
-    const size = model.local?.size ? `${model.local.size}B` : t("models.select.localLlm");
-    return t("models.select.optionLabel.local", { id: model.id, createdAt, size });
+    const size = model.local?.size
+      ? `${model.local.size}B`
+      : t("models.select.localLlm");
+    return t("models.select.optionLabel.local", {
+      id: model.id,
+      createdAt,
+      size,
+    });
   }
 
   const pricePerMillionTokens = formatCurrency(

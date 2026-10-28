@@ -1,9 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
 import { Button } from "./Button";
-import {
-  ChatTranscript,
-  type ChatTranscriptMetaItem,
-} from "./ChatTranscript";
+import { ChatTranscript, type ChatTranscriptMetaItem } from "./ChatTranscript";
 import CopyButton from "./CopyButton";
 import {
   displayHistoryMessageContent,
@@ -37,9 +34,9 @@ export const HistorySessionDetailsModal: React.FC<
 > = ({ isOpen, sessionJson, onClose }) => {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<HistorySessionDetailsTab>("json");
-  const tabRefs = useRef<Partial<Record<HistorySessionDetailsTab, HTMLButtonElement>>>(
-    {},
-  );
+  const tabRefs = useRef<
+    Partial<Record<HistorySessionDetailsTab, HTMLButtonElement>>
+  >({});
   const closeModal = useCallback(() => {
     setActiveTab("json");
     onClose();

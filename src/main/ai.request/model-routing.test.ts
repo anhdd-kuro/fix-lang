@@ -65,7 +65,11 @@ vi.mock("electron", () => ({
 // was notified" rather than "some function was called".
 vi.mock("~/main/notifications/error", () => ({
   showErrorNotification: showErrorNotificationMock,
-  notifyRequestError: (options: { quiet?: boolean }, error: unknown, fallback?: string) => {
+  notifyRequestError: (
+    options: { quiet?: boolean },
+    error: unknown,
+    fallback?: string,
+  ) => {
     if (options.quiet) return;
     showErrorNotificationMock(error, fallback);
   },
@@ -89,11 +93,18 @@ vi.mock("~/features/providers/store/profileSecretStore", () => ({
 vi.mock("~/main/llm/models/discover", () => ({
   getLocalModels: getLocalModelsMock,
 }));
-vi.mock("~/main/llm/providers/ollama/client", () => ({ createOllamaClient: () => ({ chat: ollamaChatMock }), ollamaClient: { chat: ollamaChatMock } }));
+vi.mock("~/main/llm/providers/ollama/client", () => ({
+  createOllamaClient: () => ({ chat: ollamaChatMock }),
+  ollamaClient: { chat: ollamaChatMock },
+}));
 import { apiStore } from "~/features/providers/store/apiStore";
 import * as sharedModule from "./shared";
 import { isLocalModelId, makeAIRequest } from "./shared";
-import type { Model, Profile, SettingsStore } from "~/features/providers/store/apiStore";
+import type {
+  Model,
+  Profile,
+  SettingsStore,
+} from "~/features/providers/store/apiStore";
 
 const buildSettings = (models: Model[], selectedModel = ""): SettingsStore =>
   ({
@@ -105,7 +116,12 @@ const buildSettings = (models: Model[], selectedModel = ""): SettingsStore =>
     customUserPrompt: "",
     tone: "",
     settingsCorrect: { presets: [], selectedPresetId: "" },
-    settingsSummarize: { minLength: 0, maxLength: 0, model: "", targetLanguage: "en" },
+    settingsSummarize: {
+      minLength: 0,
+      maxLength: 0,
+      model: "",
+      targetLanguage: "en",
+    },
     settingsPromptGen: {
       minLength: 50,
       maxLength: 150,
@@ -235,9 +251,7 @@ describe("makeAIRequest — ref-based routing", () => {
   });
 
   it("a prefixed unresolvable ref throws naming both the provider and the model id", async () => {
-    await expect(request("openai::ghost-model")).rejects.toThrow(
-      /ghost-model/,
-    );
+    await expect(request("openai::ghost-model")).rejects.toThrow(/ghost-model/);
     await expect(request("openai::ghost-model")).rejects.toThrow(/OpenAI/);
     expect(showErrorNotificationMock).toHaveBeenCalled();
   });
@@ -272,10 +286,7 @@ describe("makeAIRequest — ref-based routing", () => {
   });
 
   it("the same holds for an OpenRouter profile — the break was provider-agnostic", async () => {
-    seed(
-      [openRouterModel],
-      "openrouter::anthropic/claude-3.5-sonnet",
-    );
+    seed([openRouterModel], "openrouter::anthropic/claude-3.5-sonnet");
 
     const response = await makeAIRequest({
       systemPrompt: "sys",
@@ -291,7 +302,9 @@ describe("makeAIRequest — ref-based routing", () => {
   });
 
   it("does not cross-resolve: an openai:: ref for an OpenRouter-only model throws", async () => {
-    await expect(request("openai::anthropic/claude-3.5-sonnet")).rejects.toThrow();
+    await expect(
+      request("openai::anthropic/claude-3.5-sonnet"),
+    ).rejects.toThrow();
     expect(createOpenAIMock).not.toHaveBeenCalled();
   });
 });
@@ -311,10 +324,7 @@ describe("isLocalModelId", () => {
   });
 
   it("is false when the provider is known and is not ollama, even for a colliding cached local id", () => {
-    seed([
-      { ...ollamaModel, id: "gpt-4o" },
-      openAiModel,
-    ]);
+    seed([{ ...ollamaModel, id: "gpt-4o" }, openAiModel]);
     expect(isLocalModelId("gpt-4o", "openai")).toBe(false);
   });
 

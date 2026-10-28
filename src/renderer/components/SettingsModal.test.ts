@@ -18,7 +18,11 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTranslator } from "~/features/i18n/shared/translate";
-import { SettingsModal, settingsTabIndex, visibleSettingsTabIds } from "./SettingsModal";
+import {
+  SettingsModal,
+  settingsTabIndex,
+  visibleSettingsTabIds,
+} from "./SettingsModal";
 import { I18nProvider } from "../i18n/I18nProvider";
 import type { AutocompleteUsageSnapshot } from "~/features/autocomplete/shared/autocompleteWire";
 import type { Locale } from "~/features/i18n/shared/registry";
@@ -63,9 +67,9 @@ describe("SettingsModal", () => {
   let api: Record<string, ReturnType<typeof vi.fn>>;
 
   const tabNamed = (label: string): HTMLButtonElement => {
-    const tab = [...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
-      (candidate) => candidate.textContent === label,
-    );
+    const tab = [
+      ...container.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+    ].find((candidate) => candidate.textContent === label);
     if (!tab) {
       throw new Error(`Expected a settings tab named "${label}"`);
     }
@@ -241,11 +245,15 @@ describe("SettingsModal", () => {
 
     // The model picker: `ModelSelect` labels its control `#model-select`.
     expect(
-      [...panel.querySelectorAll("label")].map((element) => element.textContent),
+      [...panel.querySelectorAll("label")].map(
+        (element) => element.textContent,
+      ),
     ).toContain(tEn("settings.autocomplete.model.label"));
     expect(panel.querySelector("#model-select")).toBeTruthy();
 
-    expect(panel.textContent).toContain(tEn("settings.autocomplete.privacy.typing"));
+    expect(panel.textContent).toContain(
+      tEn("settings.autocomplete.privacy.typing"),
+    );
     expect(api.getAutocompleteSettings).toHaveBeenCalled();
     expect(api.getAutocompleteUsage).toHaveBeenCalled();
   });

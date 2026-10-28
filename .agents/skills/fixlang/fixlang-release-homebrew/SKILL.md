@@ -1,6 +1,6 @@
 ---
 name: fixlang-release-homebrew
-description: "Use when cutting a FixLang release, editing .github/workflows/release.yml, or working on the Homebrew tap (anhdd-kuro/homebrew-tap: scripts/sync-fixlang.mjs, sync-fixlang.yml, the generated Casks/fixlang.rb). Examples: \"release 0.3.0\", \"brew install fails\", \"tap sync red\", \"node:sqlite bundle error in release\", \"new blank line at EOF\", \"casks must be in a tap\", \"brew upgrade proof\". Covers release trigger, orphan-tag resume, cask generation + brew style/audit traps."
+description: 'Use when cutting a FixLang release, editing .github/workflows/release.yml, or working on the Homebrew tap (anhdd-kuro/homebrew-tap: scripts/sync-fixlang.mjs, sync-fixlang.yml, the generated Casks/fixlang.rb). Examples: "release 0.3.0", "brew install fails", "tap sync red", "node:sqlite bundle error in release", "new blank line at EOF", "casks must be in a tap", "brew upgrade proof". Covers release trigger, orphan-tag resume, cask generation + brew style/audit traps.'
 ---
 
 # FixLang — Release + Homebrew Distribution Traps
@@ -12,6 +12,7 @@ GitHub Releases = source of truth. Tap copies validated metadata only. Apple Sil
 
 Bump `package.json` version to strictly higher stable semver. PR to `main`. Merge.
 Push to `main` fires `.github/workflows/release.yml`:
+
 - `prepare` (ubuntu): semver + monotonic + tag-ancestry checks, creates `v<version>` tag.
 - `release` (macos-14): lint, test, build, `electron-builder --mac --arm64`, validate DMG (hdiutil + PlistBuddy version/bundle-id + arm64), publish `FixLang-<v>-arm64.dmg` + `SHA256SUMS.txt` from draft → public.
 
@@ -22,18 +23,22 @@ Docs-only push to main re-fires workflow but NO-OPS: `prepare` sees `release_is_
 ## TRAP 1 — release Test step: `node:sqlite` bundle fail (macos runner Node)
 
 Symptom (release job Test step only, passes locally):
+
 ```
 Error: Cannot bundle Node.js built-in "node:sqlite" imported from "src/features/history/store/historyDb.ts"
 ```
+
 Cause: `macos-14` runner default Node (~20) omits `node:sqlite` from `module.builtinModules`. vite/rolldown then refuse to externalize it for the jsdom (client) test env → 2 suites fail to load (`historyRepo.test.ts`, `correction-preset-options.test.ts`). Local Node 24 lists it → 405/405 pass. Same bun/vite/vitest both sides — Node version is the only diff. `bun run test` runs vitest under `node` (shebang), not bun, so runner Node matters.
 
 Fix (already in release.yml): pin Node 24 in the `release` job right after Set up Bun:
+
 ```yaml
-      - name: Set up Node
-        uses: actions/setup-node@<v4 sha>
-        with:
-          node-version: "24"
+- name: Set up Node
+  uses: actions/setup-node@<v4 sha>
+  with:
+    node-version: "24"
 ```
+
 If bumping the app's min Node again, re-check this pin. Keep macos runner Node >= where `node:sqlite` is a listed builtin.
 
 ## Retry a failed release — orphan tag resume
@@ -48,6 +53,7 @@ Workflow `sync-fixlang.yml` runs on schedule + `workflow_dispatch`. Steps: disco
 NOTE: no-release / no-op runs exit BEFORE render+style. The render/style/audit path is only exercised on a REAL first/newer release — latent bugs there hide until then.
 
 Cron is `17 */6 * * *` — **up to 6h between a GitHub release and the cask carrying it**. Dispatch manually to skip the wait:
+
 ```bash
 gh workflow run sync-fixlang.yml --repo anhdd-kuro/homebrew-tap
 ```
@@ -59,11 +65,13 @@ Symptom: upgrade succeed, app come back **older** (brew put 0.5.0 in `/Applicati
 Cause: `bun run pack:mac` build in checkout carry same `com.fixlang.app`. Helper end with `open -b <id>`; brew just did `Removing App` + `Moving App`, so LaunchServices registration for `/Applications` can be gone that instant → id resolve to stray build → old app open. Intermittent (race), so it look random.
 
 Find every copy:
+
 ```bash
 mdfind 'kMDItemCFBundleIdentifier == "com.fixlang.app"' | while read -r p; do echo "$(defaults read "$p/Contents/Info.plist" CFBundleShortVersionString)  $p"; done
 ```
 
 Fixes now in tree — keep all four:
+
 - Helper reopen **path**, not id: `open -a "<pending.appPath>"`, id only fallback (`buildReopenCommand`). Path pass `isSafeBundlePath` before it reach `/bin/sh`.
 - `reconcilePendingInstall` compare `toVersion` **and** `appPath`. Old test was `currentVersion !== fromVersion` = "any change is success" → report a DOWNGRADE as installed update. Path mismatch → `wrong-bundle` → `restart-required` + `wrongBundleMessage`.
 - Restart open `pending.appPath` instead of `process.execPath`. Re-exec from stray copy relaunch stray copy forever.
@@ -76,9 +84,11 @@ Log evidence: `Homebrew update to 0.4.8 started`, then seconds later `App update
 Settings → About reads **GitHub Releases**. **Update now** runs **the tap cask**. Right after a release the app offers vX while the cask still has vX-1.
 
 `brew upgrade --cask fixlang` **exits 0** in that window:
+
 ```
 Warning: Not upgrading fixlang, the latest version is already installed
 ```
+
 Exit 0 = the detached helper walks on to `open -b com.fixlang.app`. Observed symptom: **click Update now → app quits → app reopens → same version, no error.** Looks like a dead button. Real log evidence lives in `userData/logs/homebrew-update.log` (brew's own warning) and `userData/logs/<date>/fixlang.jsonl` (`Homebrew update did not change the app version`).
 
 **Real fix (do this first): make the CHECK ask brew too.** `checkForUpdates` now offer `getInstallableVersion()` for cask install — same source as button. GitHub run in parallel but only give release notes + DMG size, and only when it describe the exact version being offered (else notes/size belong to different release = lie). Published-but-unsynced release → phase `up-to-date` + `tapPendingMessage`, never an offer. Same state still carry that release's `releaseNotes` and set `releaseUrl` to its tag → panel show what changed + **Download from GitHub** button. Withhold only DMG size: it feed download bar for an install that cannot run. "Cannot install" ≠ "cannot read" — user still need to see what they wait for. Cost: routine check read local tap clone (`getInstallableVersion(false)`); `brew update` is git fetch across EVERY tap, too heavy per check — pay for it only when GitHub show something newer. Fall back to GitHub for manual DMG install, and for cask when brew probe return null.
@@ -86,12 +96,13 @@ Exit 0 = the detached helper walks on to `open -b com.fixlang.app`. Observed sym
 Guard below still needed even so: brew can answer null at check time (target then come from GitHub) and answer lower at click time. Defense in depth, not dead code.
 
 Guard, in `updateService.installUpdate` (`src/main/update/updateService.ts`): probe `HomebrewUpgrader.getInstallableVersion()` (= `brew update --quiet` then `brew info --cask fixlang --json=v2` → `casks[].version`) and publish `error` + `tapBehindMessage` instead of quitting when the tap is behind. Rules:
+
 - Probe **must not reject** — a broken probe returns null and the install proceeds. Blocking on an unknown answer would break the button whenever brew is slow or odd.
 - Only a **parsed strictly-lower** version blocks. null / non-semver → proceed.
 - `installing = true` is claimed **before** the first `await` (probe takes ~1-3s warm; a second click must not start a second upgrade).
 - The probe needs `brew update` first: the local tap clone is what `brew info` reads, and its staleness is the whole point.
 
-WHY THIS WAS MISSED FIRST TIME: every test injects a fake upgrader/`startDetached`, so no test ever runs real brew; `homebrew.test.ts` only asserts the generated script's text. And `canInstall` answers "did brew install this app?" — not "can brew supply the version being offered?" The two read as the same question until the tap lags. It also could not be exercised end-to-end at build time: proving the button needs a release *newer* than the one being cut.
+WHY THIS WAS MISSED FIRST TIME: every test injects a fake upgrader/`startDetached`, so no test ever runs real brew; `homebrew.test.ts` only asserts the generated script's text. And `canInstall` answers "did brew install this app?" — not "can brew supply the version being offered?" The two read as the same question until the tap lags. It also could not be exercised end-to-end at build time: proving the button needs a release _newer_ than the one being cut.
 
 Marker reconciliation (`pending-update.json`) does catch this on relaunch, but a subsequent update check overwrites that `error` state with `available` again — so the user just sees the button re-arm. Don't rely on reconcile alone as the user-facing report. See TRAP 0b — reconcile has its own trap.
 
@@ -100,9 +111,11 @@ Marker reconciliation (`pending-update.json`) does catch this on relaunch, but a
 App quit take <1s. Brew download 128MB take a minute or more. User see app vanish, no window, no progress. User reopen app by hand (Spotlight, Dock). Now old binary run again while helper still downloading.
 
 Naive reconcile say "version unchanged → failed". That wrong, and it do three bad things at once:
+
 1. lie to user (`Homebrew did not finish the last update`) while upgrade is fine,
 2. **clear the marker**, so real outcome never reported,
 3. leave button live → second click → second `brew upgrade` → dies on first one's download lock:
+
 ```
 Error: anhdd-kuro/tap/fixlang: A `brew upgrade --cask fixlang` process has already
 locked .../FixLang-0.4.2-arm64.dmg.incomplete.
@@ -111,6 +124,7 @@ locked .../FixLang-0.4.2-arm64.dmg.incomplete.
 Then the second half of the trap: helper end with `/usr/bin/open -b com.fixlang.app`. LaunchServices resolve that with `preferIdentical` → app already running → **just focus old process**. Bundle on disk new, running process old, forever. Looks like "update never happened".
 
 Real trace (0.4.1 → 0.4.2), proven from `log show`:
+
 ```
 00:00:38  app  Homebrew update to 0.4.2 started      (app quits 00:00:39)
 00:00:44  Dock  Sending .launchAppsBrowsing          (user reopens by hand)
@@ -119,9 +133,11 @@ Real trace (0.4.1 → 0.4.2), proven from `log show`:
 00:01:03  helper  fixlang was successfully upgraded! 0.4.1 -> 0.4.2
 00:01:03  CoreServicesUIAgent  _LSLaunchRB(com.fixlang.app, opts=…preferIdentical…)  ← focus only
 ```
+
 The 6s gap between the Dock click and the launch is Gatekeeper re-verifying the freshly quarantined cask bundle — every cask upgrade re-quarantines, so every first launch after an upgrade is slow.
 
 Rules now baked into `pendingInstall.ts` + `updateService.ts`:
+
 - Marker carries `startedAt`. Missing/garbage timestamp parses to `0` = long expired (old markers keep old behavior).
 - `reconcilePendingInstall` order matters: version changed → `installed`; else Caskroom has target → `restart-required`; else inside `UPGRADE_GRACE_MS` (20 min) → `in-progress`; else `failed`.
 - `in-progress` **keeps** the marker and sets `installing = true`, which also makes `checkForUpdates` bail — otherwise a check republishes `available` and re-arms the button mid-upgrade.
@@ -136,18 +152,23 @@ WHY THIS WAS MISSED: the reconcile tests only ever modeled two worlds — same v
 ### TRAP 2 — cask write doubles newline
 
 `renderCask()` returns string ending in exactly one `\n`. Write with `jq -je` (join-output, no appended newline), NOT `jq -er`. `jq -r`/`-er` appends its own `\n` → `end\n\n` → `git diff --cached --check` fails:
+
 ```
 Casks/fixlang.rb:NN: new blank line at EOF.
 ```
+
 (Scalar `jq -er '.kind'`/`.version` in `$( )` are fine — command substitution strips the newline. Only the file WRITE must use `-je`.)
 
 ### TRAP 3 — `brew style/audit/fetch` need a registered tap
 
 Recent Homebrew rejects a bare cask file path:
+
 ```
 Homebrew requires casks to be in a tap, rejecting: Casks/fixlang.rb
 ```
+
 Fix (in sync-fixlang.yml): symlink checkout into taps dir, validate by qualified token, remove symlink BEFORE smoke step:
+
 ```bash
 readonly HOMEBREW_TAP_LINK="$(brew --repository)/Library/Taps/anhdd-kuro/homebrew-tap"
 mkdir -p "$(dirname "$HOMEBREW_TAP_LINK")"
@@ -157,16 +178,18 @@ brew audit --cask anhdd-kuro/tap/fixlang
 brew fetch --cask anhdd-kuro/tap/fixlang
 rm -f "$HOMEBREW_TAP_LINK"
 ```
+
 Must `rm` the link: the later smoke step refuses to run if `anhdd-kuro/tap` is already tapped.
 
 ### TRAP 4 — generated cask must pass brew style + audit
 
 `renderCask` in `scripts/sync-fixlang.mjs` must emit:
+
 - URL with Ruby interpolation `#{version}`, NOT literal version. Literal → audit error "Use `sha256 :no_check` when URL is unversioned". `#{version}` is injection-safe: version validated as strict semver first. (In the JS template literal, write `#{version}` literally — JS uses `${...}`, so `#{...}` passes through.)
 - `depends_on :macos` (after `depends_on arch: :arm64`, same group) — else style OSDependsOn offense.
 - One blank line before `app "FixLang.app"` — StanzaGrouping.
 - Keep real `sha256` (never `:no_check`). No `auto_updates`, `livecheck`, `preflight`, `postflight`, no automatic `xattr`.
-Update the pinned contract test (`scripts/sync-fixlang.test.mjs`) byte-for-byte when changing renderCask output.
+  Update the pinned contract test (`scripts/sync-fixlang.test.mjs`) byte-for-byte when changing renderCask output.
 
 ## Reproduce brew checks LOCALLY (skip slow CI loops)
 
@@ -184,6 +207,7 @@ rm -f "$LINK"; rm -f "$REPO/Casks/fixlang.rb"   # cleanup
 ## Prove `brew upgrade` (needs two real releases)
 
 Never fabricate a version. With a genuine higher release available:
+
 ```bash
 export HOMEBREW_CASK_OPTS="--appdir=$SOME_TEMP_DIR"   # keep out of /Applications
 brew tap anhdd-kuro/tap https://github.com/anhdd-kuro/homebrew-tap
@@ -193,6 +217,7 @@ brew update && brew upgrade --cask fixlang            # OLD -> NEW
 # verify CFBundleShortVersionString changed
 brew uninstall --cask fixlang; brew untap anhdd-kuro/tap   # cleanup
 ```
+
 Never touch `/Applications`, never launch the app, no `sudo`, no `xattr`, no `--zap` in automation.
 
 ## Public install (what users run)

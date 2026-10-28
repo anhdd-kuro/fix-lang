@@ -57,9 +57,9 @@ describe("Homebrew binary resolution", () => {
       "/opt/homebrew/bin/brew",
       "/usr/local/bin/brew",
     ]);
-    expect(BREW_BINARY_CANDIDATES.every((candidate) => candidate.startsWith("/"))).toBe(
-      true,
-    );
+    expect(
+      BREW_BINARY_CANDIDATES.every((candidate) => candidate.startsWith("/")),
+    ).toBe(true);
   });
 
   it("prefers the Apple Silicon prefix when both exist", () => {
@@ -67,9 +67,9 @@ describe("Homebrew binary resolution", () => {
   });
 
   it("falls back to the Intel prefix", () => {
-    expect(findBrewBinary((candidate) => candidate === "/usr/local/bin/brew")).toBe(
-      "/usr/local/bin/brew",
-    );
+    expect(
+      findBrewBinary((candidate) => candidate === "/usr/local/bin/brew"),
+    ).toBe("/usr/local/bin/brew");
   });
 
   it("reports no brew when neither prefix exists", () => {
@@ -80,7 +80,9 @@ describe("Homebrew binary resolution", () => {
     expect(caskroomPath("/opt/homebrew/bin/brew")).toBe(
       "/opt/homebrew/Caskroom/fixlang",
     );
-    expect(caskroomPath("/usr/local/bin/brew")).toBe("/usr/local/Caskroom/fixlang");
+    expect(caskroomPath("/usr/local/bin/brew")).toBe(
+      "/usr/local/Caskroom/fixlang",
+    );
   });
 });
 
@@ -89,7 +91,9 @@ describe("upgrade script", () => {
 
   it("waits for the app to quit before replacing its bundle", () => {
     expect(script).toContain("/usr/bin/pgrep -x FixLang");
-    expect(script.indexOf("pgrep")).toBeLessThan(script.indexOf("upgrade --cask"));
+    expect(script.indexOf("pgrep")).toBeLessThan(
+      script.indexOf("upgrade --cask"),
+    );
   });
 
   it("aborts instead of upgrading a still-running app", () => {
@@ -128,12 +132,15 @@ describe("upgrade script", () => {
 
   it("quotes a path containing spaces rather than rejecting it", () => {
     expect(
-      buildUpgradeScript("/opt/homebrew/bin/brew", "/Applications/Fix Lang.app"),
+      buildUpgradeScript(
+        "/opt/homebrew/bin/brew",
+        "/Applications/Fix Lang.app",
+      ),
     ).toContain('/usr/bin/open -a "/Applications/Fix Lang.app"');
   });
 
   it.each([
-    'relative/FixLang.app',
+    "relative/FixLang.app",
     '/Applications/FixLang.app"; rm -rf /tmp/x; echo ".app',
     "/Applications/$(whoami).app",
     "/Applications/`id`.app",
@@ -143,7 +150,7 @@ describe("upgrade script", () => {
   ])("falls back to the bundle id for an unsafe path: %s", (appPath) => {
     const fallback = buildUpgradeScript("/opt/homebrew/bin/brew", appPath);
 
-    expect(fallback).not.toContain("open -a \"");
+    expect(fallback).not.toContain('open -a "');
     expect(fallback).toContain("/usr/bin/open -b com.fixlang.app");
   });
 });
@@ -190,16 +197,19 @@ describe("download cache lookup", () => {
 
   it("falls back to the in-progress file", () => {
     expect(
-      matchCachedDownload(["4cc981a4--FixLang-0.4.6-arm64.dmg.incomplete"], "0.4.6"),
+      matchCachedDownload(
+        ["4cc981a4--FixLang-0.4.6-arm64.dmg.incomplete"],
+        "0.4.6",
+      ),
     ).toBe("4cc981a4--FixLang-0.4.6-arm64.dmg.incomplete");
   });
 
-  it.each([[[], "0.4.6"], [["4cc981a4--FixLang-0.4.5-arm64.dmg"], "0.4.6"]] as const)(
-    "returns null when nothing matches",
-    (entries, version) => {
-      expect(matchCachedDownload(entries, version)).toBeNull();
-    },
-  );
+  it.each([
+    [[], "0.4.6"],
+    [["4cc981a4--FixLang-0.4.5-arm64.dmg"], "0.4.6"],
+  ] as const)("returns null when nothing matches", (entries, version) => {
+    expect(matchCachedDownload(entries, version)).toBeNull();
+  });
 
   it.each(["../etc", "a/b", ""])(
     "refuses an unsafe version rather than building a pattern from it: %s",
@@ -316,9 +326,9 @@ describe("Homebrew upgrader", () => {
       ["fetch", "--cask", "fixlang"],
     ]);
     // A fetch must never be able to replace the running app.
-    expect(runBrew.mock.calls.some(([, args]) => args.includes("upgrade"))).toBe(
-      false,
-    );
+    expect(
+      runBrew.mock.calls.some(([, args]) => args.includes("upgrade")),
+    ).toBe(false);
   });
 
   it("gives the download far longer than the metadata probes", async () => {

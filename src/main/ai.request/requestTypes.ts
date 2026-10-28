@@ -98,7 +98,9 @@ export const toConversation = (messages: CoreMessage[]) => {
   const system = messages
     .filter((message) => message.role === "system")
     .map((message) =>
-      typeof message.content === "string" ? message.content : JSON.stringify(message.content),
+      typeof message.content === "string"
+        ? message.content
+        : JSON.stringify(message.content),
     )
     .join("\n\n");
   return {
@@ -131,11 +133,16 @@ export const usageCounts = (
  * used no tokens" rather than "the provider reported none".
  */
 export const sumTokenField = (
-  counts: readonly { promptTokens: number | null; completionTokens: number | null }[],
+  counts: readonly {
+    promptTokens: number | null;
+    completionTokens: number | null;
+  }[],
   key: "promptTokens" | "completionTokens",
 ): number | null => {
   const values = counts
     .map((count) => count[key])
     .filter((count): count is number => count !== null);
-  return values.length > 0 ? values.reduce((total, count) => total + count, 0) : null;
+  return values.length > 0
+    ? values.reduce((total, count) => total + count, 0)
+    : null;
 };

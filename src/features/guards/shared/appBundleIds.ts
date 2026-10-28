@@ -41,7 +41,8 @@ const CONTROL_CHARACTERS_PATTERN = /[\x00-\x1f\x7f-\x9f]/;
 
 export const hasAppBundlePathShape = (value: unknown): value is string => {
   if (typeof value !== "string") return false;
-  if (value.length === 0 || value.length > MAX_APP_BUNDLE_PATH_LENGTH) return false;
+  if (value.length === 0 || value.length > MAX_APP_BUNDLE_PATH_LENGTH)
+    return false;
   if (!value.startsWith("/")) return false;
   if (!value.toLowerCase().endsWith(".app")) return false;
   return !CONTROL_CHARACTERS_PATTERN.test(value);
@@ -64,7 +65,9 @@ const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((entry) => typeof entry === "string");
 
 /** Validates an `AppBundleIdsResult` arriving over IPC, for the preload bridge. */
-export const isAppBundleIdsResult = (value: unknown): value is AppBundleIdsResult => {
+export const isAppBundleIdsResult = (
+  value: unknown,
+): value is AppBundleIdsResult => {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
   if (record.success === true) return isStringArray(record.bundleIds);

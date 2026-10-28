@@ -24,7 +24,9 @@ const state = (
   ...overrides,
 });
 
-const cleared = (overrides: Partial<ClearedRefsSummary> = {}): ClearedRefsSummary => ({
+const cleared = (
+  overrides: Partial<ClearedRefsSummary> = {},
+): ClearedRefsSummary => ({
   selectedModel: false,
   presetIds: [],
   features: [],
@@ -43,21 +45,29 @@ describe("buildProviderCards", () => {
 
   it("marks a key-requiring provider configured iff its key is set", () => {
     const withKey = buildProviderCards({ openai: state({ apiKeySet: true }) });
-    const withoutKey = buildProviderCards({ openai: state({ connected: true }) });
+    const withoutKey = buildProviderCards({
+      openai: state({ connected: true }),
+    });
 
-    expect(withKey.find((card) => card.provider === "openai")?.configured).toBe(true);
-    // Kills: copying main's `configured` field instead of applying the rule.
-    expect(withoutKey.find((card) => card.provider === "openai")?.configured).toBe(
-      false,
+    expect(withKey.find((card) => card.provider === "openai")?.configured).toBe(
+      true,
     );
+    // Kills: copying main's `configured` field instead of applying the rule.
+    expect(
+      withoutKey.find((card) => card.provider === "openai")?.configured,
+    ).toBe(false);
   });
 
   it("marks Ollama configured iff explicitly enabled, regardless of any key", () => {
     const enabled = buildProviderCards({ ollama: state({ connected: true }) });
     const disabled = buildProviderCards({ ollama: state({ apiKeySet: true }) });
 
-    expect(enabled.find((card) => card.provider === "ollama")?.configured).toBe(true);
-    expect(disabled.find((card) => card.provider === "ollama")?.configured).toBe(false);
+    expect(enabled.find((card) => card.provider === "ollama")?.configured).toBe(
+      true,
+    );
+    expect(
+      disabled.find((card) => card.provider === "ollama")?.configured,
+    ).toBe(false);
   });
 
   it("reports `connected` from enabledProviders, separately from `configured`", () => {
@@ -71,7 +81,9 @@ describe("buildProviderCards", () => {
 
   it("carries the credential requirements from the registry", () => {
     const cards = buildProviderCards({});
-    const byProvider = Object.fromEntries(cards.map((card) => [card.provider, card]));
+    const byProvider = Object.fromEntries(
+      cards.map((card) => [card.provider, card]),
+    );
 
     expect(byProvider.openai?.requiresApiKey).toBe(true);
     expect(byProvider.openai?.supportsProvisioningKey).toBe(true);
@@ -111,14 +123,16 @@ describe("buildProviderCards", () => {
       );
 
     expect(byProvider({}).openai?.canConnect).toBe(false);
-    expect(byProvider({ openai: state({ apiKeySet: true }) }).openai?.canConnect).toBe(
-      true,
-    );
-    expect(byProvider({}, { openai: { apiKey: "sk-live" } }).openai?.canConnect).toBe(
-      true,
-    );
+    expect(
+      byProvider({ openai: state({ apiKeySet: true }) }).openai?.canConnect,
+    ).toBe(true);
+    expect(
+      byProvider({}, { openai: { apiKey: "sk-live" } }).openai?.canConnect,
+    ).toBe(true);
     // Whitespace is not a key.
-    expect(byProvider({}, { openai: { apiKey: "   " } }).openai?.canConnect).toBe(false);
+    expect(
+      byProvider({}, { openai: { apiKey: "   " } }).openai?.canConnect,
+    ).toBe(false);
     expect(byProvider({}).ollama?.canConnect).toBe(true);
   });
 
@@ -136,23 +150,36 @@ describe("buildProviderCards", () => {
 
   it("passes the stored-secret flags through verbatim", () => {
     const [, openrouter] = buildProviderCards({
-      openrouter: state({ connected: true, apiKeySet: true, provisioningKeySet: true }),
+      openrouter: state({
+        connected: true,
+        apiKeySet: true,
+        provisioningKeySet: true,
+      }),
     });
     expect(openrouter?.apiKeySet).toBe(true);
     expect(openrouter?.provisioningKeySet).toBe(true);
   });
 
   it("renders a provider missing from the states map as a disconnected card, not a gap", () => {
-    const cards = buildProviderCards({ openai: state({ connected: true, apiKeySet: true }) });
+    const cards = buildProviderCards({
+      openai: state({ connected: true, apiKeySet: true }),
+    });
     expect(cards).toHaveLength(PROVIDER_ORDER.length);
-    expect(cards.find((card) => card.provider === "ollama")?.connected).toBe(false);
-    expect(cards.find((card) => card.provider === "ollama")?.modelCount).toBe(0);
+    expect(cards.find((card) => card.provider === "ollama")?.connected).toBe(
+      false,
+    );
+    expect(cards.find((card) => card.provider === "ollama")?.modelCount).toBe(
+      0,
+    );
   });
 });
 
 describe("describeDisconnectImpact — all four cleared combinations", () => {
   it("presets only: says nothing about the default model", () => {
-    const lines = describeDisconnectImpact("openai", cleared({ presetIds: ["p1", "p2"] }));
+    const lines = describeDisconnectImpact(
+      "openai",
+      cleared({ presetIds: ["p1", "p2"] }),
+    );
 
     expect(keys(lines)).toEqual([
       "settings.general.providers.disconnect.warning.key",
@@ -167,7 +194,10 @@ describe("describeDisconnectImpact — all four cleared combinations", () => {
     );
     expect(
       lines.some((line) =>
-        t(line.key as "settings.general.providers.disconnect.warning.key", line.params)
+        t(
+          line.key as "settings.general.providers.disconnect.warning.key",
+          line.params,
+        )
           .toLowerCase()
           .includes("default model"),
       ),
@@ -175,7 +205,10 @@ describe("describeDisconnectImpact — all four cleared combinations", () => {
   });
 
   it("default only: says nothing about presets", () => {
-    const lines = describeDisconnectImpact("openai", cleared({ selectedModel: true }));
+    const lines = describeDisconnectImpact(
+      "openai",
+      cleared({ selectedModel: true }),
+    );
 
     expect(keys(lines)).toEqual([
       "settings.general.providers.disconnect.warning.key",
@@ -261,7 +294,9 @@ describe("describeDisconnectImpact — all four cleared combinations", () => {
             provisioningKeySet: false,
           }),
         ),
-      ).toEqual(["settings.general.providers.disconnect.warning.selectedModel"]);
+      ).toEqual([
+        "settings.general.providers.disconnect.warning.selectedModel",
+      ]);
     });
   });
 
@@ -281,18 +316,27 @@ describe("describeDisconnectImpact — all four cleared combinations", () => {
   });
 
   it("omits the stored-key line for a provider that has no key", () => {
-    expect(keys(describeDisconnectImpact("ollama", cleared({ selectedModel: true })))).toEqual([
-      "settings.general.providers.disconnect.warning.selectedModel",
-    ]);
+    expect(
+      keys(
+        describeDisconnectImpact("ollama", cleared({ selectedModel: true })),
+      ),
+    ).toEqual(["settings.general.providers.disconnect.warning.selectedModel"]);
   });
 
   it("uses the plural family so a single preset reads in the singular", () => {
-    const [, line] = describeDisconnectImpact("openai", cleared({ presetIds: ["p1"] }));
-    expect(t("settings.general.providers.disconnect.warning.cleared", line?.params)).toBe(
+    const [, line] = describeDisconnectImpact(
+      "openai",
+      cleared({ presetIds: ["p1"] }),
+    );
+    expect(
+      t("settings.general.providers.disconnect.warning.cleared", line?.params),
+    ).toBe(
       t("settings.general.providers.disconnect.warning.cleared", { count: 1 }),
     );
     expect(
       t("settings.general.providers.disconnect.warning.cleared", { count: 1 }),
-    ).not.toBe(t("settings.general.providers.disconnect.warning.cleared", { count: 2 }));
+    ).not.toBe(
+      t("settings.general.providers.disconnect.warning.cleared", { count: 2 }),
+    );
   });
 });

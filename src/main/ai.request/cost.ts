@@ -108,7 +108,7 @@ const parsePrice = (raw: string): number | null => {
  */
 const matchPrice = (
   servedId: string,
-  priceMap: PriceMap
+  priceMap: PriceMap,
 ): { prompt: string; completion: string } | null => {
   const lower = stripModelRefPrefix(servedId).toLowerCase();
   const exact = priceMap.get(lower);
@@ -142,7 +142,7 @@ const matchPrice = (
  */
 export const computeCost = (
   input: CostInput,
-  priceMap: PriceMap
+  priceMap: PriceMap,
 ): CostSnapshot => {
   // Direct OpenAI and Anthropic model discovery intentionally has no pricing.
   // Do not fuzzy match their bare model ids against the OpenRouter catalogue:
@@ -154,7 +154,11 @@ export const computeCost = (
   }
 
   // 1. Local/Ollama short-circuits to $0 regardless of any fuzzy price.
-  if (input.isLocal || input.provider === "ollama" || input.provider === "lmstudio") {
+  if (
+    input.isLocal ||
+    input.provider === "ollama" ||
+    input.provider === "lmstudio"
+  ) {
     return {
       status: "zero",
       estimatedCostUsd: 0,

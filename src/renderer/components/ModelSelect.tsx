@@ -1,8 +1,18 @@
 import { format as formatDateFns } from "date-fns";
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { components as reactSelectComponents } from "react-select";
 import { twJoin } from "tailwind-merge";
-import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/message";
+import {
+  messageLabel,
+  textLabel,
+  type Label,
+} from "~/features/i18n/shared/message";
 // Value import: `~/features/providers/store/apiStore`'s re-export shim would pull
 // `electron-store` into the renderer bundle.
 import { isProviderId } from "~/features/providers/shared/providers";
@@ -27,7 +37,9 @@ import type { TranslationKey } from "~/features/i18n/shared/keys";
 import type { Model, ProviderId } from "~/features/providers/store/apiStore";
 
 /** Stable identity so an errorless fetch does not invalidate the option memo. */
-const NO_PROVIDER_ERRORS: Partial<Record<ProviderId, string>> = Object.freeze({});
+const NO_PROVIDER_ERRORS: Partial<Record<ProviderId, string>> = Object.freeze(
+  {},
+);
 
 export const ModelSelect: React.FC<{
   onChange?: (modelId: string) => void;
@@ -77,7 +89,11 @@ export const ModelSelect: React.FC<{
   const containerRef = useRef<HTMLDivElement>(null);
   const [menuWidth, setMenuWidth] = useState<number | undefined>(undefined);
 
-  const copy = resolveModelSelectCopy({ labelKey, descriptionKey, useFeatureModel });
+  const copy = resolveModelSelectCopy({
+    labelKey,
+    descriptionKey,
+    useFeatureModel,
+  });
 
   /** The global default picker must not offer inherit — it cannot inherit from itself. */
   const offersInherit = selectedModelId !== undefined || useFeatureModel;
@@ -124,7 +140,9 @@ export const ModelSelect: React.FC<{
         setModels(result.models);
         setProviderErrors(result.errors ?? NO_PROVIDER_ERRORS);
       } else {
-        setModelsError(result.error ?? messageLabel("models.select.error.fetchFailed"));
+        setModelsError(
+          result.error ?? messageLabel("models.select.error.fetchFailed"),
+        );
       }
     } catch (err) {
       setModelsError(
@@ -164,7 +182,8 @@ export const ModelSelect: React.FC<{
       if (selectedModelId !== undefined) return;
 
       if (useFeatureModel && featureId && window.electronAPI?.getFeatureModel) {
-        const featureModel = await window.electronAPI.getFeatureModel(featureId);
+        const featureModel =
+          await window.electronAPI.getFeatureModel(featureId);
         setSelectedModel(featureModel || "");
         setSavedFeatureModel(featureModel || "");
         return;
@@ -259,15 +278,15 @@ export const ModelSelect: React.FC<{
   const hasNoConnectedProviders =
     connectedProviders !== undefined && connectedProviders.length === 0;
 
-return (
+  return (
     <div className={compact ? "mb-0" : "mb-4"}>
       {!compact && (
-      <label
-        htmlFor="model-select"
-        className="mb-1 flex items-center gap-2 text-sm font-medium text-card-foreground"
-      >
-        {t(copy.labelKey)}
-      </label>
+        <label
+          htmlFor="model-select"
+          className="mb-1 flex items-center gap-2 text-sm font-medium text-card-foreground"
+        >
+          {t(copy.labelKey)}
+        </label>
       )}
       <div ref={containerRef} className="flex gap-2 items-center">
         <SearchableSelect<ModelOption>
@@ -292,7 +311,11 @@ return (
           menuWidth={menuWidth}
           components={{
             GroupHeading: (
-              props: GroupHeadingProps<ModelOption, false, GroupBase<ModelOption>>,
+              props: GroupHeadingProps<
+                ModelOption,
+                false,
+                GroupBase<ModelOption>
+              >,
             ) => {
               // `GroupBase` declares no `error`; `options` is always a
               // `ModelOptionGroup[]`, so the narrowing holds.
@@ -306,7 +329,10 @@ return (
                     </span>
                   ) : null}
                   {group.error ? (
-                    <span className="block text-xxs text-destructive" role="alert">
+                    <span
+                      className="block text-xxs text-destructive"
+                      role="alert"
+                    >
                       {group.error}
                     </span>
                   ) : null}
@@ -375,7 +401,11 @@ return (
                   title={text}
                   {...innerProps}
                 >
-                  <span className={twJoin(compact ? "min-w-0 break-all" : "truncate min-w-0")}>
+                  <span
+                    className={twJoin(
+                      compact ? "min-w-0 break-all" : "truncate min-w-0",
+                    )}
+                  >
                     {text}
                   </span>
                   {createdAt ? (
@@ -483,9 +513,9 @@ return (
         </p>
       )}
       {!compact && (
-      <p className="text-xs text-muted-foreground mt-1">
-        {t(copy.descriptionKey)}
-      </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          {t(copy.descriptionKey)}
+        </p>
       )}
     </div>
   );

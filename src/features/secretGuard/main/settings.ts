@@ -39,10 +39,15 @@ const isSecretGuardMode = (value: unknown): value is SecretGuardMode =>
  * it is the documented way to leave the opt-in rule alone. `mode: "off"` is
  * likewise legal: turning the guard off is a choice, not a malformed payload.
  */
-const isSecretGuardSettings = (value: unknown): value is SecretGuardSettings => {
+const isSecretGuardSettings = (
+  value: unknown,
+): value is SecretGuardSettings => {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
-  return isSecretGuardMode(record.mode) && typeof record.highEntropyRule === "boolean";
+  return (
+    isSecretGuardMode(record.mode) &&
+    typeof record.highEntropyRule === "boolean"
+  );
 };
 
 export const registerSecretGuardHandlers = (): void => {
@@ -70,7 +75,9 @@ export const registerSecretGuardHandlers = (): void => {
         console.error("Error setting secret guard settings:", error);
         return {
           success: false,
-          error: textLabel(error instanceof Error ? error.message : "Unknown error"),
+          error: textLabel(
+            error instanceof Error ? error.message : "Unknown error",
+          ),
         };
       }
     },

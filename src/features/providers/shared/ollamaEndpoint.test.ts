@@ -19,7 +19,9 @@ describe("resolveOllamaEndpoint", () => {
   });
 
   it("accepts a valid host/port pair", () => {
-    expect(resolveOllamaEndpoint({ host: "192.168.1.10", port: 11435 })).toEqual({
+    expect(
+      resolveOllamaEndpoint({ host: "192.168.1.10", port: 11435 }),
+    ).toEqual({
       host: "192.168.1.10",
       port: 11435,
     });

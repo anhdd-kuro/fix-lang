@@ -186,18 +186,43 @@ describe("AskInputWindow", () => {
       submitAskInput: vi.fn(),
       cancelAskInput: vi.fn(),
       getTheme: vi.fn().mockResolvedValue({ themeId: "brand-codex-dark" }),
-      getAppearanceTypography: vi.fn().mockResolvedValue({ fontSize: "md", fontFamily: "system", customFontSize: "14px", customFontFamily: "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif" }),
-      setAppearanceFontSize: vi.fn().mockResolvedValue({ success: true, typography: { fontSize: "md", fontFamily: "system", customFontSize: "14px", customFontFamily: "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif" } }),
-      setAppearanceFontFamily: vi.fn().mockResolvedValue({ success: true, typography: { fontSize: "md", fontFamily: "system", customFontSize: "14px", customFontFamily: "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif" } }),
+      getAppearanceTypography: vi.fn().mockResolvedValue({
+        fontSize: "md",
+        fontFamily: "system",
+        customFontSize: "14px",
+        customFontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+      }),
+      setAppearanceFontSize: vi.fn().mockResolvedValue({
+        success: true,
+        typography: {
+          fontSize: "md",
+          fontFamily: "system",
+          customFontSize: "14px",
+          customFontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+        },
+      }),
+      setAppearanceFontFamily: vi.fn().mockResolvedValue({
+        success: true,
+        typography: {
+          fontSize: "md",
+          fontFamily: "system",
+          customFontSize: "14px",
+          customFontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+        },
+      }),
       onAppearanceTypographyChanged: vi.fn().mockReturnValue(vi.fn()),
       onThemeChanged: vi.fn().mockReturnValue(vi.fn()),
       setTheme: vi.fn().mockResolvedValue({ success: true }),
       getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
       setLocale: vi.fn().mockResolvedValue({ success: true }),
       onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
-      requestAutocompleteSuggestion: vi
-        .fn()
-        .mockResolvedValue({ requestId: -1, suggestion: null } satisfies AutocompleteSuggestReply),
+      requestAutocompleteSuggestion: vi.fn().mockResolvedValue({
+        requestId: -1,
+        suggestion: null,
+      } satisfies AutocompleteSuggestReply),
     };
     Object.defineProperty(window, "electronAPI", {
       configurable: true,
@@ -233,7 +258,7 @@ describe("AskInputWindow", () => {
    * budget below has 3.5px of slack, so `gap-1.5` + `pt-2.5` spends it and
    * clips the ninth line while every substring assertion stays green.
    */
-            const acceptHintShown = (): boolean =>
+  const acceptHintShown = (): boolean =>
     (container.textContent ?? "").includes(
       tEn("notifications.window.askInput.acceptHint"),
     );
@@ -912,7 +937,9 @@ describe("AskInputWindow", () => {
         // of this event, so nothing has moved yet and there is nothing to
         // compare — which is why the press invalidates unconditionally instead.
         await act(async () => {
-          textarea().dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+          textarea().dispatchEvent(
+            new MouseEvent("mousedown", { bubbles: true }),
+          );
         });
 
         expect(paintedGhost()).toBeNull();
@@ -1105,7 +1132,11 @@ describe("AskInputWindow", () => {
     });
 
     it.each([
-      ["a system prompt only", { systemPrompt: SYSTEM_PROMPT }, ["system-prompt"]],
+      [
+        "a system prompt only",
+        { systemPrompt: SYSTEM_PROMPT },
+        ["system-prompt"],
+      ],
       [
         "directives only",
         { contextDirectives: DIRECTIVES },
@@ -1149,9 +1180,9 @@ describe("AskInputWindow", () => {
       expect(container.textContent).not.toContain(
         tEn("notifications.window.askInput.transparencyCollapse"),
       );
-      expect(container.querySelectorAll("details").length).toBeGreaterThanOrEqual(
-        2,
-      );
+      expect(
+        container.querySelectorAll("details").length,
+      ).toBeGreaterThanOrEqual(2);
     });
 
     it("renders request text verbatim inside each fold", async () => {
@@ -1164,9 +1195,9 @@ describe("AskInputWindow", () => {
       expect(block("system-prompt")?.querySelector("pre")?.textContent).toBe(
         SYSTEM_PROMPT,
       );
-      expect(block("context-directives")?.querySelector("pre")?.textContent).toBe(
-        DIRECTIVES,
-      );
+      expect(
+        block("context-directives")?.querySelector("pre")?.textContent,
+      ).toBe(DIRECTIVES);
     });
 
     it("renders request blocks as plain text, never as markdown or HTML", async () => {
@@ -1185,9 +1216,13 @@ describe("AskInputWindow", () => {
 
     it("remounts the preamble when a fresh press brings different text", async () => {
       await render();
-      await showPayload({ systemPrompt: SYSTEM_PROMPT, contextDirectives: DIRECTIVES });
+      await showPayload({
+        systemPrompt: SYSTEM_PROMPT,
+        contextDirectives: DIRECTIVES,
+      });
 
-      const first = block("context-directives")?.querySelector("pre")?.textContent;
+      const first =
+        block("context-directives")?.querySelector("pre")?.textContent;
       expect(first).toBe(DIRECTIVES);
 
       await showPayload({
@@ -1195,9 +1230,9 @@ describe("AskInputWindow", () => {
         contextDirectives: "Current time: 2026-08-11T15:00:00+09:00",
       });
 
-      expect(block("context-directives")?.querySelector("pre")?.textContent).toBe(
-        "Current time: 2026-08-11T15:00:00+09:00",
-      );
+      expect(
+        block("context-directives")?.querySelector("pre")?.textContent,
+      ).toBe("Current time: 2026-08-11T15:00:00+09:00");
     });
 
     it("floors the chat scroll area so the question bubble keeps room", async () => {
@@ -1236,7 +1271,10 @@ describe("AskInputWindow", () => {
 
       it("Enter still submits the trimmed question", async () => {
         await render();
-        await showPayload({ context: LONG_CONTEXT, systemPrompt: SYSTEM_PROMPT });
+        await showPayload({
+          context: LONG_CONTEXT,
+          systemPrompt: SYSTEM_PROMPT,
+        });
         await type("  what changed?  ");
 
         const event = await keydown({ key: "Enter" });

@@ -203,7 +203,9 @@ const inlineThemeDeclarations = (): string => {
 
 const compiledRendererCss = (): string => {
   const rendererDir = path.join(projectRoot, "out/renderer");
-  const files = readdirSync(rendererDir).filter((file) => file.endsWith(".css"));
+  const files = readdirSync(rendererDir).filter((file) =>
+    file.endsWith(".css"),
+  );
 
   expect(files.length).toBeGreaterThan(0);
   return files

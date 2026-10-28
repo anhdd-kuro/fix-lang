@@ -48,21 +48,33 @@ vi.mock("~/main/logging/logService", () => ({ logger: loggerMock }));
  * literals; every value below is fabricated, but the scanner cannot know that.
  * The joined value is byte-identical to what it replaced.
  */
-const credentialFixture = (...parts: readonly string[]): string => parts.join("");
+const credentialFixture = (...parts: readonly string[]): string =>
+  parts.join("");
 
 const AWS_KEY = credentialFixture("AKIA", "IOSFODNN7EXAMPLE");
 const SECRET_TEXT = `my deploy key is ${AWS_KEY} and it works`;
 const CLEAN_TEXT = "please review this paragraph for me";
 
-const SITES: readonly SecretSendSite[] = ["correction", "promptGen", "ask", "combo"];
+const SITES: readonly SecretSendSite[] = [
+  "correction",
+  "promptGen",
+  "ask",
+  "combo",
+];
 
-const settings = (overrides: Partial<SecretGuardSettings> = {}): SecretGuardSettings => ({
+const settings = (
+  overrides: Partial<SecretGuardSettings> = {},
+): SecretGuardSettings => ({
   mode: "confirm",
   highEntropyRule: false,
   ...overrides,
 });
 
-const gate = async (site: SecretSendSite, text: string, mode: SecretGuardSettings["mode"]) =>
+const gate = async (
+  site: SecretSendSite,
+  text: string,
+  mode: SecretGuardSettings["mode"],
+) =>
   runSecretGate({
     site,
     text,
@@ -71,9 +83,12 @@ const gate = async (site: SecretSendSite, text: string, mode: SecretGuardSetting
   });
 
 const loggedContexts = (): LogContext[] =>
-  [loggerMock.debug, loggerMock.info, loggerMock.warn, loggerMock.error].flatMap((fn) =>
-    fn.mock.calls.map((call) => (call[2] ?? {}) as LogContext),
-  );
+  [
+    loggerMock.debug,
+    loggerMock.info,
+    loggerMock.warn,
+    loggerMock.error,
+  ].flatMap((fn) => fn.mock.calls.map((call) => (call[2] ?? {}) as LogContext));
 
 type AroundDialog = NonNullable<SecretGateInput["aroundDialog"]>;
 
@@ -134,31 +149,37 @@ describe("runSecretGate", () => {
   });
 
   describe("mode off", () => {
-    it.each(SITES)("sends %s untouched and never opens a dialog", async (site) => {
-      const result = await gate(site, SECRET_TEXT, "off");
+    it.each(SITES)(
+      "sends %s untouched and never opens a dialog",
+      async (site) => {
+        const result = await gate(site, SECRET_TEXT, "off");
 
-      expect(result).toMatchObject({
-        gateDecision: "allow",
-        sentText: SECRET_TEXT,
-        masking: null,
-        restoreOnReply: false,
-        appliedMode: "off",
-      });
-      expect(confirmSecretSendMock).not.toHaveBeenCalled();
-    });
+        expect(result).toMatchObject({
+          gateDecision: "allow",
+          sentText: SECRET_TEXT,
+          masking: null,
+          restoreOnReply: false,
+          appliedMode: "off",
+        });
+        expect(confirmSecretSendMock).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe("nothing detected", () => {
-    it.each(SITES)("allows %s in confirm mode without a dialog", async (site) => {
-      const result = await gate(site, CLEAN_TEXT, "confirm");
+    it.each(SITES)(
+      "allows %s in confirm mode without a dialog",
+      async (site) => {
+        const result = await gate(site, CLEAN_TEXT, "confirm");
 
-      expect(result).toMatchObject({
-        gateDecision: "allow",
-        sentText: CLEAN_TEXT,
-        masking: null,
-      });
-      expect(confirmSecretSendMock).not.toHaveBeenCalled();
-    });
+        expect(result).toMatchObject({
+          gateDecision: "allow",
+          sentText: CLEAN_TEXT,
+          masking: null,
+        });
+        expect(confirmSecretSendMock).not.toHaveBeenCalled();
+      },
+    );
 
     // Expectations are LITERAL per site. Branching on
     // `SECRET_SEND_SITE_POLICY[site].mask` would recompute the expected value
@@ -170,7 +191,8 @@ describe("runSecretGate", () => {
         const result = await gate(site, CLEAN_TEXT, "mask");
 
         expect(result.gateDecision).toBe("allow");
-        if (result.gateDecision === "declined") throw new Error("unexpected decline");
+        if (result.gateDecision === "declined")
+          throw new Error("unexpected decline");
         expect(result.sentText).toBe(CLEAN_TEXT);
         expect(result.masking?.matchCount).toBe(0);
       },
@@ -192,31 +214,40 @@ describe("runSecretGate", () => {
   });
 
   describe("confirm mode", () => {
-    it.each(SITES)("asks before sending from %s and proceeds on Send anyway", async (site) => {
-      const result = await gate(site, SECRET_TEXT, "confirm");
+    it.each(SITES)(
+      "asks before sending from %s and proceeds on Send anyway",
+      async (site) => {
+        const result = await gate(site, SECRET_TEXT, "confirm");
 
-      expect(confirmSecretSendMock).toHaveBeenCalledTimes(1);
-      expect(confirmSecretSendMock).toHaveBeenCalledWith({
-        ruleIds: ["aws-access-key-id"],
-        matchCount: 1,
-      });
-      expect(result).toMatchObject({
-        gateDecision: "confirmed",
-        sentText: SECRET_TEXT,
-        masking: null,
-        restoreOnReply: false,
-        appliedMode: "confirm",
-      });
-    });
+        expect(confirmSecretSendMock).toHaveBeenCalledTimes(1);
+        expect(confirmSecretSendMock).toHaveBeenCalledWith({
+          ruleIds: ["aws-access-key-id"],
+          matchCount: 1,
+        });
+        expect(result).toMatchObject({
+          gateDecision: "confirmed",
+          sentText: SECRET_TEXT,
+          masking: null,
+          restoreOnReply: false,
+          appliedMode: "confirm",
+        });
+      },
+    );
 
-    it.each(SITES)("declines from %s when the dialog is cancelled", async (site) => {
-      confirmSecretSendMock.mockResolvedValue(false);
+    it.each(SITES)(
+      "declines from %s when the dialog is cancelled",
+      async (site) => {
+        confirmSecretSendMock.mockResolvedValue(false);
 
-      const result = await gate(site, SECRET_TEXT, "confirm");
+        const result = await gate(site, SECRET_TEXT, "confirm");
 
-      expect(result).toMatchObject({ gateDecision: "declined", appliedMode: "confirm" });
-      expect(result).not.toHaveProperty("sentText");
-    });
+        expect(result).toMatchObject({
+          gateDecision: "declined",
+          appliedMode: "confirm",
+        });
+        expect(result).not.toHaveProperty("sentText");
+      },
+    );
   });
 
   describe("mask mode, per site", () => {
@@ -341,7 +372,8 @@ describe("runSecretGate", () => {
       async (site) => {
         const result = await gate(site, PARTIAL_MASK_TEXT, "mask");
 
-        if (result.gateDecision === "declined") throw new Error("unexpected decline");
+        if (result.gateDecision === "declined")
+          throw new Error("unexpected decline");
         expect(result.sentText).not.toContain(SECRET_PLACEHOLDER_MARKER);
         expect(result.sentText).toBe(PARTIAL_MASK_TEXT);
       },
@@ -354,7 +386,10 @@ describe("runSecretGate", () => {
 
         const result = await gate(site, PARTIAL_MASK_TEXT, "mask");
 
-        expect(result).toEqual({ gateDecision: "declined", appliedMode: "confirm" });
+        expect(result).toEqual({
+          gateDecision: "declined",
+          appliedMode: "confirm",
+        });
         expect(result).not.toHaveProperty("sentText");
       },
     );
@@ -425,7 +460,10 @@ describe("runSecretGate", () => {
       for (const context of contexts) {
         expect(context).not.toHaveProperty("reason");
       }
-      expect(contexts[1]).toMatchObject({ guardMode: "mask", appliedMode: "confirm" });
+      expect(contexts[1]).toMatchObject({
+        guardMode: "mask",
+        appliedMode: "confirm",
+      });
     });
 
     it("survives the REAL redactor — `reason` and `partial-mask` both come through unblanked", async () => {
@@ -602,7 +640,9 @@ describe("runSecretGate", () => {
     it("reports rule ids as an array VALUE, never spread into keys", async () => {
       await gate("correction", SECRET_TEXT, "confirm");
 
-      const withRules = loggedContexts().find((context) => "ruleIds" in context);
+      const withRules = loggedContexts().find(
+        (context) => "ruleIds" in context,
+      );
       expect(Array.isArray(withRules?.ruleIds)).toBe(true);
       expect(withRules?.ruleIds).toEqual(["aws-access-key-id"]);
     });
@@ -649,7 +689,10 @@ describe("runSecretGate — companionText (system-prompt metadata)", () => {
       settings: settings({ mode: "confirm" }),
     });
 
-    expect(result).toEqual({ gateDecision: "declined", appliedMode: "confirm" });
+    expect(result).toEqual({
+      gateDecision: "declined",
+      appliedMode: "confirm",
+    });
     expect(result).not.toHaveProperty("sentCompanionText");
   });
 
@@ -663,7 +706,8 @@ describe("runSecretGate — companionText (system-prompt metadata)", () => {
     });
 
     expect(confirmSecretSendMock).not.toHaveBeenCalled();
-    if (result.gateDecision === "declined") throw new Error("unexpected decline");
+    if (result.gateDecision === "declined")
+      throw new Error("unexpected decline");
     expect(result.gateDecision).toBe("masked");
     expect(result.sentText).toBe(CLEAN_TEXT);
     expect(result.sentCompanionText).not.toContain(AWS_KEY);
@@ -681,7 +725,9 @@ describe("runSecretGate — companionText (system-prompt metadata)", () => {
       salt: () => "A1B2C3",
     });
 
-    const call = loggerMock.info.mock.calls.find((entry) => entry[0] === "secretGuard.gate");
+    const call = loggerMock.info.mock.calls.find(
+      (entry) => entry[0] === "secretGuard.gate",
+    );
     expect(call).toBeDefined();
     if (call === undefined) throw new Error("expected a secretGuard.gate log");
     const message = call[1];
@@ -734,7 +780,8 @@ describe("runSecretGate — companionText (system-prompt metadata)", () => {
       settings: settings({ mode: "confirm" }),
     });
 
-    if (result.gateDecision === "declined") throw new Error("unexpected decline");
+    if (result.gateDecision === "declined")
+      throw new Error("unexpected decline");
     expect(result.sentCompanionText).toBe("");
   });
 });

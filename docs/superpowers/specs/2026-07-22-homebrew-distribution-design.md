@@ -31,12 +31,12 @@ homebrew-tap/
 └── README.md
 ```
 
-| Component | Owner | Responsibility |
-| --- | --- | --- |
-| FixLang release workflow | `anhdd-kuro/fix-lang` | Publish immutable public `FixLang-X.Y.Z-arm64.dmg` and `SHA256SUMS.txt`. |
-| Tap sync workflow | `anhdd-kuro/homebrew-tap` | Discover, validate, render, test, and commit the cask. |
-| Cask | `anhdd-kuro/homebrew-tap` | Declare one verified FixLang release for Homebrew. |
-| User installation | Homebrew user | Install, update, approve tap trust if requested, and make the unsigned-app trust decision. |
+| Component                | Owner                     | Responsibility                                                                             |
+| ------------------------ | ------------------------- | ------------------------------------------------------------------------------------------ |
+| FixLang release workflow | `anhdd-kuro/fix-lang`     | Publish immutable public `FixLang-X.Y.Z-arm64.dmg` and `SHA256SUMS.txt`.                   |
+| Tap sync workflow        | `anhdd-kuro/homebrew-tap` | Discover, validate, render, test, and commit the cask.                                     |
+| Cask                     | `anhdd-kuro/homebrew-tap` | Declare one verified FixLang release for Homebrew.                                         |
+| User installation        | Homebrew user             | Install, update, approve tap trust if requested, and make the unsigned-app trust decision. |
 
 `sync-fixlang.yml` is pull-based: it runs on a six-hour schedule and with `workflow_dispatch`. The FixLang repository never writes to the tap. Six hours is the maximum normal discovery delay, not a promise of instant publication.
 
@@ -146,15 +146,15 @@ That command is optional, not a request to trust the whole tap blindly. Document
 
 ## Failure and recovery
 
-| Condition | Result | Recovery |
-| --- | --- | --- |
-| No public stable release | Success/no-op, no commit. | Publish a real release, then dispatch. |
-| GitHub API or network failure | Fail, no cask change. | Re-run after recovery. |
-| Invalid version/assets/checksum/DMG/bundle/architecture/ancestry | Fail, no cask change. | Publish a new, higher corrected FixLang release; never replace public assets or move tags. |
-| Same version | Success/no-op. | None; this is idempotency evidence. |
-| Candidate lower than cask | Success/no-op with refusal. | Investigate; never automate a downgrade. |
-| Homebrew style/audit/fetch failure | Fail, no cask commit. | Correct template or source, then dispatch. |
-| Remote install/uninstall failure after commit | Revert direct cask commit and fail. | Inspect smoke-test log, correct cause, then synchronize a genuine later release. |
+| Condition                                                        | Result                              | Recovery                                                                                   |
+| ---------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------ |
+| No public stable release                                         | Success/no-op, no commit.           | Publish a real release, then dispatch.                                                     |
+| GitHub API or network failure                                    | Fail, no cask change.               | Re-run after recovery.                                                                     |
+| Invalid version/assets/checksum/DMG/bundle/architecture/ancestry | Fail, no cask change.               | Publish a new, higher corrected FixLang release; never replace public assets or move tags. |
+| Same version                                                     | Success/no-op.                      | None; this is idempotency evidence.                                                        |
+| Candidate lower than cask                                        | Success/no-op with refusal.         | Investigate; never automate a downgrade.                                                   |
+| Homebrew style/audit/fetch failure                               | Fail, no cask commit.               | Correct template or source, then dispatch.                                                 |
+| Remote install/uninstall failure after commit                    | Revert direct cask commit and fail. | Inspect smoke-test log, correct cause, then synchronize a genuine later release.           |
 
 No recovery force-pushes, rewrites tags, replaces public assets, uses `--zap`, or targets `/Applications/FixLang.app`.
 
@@ -164,18 +164,18 @@ Initial work creates the public tap and its three files only. Once live, the min
 
 ## Acceptance criteria and evidence
 
-| Requirement | Evidence |
-| --- | --- |
-| Public tap exists | Public tree shows cask, workflow, and README. |
-| No cross-repo write access | Workflow permissions and secret settings show only tap `GITHUB_TOKEN` with `contents: write`. |
-| Safe pre-release state | Dispatched workflow logs successful no-op and no commit. |
-| Validation is real | Logs show selected tag, checksum equality, `hdiutil verify`, mounted version/identifier, arm64 result, and `main` ancestry. |
-| Cask is correct | Committed cask has literal version/SHA/URL, arm64 dependency, app stanza, `unsigned_accessibility`, and manual `xattr` caveat; forbidden stanzas are absent. |
-| Homebrew quality passes | `brew style --cask`, `brew audit --cask`, and `brew fetch --cask` pass. |
-| Remote path is safe | Clean-context remote install/uninstall log uses temporary `--appdir`, normal uninstall, no `/Applications` target, and no `--zap`. |
-| User path is documented | README has exact install/update commands and explains Homebrew 6 prompt plus optional explicit trust command. |
-| Current behavior is honestly proven | Tests/fixtures cover no-release, same-version, malformed-cask failure, and lower-version refusal without fake versions. |
-| Production upgrade is proven | A later genuine release, at least `0.2.1`, updates the public cask and is exercised with `brew upgrade --cask anhdd-kuro/tap/fixlang`; before then, this remains explicitly unproven. |
+| Requirement                         | Evidence                                                                                                                                                                              |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public tap exists                   | Public tree shows cask, workflow, and README.                                                                                                                                         |
+| No cross-repo write access          | Workflow permissions and secret settings show only tap `GITHUB_TOKEN` with `contents: write`.                                                                                         |
+| Safe pre-release state              | Dispatched workflow logs successful no-op and no commit.                                                                                                                              |
+| Validation is real                  | Logs show selected tag, checksum equality, `hdiutil verify`, mounted version/identifier, arm64 result, and `main` ancestry.                                                           |
+| Cask is correct                     | Committed cask has literal version/SHA/URL, arm64 dependency, app stanza, `unsigned_accessibility`, and manual `xattr` caveat; forbidden stanzas are absent.                          |
+| Homebrew quality passes             | `brew style --cask`, `brew audit --cask`, and `brew fetch --cask` pass.                                                                                                               |
+| Remote path is safe                 | Clean-context remote install/uninstall log uses temporary `--appdir`, normal uninstall, no `/Applications` target, and no `--zap`.                                                    |
+| User path is documented             | README has exact install/update commands and explains Homebrew 6 prompt plus optional explicit trust command.                                                                         |
+| Current behavior is honestly proven | Tests/fixtures cover no-release, same-version, malformed-cask failure, and lower-version refusal without fake versions.                                                               |
+| Production upgrade is proven        | A later genuine release, at least `0.2.1`, updates the public cask and is exercised with `brew upgrade --cask anhdd-kuro/tap/fixlang`; before then, this remains explicitly unproven. |
 
 ## Spec self-review
 

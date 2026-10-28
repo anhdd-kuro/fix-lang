@@ -149,7 +149,8 @@ export const downloadsCacheDir = (
   env: NodeJS.ProcessEnv = process.env,
 ): string =>
   path.join(
-    env.HOMEBREW_CACHE ?? path.join(env.HOME ?? "", "Library", "Caches", "Homebrew"),
+    env.HOMEBREW_CACHE ??
+      path.join(env.HOME ?? "", "Library", "Caches", "Homebrew"),
     "downloads",
   );
 

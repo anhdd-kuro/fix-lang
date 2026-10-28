@@ -39,9 +39,7 @@ const createLogsFeature = () => ({
     );
     return Array.isArray(result) ? result.filter(isLogEntry) : [];
   },
-  queryLogs: async (
-    request: LogQueryRequest = {},
-  ): Promise<LogQueryResult> => {
+  queryLogs: async (request: LogQueryRequest = {}): Promise<LogQueryResult> => {
     // Drops unknown severities and collapses a full selection to "no filter",
     // so the main process never sees a shape it has to guess at.
     const levels = normalizeLogLevels(request.levels);

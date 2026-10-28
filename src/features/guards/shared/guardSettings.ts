@@ -65,7 +65,8 @@ const normalizeNonNegativeInt = (raw: unknown, fallback: number): number => {
 export const normalizeBundleId = (raw: unknown): string | null => {
   if (typeof raw !== "string") return null;
   const trimmed = raw.trim().toLowerCase();
-  if (trimmed.length === 0 || trimmed.length > MAX_BUNDLE_ID_LENGTH) return null;
+  if (trimmed.length === 0 || trimmed.length > MAX_BUNDLE_ID_LENGTH)
+    return null;
   if (CONTROL_CHARACTERS_PATTERN.test(trimmed)) return null;
   return trimmed;
 };
@@ -82,7 +83,9 @@ export const isBundleIdDenied = (
 ): boolean => {
   const normalized = normalizeBundleId(bundleId);
   if (normalized === null) return false;
-  return deniedBundleIds.some((denied) => normalizeBundleId(denied) === normalized);
+  return deniedBundleIds.some(
+    (denied) => normalizeBundleId(denied) === normalized,
+  );
 };
 
 /**
@@ -106,14 +109,21 @@ const normalizeDeniedBundleIds = (raw: unknown): string[] => {
   return result;
 };
 
-export const normalizeSelectionGuardSettings = (raw: unknown): SelectionGuardSettings => {
-  const value = (raw ?? {}) as Partial<Record<keyof SelectionGuardSettings, unknown>>;
+export const normalizeSelectionGuardSettings = (
+  raw: unknown,
+): SelectionGuardSettings => {
+  const value = (raw ?? {}) as Partial<
+    Record<keyof SelectionGuardSettings, unknown>
+  >;
   return {
     clipboardMaxAgeSeconds: normalizeNonNegativeInt(
       value.clipboardMaxAgeSeconds,
       DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
     ),
-    maxSelectionChars: normalizeNonNegativeInt(value.maxSelectionChars, DEFAULT_MAX_SELECTION_CHARS),
+    maxSelectionChars: normalizeNonNegativeInt(
+      value.maxSelectionChars,
+      DEFAULT_MAX_SELECTION_CHARS,
+    ),
     deniedBundleIds: normalizeDeniedBundleIds(value.deniedBundleIds),
   };
 };

@@ -26,7 +26,9 @@ import {
 const execFileMock = vi.hoisted(() => vi.fn());
 vi.mock("node:child_process", () => ({ execFile: execFileMock }));
 
-const historyMock = vi.hoisted(() => ({ getRecentHistory: vi.fn(() => [] as unknown[]) }));
+const historyMock = vi.hoisted(() => ({
+  getRecentHistory: vi.fn(() => [] as unknown[]),
+}));
 vi.mock("~/features/history/store/historyStore", () => ({
   getRecentHistory: historyMock.getRecentHistory,
 }));
@@ -36,7 +38,11 @@ vi.mock("~/features/i18n/store/localeStore", () => ({
   getLocale: localeMock.getLocale,
 }));
 
-const loggerMock = vi.hoisted(() => ({ debug: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+const loggerMock = vi.hoisted(() => ({
+  debug: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+}));
 vi.mock("../logging/logService", () => ({ logger: loggerMock }));
 
 /** The exact shape `defaults read com.apple.HIToolbox` prints on a real Mac. */
@@ -76,7 +82,10 @@ const JAPANESE_IME = `(
  */
 const originalPlatform = process.platform;
 const setPlatform = (platform: string): void => {
-  Object.defineProperty(process, "platform", { value: platform, configurable: true });
+  Object.defineProperty(process, "platform", {
+    value: platform,
+    configurable: true,
+  });
 };
 afterAll(() => setPlatform(originalPlatform));
 
@@ -161,7 +170,10 @@ describe("parseKeyboardInputSource", () => {
     ["empty output", ""],
     ["an empty array", "(\n)"],
     ["prose that is not a plist", "the domain/default pair does not exist"],
-    ["only the non-keyboard entry", `(\n{\nInputSourceKind = "Non Keyboard Input Method";\n}\n)`],
+    [
+      "only the non-keyboard entry",
+      `(\n{\nInputSourceKind = "Non Keyboard Input Method";\n}\n)`,
+    ],
   ])("returns null for %s", (_description, stdout) => {
     expect(parseKeyboardInputSource(stdout)).toBeNull();
   });
@@ -206,14 +218,19 @@ describe("readKeyboardInputSource through resolveAskEnvironment", () => {
   it.each([
     ["a timeout", Object.assign(new Error("killed"), { killed: true })],
     ["a missing key", new Error("The domain/default pair does not exist")],
-    ["a missing binary", Object.assign(new Error("ENOENT"), { code: "ENOENT" })],
+    [
+      "a missing binary",
+      Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+    ],
   ])("yields null and never throws on %s", async (_description, error) => {
     failWith(error);
 
     const environment = await resolveAskEnvironment();
 
     expect(environment.keyboardInputSource).toBeNull();
-    expect(buildAskDirectives(environment)).not.toContain("Keyboard input source");
+    expect(buildAskDirectives(environment)).not.toContain(
+      "Keyboard input source",
+    );
   });
 
   it("logs a failed read at debug, since it fires on every press on a machine that refuses it", async () => {
@@ -242,7 +259,9 @@ describe("readRecentTransforms", () => {
    * fields that are wanted.
    */
   it("takes the preset name and timestamp and nothing else", () => {
-    historyMock.getRecentHistory.mockReturnValue([historyRow("Correction", "2026-08-11T05:28:00.000Z")]);
+    historyMock.getRecentHistory.mockReturnValue([
+      historyRow("Correction", "2026-08-11T05:28:00.000Z"),
+    ]);
 
     expect(readRecentTransforms()).toEqual([
       { presetName: "Correction", timestamp: "2026-08-11T05:28:00.000Z" },
@@ -314,7 +333,9 @@ describe("readRecentTransforms", () => {
     const [transform] = readRecentTransforms();
 
     expect(transform.presetName).not.toContain("\n");
-    expect(transform.presetName.length).toBeLessThanOrEqual(MAX_PRESET_NAME_LENGTH);
+    expect(transform.presetName.length).toBeLessThanOrEqual(
+      MAX_PRESET_NAME_LENGTH,
+    );
   });
 
   /**
@@ -354,7 +375,9 @@ describe("formatLocalIso8601", () => {
     const date = new Date("2026-08-11T05:32:05.000Z");
     const formatted = formatLocalIso8601(date);
 
-    expect(formatted).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/);
+    expect(formatted).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/,
+    );
     expect(formatted).not.toContain("Z");
     expect(formatted.startsWith(`${date.getFullYear()}-`)).toBe(true);
   });
@@ -380,11 +403,16 @@ describe("buildAskDirectives", () => {
    * always seen stays first and unchanged, and everything new grows below it.
    */
   it("opens on the same app-locale line the flow appended before it existed", () => {
-    expect(buildAskDirectives(ENVIRONMENT).split("\n")[0]).toBe("App locale: en");
+    expect(buildAskDirectives(ENVIRONMENT).split("\n")[0]).toBe(
+      "App locale: en",
+    );
   });
 
   it("omits the keyboard line entirely when the source was unreadable", () => {
-    const rendered = buildAskDirectives({ ...ENVIRONMENT, keyboardInputSource: null });
+    const rendered = buildAskDirectives({
+      ...ENVIRONMENT,
+      keyboardInputSource: null,
+    });
 
     expect(rendered).not.toContain("Keyboard input source");
     expect(rendered).not.toMatch(/unknown|null/i);
@@ -406,7 +434,10 @@ describe("buildAskDirectives", () => {
   });
 
   it("contributes no transforms section for an empty history", () => {
-    const rendered = buildAskDirectives({ ...ENVIRONMENT, recentTransforms: [] });
+    const rendered = buildAskDirectives({
+      ...ENVIRONMENT,
+      recentTransforms: [],
+    });
 
     expect(rendered).not.toContain("Recent transforms");
     expect(rendered).toContain("Current time:");
@@ -453,8 +484,12 @@ describe("resolveAskEnvironment", () => {
   });
 
   it("treats a blank system locale as absent rather than as an empty fact", async () => {
-    expect((await resolveAskEnvironment({ systemLocale: "   " })).systemLocale).toBeNull();
-    expect((await resolveAskEnvironment({ systemLocale: null })).systemLocale).toBeNull();
+    expect(
+      (await resolveAskEnvironment({ systemLocale: "   " })).systemLocale,
+    ).toBeNull();
+    expect(
+      (await resolveAskEnvironment({ systemLocale: null })).systemLocale,
+    ).toBeNull();
   });
 
   /**

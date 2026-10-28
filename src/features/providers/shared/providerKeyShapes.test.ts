@@ -50,33 +50,47 @@ describe("findKeyShapeMismatch", () => {
   it("refuses an OpenAI admin key in OpenRouter's provisioning slot", () => {
     // The reported bug: written successfully, reported as "Key set", then every
     // OpenRouter account read came back 401.
-    const mismatch = findKeyShapeMismatch("openrouter", "provisioning", OPENAI_ADMIN);
-    expect(mismatch).toEqual({ shape: "openai-admin", expectedPrefix: "sk-or-v1-" });
+    const mismatch = findKeyShapeMismatch(
+      "openrouter",
+      "provisioning",
+      OPENAI_ADMIN,
+    );
+    expect(mismatch).toEqual({
+      shape: "openai-admin",
+      expectedPrefix: "sk-or-v1-",
+    });
   });
 
   it("refuses an OpenRouter key in either OpenAI slot", () => {
-    expect(findKeyShapeMismatch("openai", "api", OPENROUTER)?.shape).toBe("openrouter");
-    expect(findKeyShapeMismatch("openai", "provisioning", OPENROUTER)?.shape).toBe(
+    expect(findKeyShapeMismatch("openai", "api", OPENROUTER)?.shape).toBe(
       "openrouter",
     );
+    expect(
+      findKeyShapeMismatch("openai", "provisioning", OPENROUTER)?.shape,
+    ).toBe("openrouter");
   });
 
   it("refuses the wrong OpenAI slot, not just the wrong provider", () => {
     // An admin key cannot run completions and a project key cannot read
     // /organization/costs, so both fail exactly as silently as a cross-provider
     // paste — same 401, same "Key set" badge.
-    expect(findKeyShapeMismatch("openai", "api", OPENAI_ADMIN)?.expectedPrefix).toBe(
-      "sk-proj-",
-    );
     expect(
-      findKeyShapeMismatch("openai", "provisioning", OPENAI_PROJECT)?.expectedPrefix,
+      findKeyShapeMismatch("openai", "api", OPENAI_ADMIN)?.expectedPrefix,
+    ).toBe("sk-proj-");
+    expect(
+      findKeyShapeMismatch("openai", "provisioning", OPENAI_PROJECT)
+        ?.expectedPrefix,
     ).toBe("sk-admin-");
   });
 
   it("refuses an Anthropic key in an OpenAI or OpenRouter slot", () => {
     for (const slot of ["api", "provisioning"] as const) {
-      expect(findKeyShapeMismatch("openai", slot, ANTHROPIC)?.shape).toBe("anthropic");
-      expect(findKeyShapeMismatch("openrouter", slot, ANTHROPIC)?.shape).toBe("anthropic");
+      expect(findKeyShapeMismatch("openai", slot, ANTHROPIC)?.shape).toBe(
+        "anthropic",
+      );
+      expect(findKeyShapeMismatch("openrouter", slot, ANTHROPIC)?.shape).toBe(
+        "anthropic",
+      );
     }
   });
 
@@ -85,9 +99,9 @@ describe("findKeyShapeMismatch", () => {
       shape: "openrouter",
       expectedPrefix: "sk-ant-",
     });
-    expect(findKeyShapeMismatch("anthropic", "api", OPENAI_PROJECT)?.shape).toBe(
-      "openai-project",
-    );
+    expect(
+      findKeyShapeMismatch("anthropic", "api", OPENAI_PROJECT)?.shape,
+    ).toBe("openai-project");
     expect(findKeyShapeMismatch("anthropic", "api", OPENAI_ADMIN)?.shape).toBe(
       "openai-admin",
     );
@@ -95,9 +109,13 @@ describe("findKeyShapeMismatch", () => {
 
   it("accepts every key in its own slot", () => {
     expect(findKeyShapeMismatch("openrouter", "api", OPENROUTER)).toBeNull();
-    expect(findKeyShapeMismatch("openrouter", "provisioning", OPENROUTER)).toBeNull();
+    expect(
+      findKeyShapeMismatch("openrouter", "provisioning", OPENROUTER),
+    ).toBeNull();
     expect(findKeyShapeMismatch("openai", "api", OPENAI_PROJECT)).toBeNull();
-    expect(findKeyShapeMismatch("openai", "provisioning", OPENAI_ADMIN)).toBeNull();
+    expect(
+      findKeyShapeMismatch("openai", "provisioning", OPENAI_ADMIN),
+    ).toBeNull();
     expect(findKeyShapeMismatch("anthropic", "api", ANTHROPIC)).toBeNull();
   });
 
@@ -105,7 +123,9 @@ describe("findKeyShapeMismatch", () => {
     // Deliberate: a legacy `sk-…` OpenAI key and any future format must not be
     // rejected on a guess. Only positively-identified foreign shapes are.
     expect(findKeyShapeMismatch("openai", "api", OPENAI_LEGACY)).toBeNull();
-    expect(findKeyShapeMismatch("openrouter", "provisioning", OPENAI_LEGACY)).toBeNull();
+    expect(
+      findKeyShapeMismatch("openrouter", "provisioning", OPENAI_LEGACY),
+    ).toBeNull();
     expect(findKeyShapeMismatch("lmstudio", "api", "anything-goes")).toBeNull();
   });
 

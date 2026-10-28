@@ -30,7 +30,7 @@ const TrayIconButton: React.FC<TrayIconButtonProps> = ({
     className={twJoin(
       "text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2",
       "focus:ring-ring rounded-md p-1.5 cursor-pointer",
-      "disabled:cursor-not-allowed disabled:opacity-50"
+      "disabled:cursor-not-allowed disabled:opacity-50",
     )}
   >
     {children}
@@ -119,7 +119,10 @@ export const TrayToolbar: React.FC = () => {
   const handleQuit = async (): Promise<void> => {
     const { response } = await window.electronAPI.showMessageBox({
       type: "question",
-      buttons: [t("common.cancel"), t("tray.toolbar.quitConfirm.confirmButton")],
+      buttons: [
+        t("common.cancel"),
+        t("tray.toolbar.quitConfirm.confirmButton"),
+      ],
       defaultId: 0,
       cancelId: 0,
       message: t("tray.toolbar.quitConfirm.message"),
@@ -153,7 +156,8 @@ export const TrayToolbar: React.FC = () => {
           break;
 
         case "available": {
-          const availableVersion = state.availableVersion ?? t("common.unknown");
+          const availableVersion =
+            state.availableVersion ?? t("common.unknown");
           const buttons = state.canInstall
             ? [
                 t("settings.updates.installNow"),

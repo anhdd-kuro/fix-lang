@@ -23,17 +23,30 @@ import {
 // A source-text assertion on purpose: a dynamic-import probe would only prove
 // the module loads, not that the forbidden dependency is absent.
 describe("Electron-free module boundary", () => {
-  const SOURCE_FILES = ["providers.ts", "modelRef.ts", "lmstudioEndpoint.ts"] as const;
-  const FORBIDDEN_SPECIFIER = /^(electron($|\/|-)|~\/stores\/|~\/features\/[^/]+\/store\/|@\/stores\/|node:)/;
+  const SOURCE_FILES = [
+    "providers.ts",
+    "modelRef.ts",
+    "lmstudioEndpoint.ts",
+  ] as const;
+  const FORBIDDEN_SPECIFIER =
+    /^(electron($|\/|-)|~\/stores\/|~\/features\/[^/]+\/store\/|@\/stores\/|node:)/;
   // Quoted specifiers only, so prose mentioning Electron in a doc comment does not trip it.
-  const SPECIFIER = /(?:\bfrom|\brequire\s*\(|\bimport\s*\()\s*["']([^"']+)["']/g;
+  const SPECIFIER =
+    /(?:\bfrom|\brequire\s*\(|\bimport\s*\()\s*["']([^"']+)["']/g;
 
   for (const file of SOURCE_FILES) {
     it(`${file} imports nothing from electron, the stores directory, or a Node built-in`, () => {
-      const source = readFileSync(fileURLToPath(new URL(file, import.meta.url)), "utf8");
-      const specifiers = [...source.matchAll(SPECIFIER)].map(([, specifier]) => specifier);
+      const source = readFileSync(
+        fileURLToPath(new URL(file, import.meta.url)),
+        "utf8",
+      );
+      const specifiers = [...source.matchAll(SPECIFIER)].map(
+        ([, specifier]) => specifier,
+      );
 
-      expect(specifiers.filter((specifier) => FORBIDDEN_SPECIFIER.test(specifier))).toEqual([]);
+      expect(
+        specifiers.filter((specifier) => FORBIDDEN_SPECIFIER.test(specifier)),
+      ).toEqual([]);
     });
   }
 
@@ -133,7 +146,12 @@ describe("isModelForProvider", () => {
   });
 
   it("matches an openai-tagged model only to openai", () => {
-    const model: Model = { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" };
+    const model: Model = {
+      id: "gpt-4o",
+      name: "gpt-4o",
+      created: 1,
+      provider: "openai",
+    };
     expect(isModelForProvider(model, "openai")).toBe(true);
     expect(isModelForProvider(model, "openrouter")).toBe(false);
     expect(isModelForProvider(model, "ollama")).toBe(false);
@@ -152,7 +170,11 @@ describe("isModelForProvider", () => {
   });
 
   it("matches a legacy untagged model (no provider, no local) only to openrouter", () => {
-    const model: Model = { id: "legacy-model", name: "legacy-model", created: 1 };
+    const model: Model = {
+      id: "legacy-model",
+      name: "legacy-model",
+      created: 1,
+    };
     expect(isModelForProvider(model, "openrouter")).toBe(true);
     expect(isModelForProvider(model, "openai")).toBe(false);
     expect(isModelForProvider(model, "ollama")).toBe(false);
@@ -185,14 +207,23 @@ describe("isModelForProvider", () => {
 
 // Every fixture includes an untagged model: `model.provider === provider` drops it.
 describe("modelsForProvider", () => {
-  const openaiModel: Model = { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" };
+  const openaiModel: Model = {
+    id: "gpt-4o",
+    name: "gpt-4o",
+    created: 1,
+    provider: "openai",
+  };
   const openrouterModel: Model = {
     id: "anthropic/claude-3",
     name: "claude-3",
     created: 1,
     provider: "openrouter",
   };
-  const untaggedCloud: Model = { id: "legacy-model", name: "legacy-model", created: 1 };
+  const untaggedCloud: Model = {
+    id: "legacy-model",
+    name: "legacy-model",
+    created: 1,
+  };
   const untaggedLocal: Model = {
     id: "llama3.2:3b",
     name: "llama3.2",
@@ -205,14 +236,26 @@ describe("modelsForProvider", () => {
     created: 1,
     provider: "ollama",
   };
-  const models = [openaiModel, openrouterModel, untaggedCloud, untaggedLocal, taggedLocal];
+  const models = [
+    openaiModel,
+    openrouterModel,
+    untaggedCloud,
+    untaggedLocal,
+    taggedLocal,
+  ];
 
   it("keeps an untagged cloud model in the openrouter slice", () => {
-    expect(modelsForProvider(models, "openrouter")).toEqual([openrouterModel, untaggedCloud]);
+    expect(modelsForProvider(models, "openrouter")).toEqual([
+      openrouterModel,
+      untaggedCloud,
+    ]);
   });
 
   it("keeps an untagged local model in the ollama slice", () => {
-    expect(modelsForProvider(models, "ollama")).toEqual([untaggedLocal, taggedLocal]);
+    expect(modelsForProvider(models, "ollama")).toEqual([
+      untaggedLocal,
+      taggedLocal,
+    ]);
   });
 
   it("returns only exactly-tagged models for openai", () => {
@@ -228,14 +271,20 @@ describe("modelsForProvider", () => {
 
   it("agrees with isModelForProvider for every model/provider pair", () => {
     for (const provider of PROVIDER_ORDER) {
-      const expected = models.filter((model) => isModelForProvider(model, provider));
+      const expected = models.filter((model) =>
+        isModelForProvider(model, provider),
+      );
       expect(modelsForProvider(models, provider)).toEqual(expected);
     }
   });
 });
 
 describe("groupModelsByProvider", () => {
-  const untaggedCloud: Model = { id: "legacy-model", name: "legacy-model", created: 1 };
+  const untaggedCloud: Model = {
+    id: "legacy-model",
+    name: "legacy-model",
+    created: 1,
+  };
   const untaggedLocal: Model = {
     id: "llama3.2:3b",
     name: "llama3.2",
@@ -245,9 +294,9 @@ describe("groupModelsByProvider", () => {
   const models = [untaggedCloud, untaggedLocal];
 
   it("emits one group per PROVIDER_ORDER entry, in order, by default", () => {
-    expect(groupModelsByProvider(models).map((group) => group.provider)).toEqual([
-      ...PROVIDER_ORDER,
-    ]);
+    expect(
+      groupModelsByProvider(models).map((group) => group.provider),
+    ).toEqual([...PROVIDER_ORDER]);
   });
 
   it("places untagged models in the group isModelForProvider says they belong to", () => {
@@ -269,43 +318,76 @@ describe("groupModelsByProvider", () => {
   });
 
   it("keeps empty groups so callers decide whether to render them", () => {
-    expect(groupModelsByProvider([], ["openai"])).toEqual([{ provider: "openai", models: [] }]);
+    expect(groupModelsByProvider([], ["openai"])).toEqual([
+      { provider: "openai", models: [] },
+    ]);
   });
 });
 
 describe("providerOfModel", () => {
   it("returns the tagged provider when present", () => {
-    const model: Model = { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" };
+    const model: Model = {
+      id: "gpt-4o",
+      name: "gpt-4o",
+      created: 1,
+      provider: "openai",
+    };
     expect(providerOfModel(model)).toBe("openai");
   });
 
   it("falls back to openrouter when Model.provider is absent, even for a local model", () => {
-    const model: Model = { id: "legacy-model", name: "legacy-model", created: 1 };
+    const model: Model = {
+      id: "legacy-model",
+      name: "legacy-model",
+      created: 1,
+    };
     expect(providerOfModel(model)).toBe("openrouter");
   });
 });
 
 describe("isProviderConfigured", () => {
   it("an API-key provider with a key is configured regardless of explicitlyEnabled", () => {
-    expect(isProviderConfigured("openai", { hasApiKey: true, explicitlyEnabled: false })).toBe(true);
+    expect(
+      isProviderConfigured("openai", {
+        hasApiKey: true,
+        explicitlyEnabled: false,
+      }),
+    ).toBe(true);
   });
 
   it("an API-key provider without a key is not configured regardless of explicitlyEnabled", () => {
-    expect(isProviderConfigured("openai", { hasApiKey: false, explicitlyEnabled: true })).toBe(false);
+    expect(
+      isProviderConfigured("openai", {
+        hasApiKey: false,
+        explicitlyEnabled: true,
+      }),
+    ).toBe(false);
   });
 
   it("ollama enabled is configured regardless of hasApiKey", () => {
-    expect(isProviderConfigured("ollama", { hasApiKey: false, explicitlyEnabled: true })).toBe(true);
+    expect(
+      isProviderConfigured("ollama", {
+        hasApiKey: false,
+        explicitlyEnabled: true,
+      }),
+    ).toBe(true);
   });
 
   it("ollama not enabled is not configured regardless of hasApiKey", () => {
-    expect(isProviderConfigured("ollama", { hasApiKey: true, explicitlyEnabled: false })).toBe(false);
+    expect(
+      isProviderConfigured("ollama", {
+        hasApiKey: true,
+        explicitlyEnabled: false,
+      }),
+    ).toBe(false);
   });
 
   // The casts reproduce the untyped value that reaches this function from a config file.
   it("rejects a prototype-chain key masquerading as a provider id", () => {
     const state = { hasApiKey: true, explicitlyEnabled: true };
-    expect(isProviderConfigured("constructor" as ProviderId, state)).toBe(false);
+    expect(isProviderConfigured("constructor" as ProviderId, state)).toBe(
+      false,
+    );
     expect(isProviderConfigured("__proto__" as ProviderId, state)).toBe(false);
     expect(isProviderConfigured("toString" as ProviderId, state)).toBe(false);
     expect(isProviderConfigured("valueOf" as ProviderId, state)).toBe(false);
@@ -345,15 +427,15 @@ describe("sanitizeEnabledProviders", () => {
   });
 
   it("returns every provider in PROVIDER_ORDER when all are present, in any input order", () => {
-    expect(sanitizeEnabledProviders([
+    expect(
+      sanitizeEnabledProviders([
         "lmstudio",
         "ollama",
         "openrouter",
         "openai",
         "anthropic",
         "bedrock",
-      ])).toEqual([
-      ...PROVIDER_ORDER,
-    ]);
+      ]),
+    ).toEqual([...PROVIDER_ORDER]);
   });
 });

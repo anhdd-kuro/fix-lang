@@ -38,13 +38,19 @@ const resolveBoth = (label: unknown): { en: string; ja: string } => {
   };
 };
 
-const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
+const handlers = new Map<
+  string,
+  (event: unknown, ...args: unknown[]) => unknown
+>();
 const onHandlers = new Map<string, (...args: unknown[]) => unknown>();
 const notificationShow = vi.fn();
 
 vi.mock("electron", () => ({
   ipcMain: {
-    handle: (channel: string, listener: (event: unknown, ...args: unknown[]) => unknown) => {
+    handle: (
+      channel: string,
+      listener: (event: unknown, ...args: unknown[]) => unknown,
+    ) => {
       handlers.set(channel, listener);
     },
     on: (channel: string, listener: (...args: unknown[]) => unknown) => {
@@ -101,7 +107,9 @@ vi.mock("~/features/providers/store/provisioningKeyStore", () => ({
 // dependency chain) — this file tests settings.ts's own error descriptors,
 // not the separate main-process notification copy.
 vi.mock("./settingsNotifications", () => ({
-  buildSettingsSavedNotification: vi.fn().mockReturnValue({ title: "t", body: "b" }),
+  buildSettingsSavedNotification: vi
+    .fn()
+    .mockReturnValue({ title: "t", body: "b" }),
 }));
 
 describe("settings.ts IPC handlers — app-authored validation errors are translatable Messages", () => {
@@ -143,7 +151,10 @@ describe("settings.ts IPC handlers — app-authored validation errors are transl
       throw new Error("disk full");
     });
     const handler = handlers.get("set-key-bindings");
-    const result = (await handler?.(undefined, { promptGen: "A", profileSwitch: "B" })) as {
+    const result = (await handler?.(undefined, {
+      promptGen: "A",
+      profileSwitch: "B",
+    })) as {
       success: boolean;
       error?: unknown;
     };
@@ -158,11 +169,13 @@ describe("settings.ts IPC handlers — app-authored validation errors are transl
 
   it("set-key-bindings: an unexpected non-Error throw still crosses as opaque raw (stringified) text", async () => {
     setKeyBindingsMock.mockImplementation(() => {
-
       throw "boom";
     });
     const handler = handlers.get("set-key-bindings");
-    const result = (await handler?.(undefined, { promptGen: "A", profileSwitch: "B" })) as {
+    const result = (await handler?.(undefined, {
+      promptGen: "A",
+      profileSwitch: "B",
+    })) as {
       success: boolean;
       error?: unknown;
     };
@@ -214,7 +227,10 @@ describe("settings.ts IPC handlers — app-authored validation errors are transl
   });
 
   it("set-provisioning-key: a store-authored error (provisioningKeyStore.ts, outside this migration's scope) is boundary-wrapped as opaque and stays identical across locales", async () => {
-    setProvisioningKeyMock.mockResolvedValue({ success: false, error: "No active profile" });
+    setProvisioningKeyMock.mockResolvedValue({
+      success: false,
+      error: "No active profile",
+    });
     const handler = handlers.get("set-provisioning-key");
     const result = (await handler?.(undefined, "openrouter", "sk-or-abc")) as {
       success: boolean;
@@ -229,7 +245,10 @@ describe("settings.ts IPC handlers — app-authored validation errors are transl
   });
 
   it("clear-provisioning-key: a store-authored error is boundary-wrapped as opaque", async () => {
-    clearProvisioningKeyMock.mockResolvedValue({ success: false, error: "Failed to clear key" });
+    clearProvisioningKeyMock.mockResolvedValue({
+      success: false,
+      error: "Failed to clear key",
+    });
     const handler = handlers.get("clear-provisioning-key");
     const result = (await handler?.(undefined, "openrouter")) as {
       success: boolean;

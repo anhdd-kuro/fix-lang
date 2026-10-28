@@ -28,7 +28,11 @@ import type { LogEntry } from "~/features/logs/shared/logging";
 /** Matches the dashboard's shared analytics range pills (`AnalyticsRange`). */
 export type SecurityStatsRange = "all" | "30d" | "7d";
 
-export const SECURITY_STATS_RANGES: readonly SecurityStatsRange[] = ["all", "30d", "7d"];
+export const SECURITY_STATS_RANGES: readonly SecurityStatsRange[] = [
+  "all",
+  "30d",
+  "7d",
+];
 
 const RANGE_DAYS: Record<Exclude<SecurityStatsRange, "all">, number> = {
   "30d": 30,
@@ -37,8 +41,11 @@ const RANGE_DAYS: Record<Exclude<SecurityStatsRange, "all">, number> = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const isSecurityStatsRange = (value: unknown): value is SecurityStatsRange =>
-  typeof value === "string" && SECURITY_STATS_RANGES.includes(value as SecurityStatsRange);
+export const isSecurityStatsRange = (
+  value: unknown,
+): value is SecurityStatsRange =>
+  typeof value === "string" &&
+  SECURITY_STATS_RANGES.includes(value as SecurityStatsRange);
 
 /**
  * Written to the `guardEvent` context key. `context-dropped` is Ask's outcome
@@ -106,7 +113,9 @@ const contextCount = (entry: LogEntry, key: string): number => {
 
 const contextRuleIds = (entry: LogEntry): string[] => {
   const value = entry.context?.ruleIds;
-  return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
+  return Array.isArray(value)
+    ? value.filter((id): id is string => typeof id === "string")
+    : [];
 };
 
 /**
@@ -115,15 +124,19 @@ const contextRuleIds = (entry: LogEntry): string[] => {
  */
 export const isSecurityEvent = (entry: LogEntry): boolean => {
   if (entry.scope === SECRET_MASK_SCOPE) return true;
-  if (entry.scope === SECRET_GATE_SCOPE) return contextString(entry, "gateDecision") !== null;
+  if (entry.scope === SECRET_GATE_SCOPE)
+    return contextString(entry, "gateDecision") !== null;
   return (
-    contextString(entry, "guardEvent") !== null || contextString(entry, "guardReason") !== null
+    contextString(entry, "guardEvent") !== null ||
+    contextString(entry, "guardReason") !== null
   );
 };
 
 /** String compare is correct here: `logService` writes ISO-8601 UTC timestamps. */
 const newerTimestamp = (current: string | null, candidate: string): string =>
-  current === null || candidate.localeCompare(current) > 0 ? candidate : current;
+  current === null || candidate.localeCompare(current) > 0
+    ? candidate
+    : current;
 
 type MutableStats = {
   -readonly [Key in keyof SecurityStats]: Key extends "ruleCounts"
@@ -136,7 +149,10 @@ const blankStats = (): MutableStats => ({
   ruleCounts: {},
 });
 
-const countSelectionGuardEvent = (stats: MutableStats, entry: LogEntry): boolean => {
+const countSelectionGuardEvent = (
+  stats: MutableStats,
+  entry: LogEntry,
+): boolean => {
   const event = contextString(entry, "guardEvent");
   const reason = contextString(entry, "guardReason");
 
@@ -172,7 +188,10 @@ const countSelectionGuardEvent = (stats: MutableStats, entry: LogEntry): boolean
   return false;
 };
 
-const countSecretGateEvent = (stats: MutableStats, entry: LogEntry): boolean => {
+const countSecretGateEvent = (
+  stats: MutableStats,
+  entry: LogEntry,
+): boolean => {
   const decision = contextString(entry, "gateDecision");
 
   if (decision === "confirmed") {
@@ -194,7 +213,9 @@ const countSecretGateEvent = (stats: MutableStats, entry: LogEntry): boolean => 
 };
 
 /** Order-independent, so day files may arrive in any order. */
-export const summarizeSecurityStats = (entries: Iterable<LogEntry>): SecurityStats => {
+export const summarizeSecurityStats = (
+  entries: Iterable<LogEntry>,
+): SecurityStats => {
   const stats = blankStats();
 
   const countOne = (entry: LogEntry): boolean => {
@@ -224,11 +245,17 @@ export const topSecurityRules = (
 ): { ruleId: string; count: number }[] =>
   Object.entries(stats.ruleCounts)
     .map(([ruleId, count]) => ({ ruleId, count }))
-    .sort((left, right) => right.count - left.count || left.ruleId.localeCompare(right.ruleId))
+    .sort(
+      (left, right) =>
+        right.count - left.count || left.ruleId.localeCompare(right.ruleId),
+    )
     .slice(0, Math.max(0, Math.floor(limit)));
 
 /** `now` is injected to keep callers and tests deterministic. */
-export const securityStatsCutoff = (range: SecurityStatsRange, now: Date): Date | null =>
+export const securityStatsCutoff = (
+  range: SecurityStatsRange,
+  now: Date,
+): Date | null =>
   range === "all" ? null : new Date(now.getTime() - RANGE_DAYS[range] * DAY_MS);
 
 /**
@@ -237,7 +264,10 @@ export const securityStatsCutoff = (range: SecurityStatsRange, now: Date): Date 
  * it. Reading a surplus file costs a filter pass; dropping one loses events.
  * `entryInRange` is what makes the window exact.
  */
-export const dayFolderInRange = (dayKey: string, cutoff: Date | null): boolean => {
+export const dayFolderInRange = (
+  dayKey: string,
+  cutoff: Date | null,
+): boolean => {
   if (cutoff === null) return true;
   const oneDayBefore = new Date(cutoff.getTime() - DAY_MS);
   const year = String(oneDayBefore.getFullYear());
@@ -279,7 +309,8 @@ const COUNT_KEYS: readonly (keyof SecurityStats)[] = [
 
 /** Validated independently on both sides of the IPC boundary. */
 export const isSecurityStats = (value: unknown): value is SecurityStats => {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
   const record = value as Record<string, unknown>;
   return (
     COUNT_KEYS.every((key) => isNonNegativeInteger(record[key])) &&

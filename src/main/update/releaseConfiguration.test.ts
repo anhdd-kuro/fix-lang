@@ -84,8 +84,12 @@ describe("unsigned GitHub Releases distribution", () => {
     expect(workflow).toContain("repos/${GITHUB_REPOSITORY}/git/refs");
     expect(workflow).toContain("should_publish=true");
     expect(workflow).toContain("should_publish=false");
-    expect(workflow).toContain("already has a public release; skipping publication");
-    expect(workflow).toContain("has no completed release; resuming publication");
+    expect(workflow).toContain(
+      "already has a public release; skipping publication",
+    );
+    expect(workflow).toContain(
+      "has no completed release; resuming publication",
+    );
     expect(workflow).toContain("latest public stable release");
     expect(workflow).toContain("must be greater than");
     expect(workflow).toContain(
@@ -108,7 +112,9 @@ describe("unsigned GitHub Releases distribution", () => {
     expect(workflow).toContain("bun run lint");
     expect(workflow).toContain("bun run test");
     expect(workflow).toContain('CSC_IDENTITY_AUTO_DISCOVERY: "false"');
-    expect(workflow).toContain("electron-builder --mac --arm64 --publish never");
+    expect(workflow).toContain(
+      "electron-builder --mac --arm64 --publish never",
+    );
     expect(workflow).toContain("hdiutil verify");
     expect(workflow).toContain("SHA256SUMS.txt");
     expect(workflow).toContain("shasum -a 256");
@@ -121,11 +127,18 @@ describe("unsigned GitHub Releases distribution", () => {
     expect(workflow).not.toContain("spctl");
     expect(workflow).not.toContain("xcrun stapler");
 
-    const validateStep = workflowStep(workflow, "Validate unsigned arm64 artifacts");
+    const validateStep = workflowStep(
+      workflow,
+      "Validate unsigned arm64 artifacts",
+    );
     const draftStep = workflowStep(workflow, "Create or resume draft release");
-    expect(validateStep).toContain('test -s "release/FixLang-${package_version}-arm64.dmg"');
-    expect(validateStep).toContain('hdiutil verify "release/FixLang-${package_version}-arm64.dmg"');
-    expect(validateStep).toContain('CFBundleShortVersionString');
+    expect(validateStep).toContain(
+      'test -s "release/FixLang-${package_version}-arm64.dmg"',
+    );
+    expect(validateStep).toContain(
+      'hdiutil verify "release/FixLang-${package_version}-arm64.dmg"',
+    );
+    expect(validateStep).toContain("CFBundleShortVersionString");
     expect(draftStep).toContain("refusing to replace its assets");
     expect(workflow.indexOf("Validate unsigned arm64 artifacts")).toBeLessThan(
       workflow.indexOf("Create or resume draft release"),
@@ -135,12 +148,16 @@ describe("unsigned GitHub Releases distribution", () => {
         'if ! [[ "${package_version}" =~ ${stable_version_pattern} ]]; then',
       ),
     ).toBeLessThan(
-      workflow.indexOf('gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs"'),
+      workflow.indexOf(
+        'gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs"',
+      ),
     );
     expect(
       workflow.indexOf("components.every(Number.isSafeInteger)"),
     ).toBeLessThan(
-      workflow.indexOf('gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs"'),
+      workflow.indexOf(
+        'gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs"',
+      ),
     );
     expect(workflowStep(workflow, "Upload validated release assets")).toContain(
       '"release/FixLang-${package_version}-arm64.dmg"',
@@ -158,36 +175,36 @@ describe("unsigned GitHub Releases distribution", () => {
       "remote_asset_count",
     );
 
-    expect(workflowStepSecrets(workflow, "Check out release history")).toEqual([]);
-    expect(workflowStepSecrets(workflow, "Resolve release version and tag")).toEqual([
-      "GITHUB_TOKEN",
-    ]);
-    expect(workflowStepSecrets(workflow, "Create or resume draft release")).toEqual([
-      "GITHUB_TOKEN",
-    ]);
-    expect(workflowStepSecrets(workflow, "Upload validated release assets")).toEqual([
-      "GITHUB_TOKEN",
-    ]);
-    expect(workflowStepSecrets(workflow, "Verify uploaded release assets")).toEqual([
-      "GITHUB_TOKEN",
-    ]);
+    expect(workflowStepSecrets(workflow, "Check out release history")).toEqual(
+      [],
+    );
+    expect(
+      workflowStepSecrets(workflow, "Resolve release version and tag"),
+    ).toEqual(["GITHUB_TOKEN"]);
+    expect(
+      workflowStepSecrets(workflow, "Create or resume draft release"),
+    ).toEqual(["GITHUB_TOKEN"]);
+    expect(
+      workflowStepSecrets(workflow, "Upload validated release assets"),
+    ).toEqual(["GITHUB_TOKEN"]);
+    expect(
+      workflowStepSecrets(workflow, "Verify uploaded release assets"),
+    ).toEqual(["GITHUB_TOKEN"]);
     expect(workflowStepSecrets(workflow, "Publish completed release")).toEqual([
       "GITHUB_TOKEN",
     ]);
   });
 
   it("keeps package and public-release versions to strict stable semver", () => {
-    const stableVersion =
-      /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
-    const stableTag =
-      /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
+    const stableVersion = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
+    const stableTag = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
     const hasSafeComponents = (value: string, pattern: RegExp): boolean => {
       const match = pattern.exec(value);
       return (
         match !== null &&
-        match.slice(1).every((component) =>
-          Number.isSafeInteger(Number(component)),
-        )
+        match
+          .slice(1)
+          .every((component) => Number.isSafeInteger(Number(component)))
       );
     };
 

@@ -23,7 +23,7 @@ const RANGE_DAYS: Record<Exclude<AnalyticsRange, "all">, number> = {
 export const filterByRange = (
   entries: HistoryEntry[],
   range: AnalyticsRange,
-  now: Date
+  now: Date,
 ): HistoryEntry[] => {
   if (range === "all") {
     return entries;
@@ -98,7 +98,7 @@ export const denseDayKeys = (
   entries: HistoryEntry[],
   range: AnalyticsRange,
   now: Date,
-  minDays?: number
+  minDays?: number,
 ): string[] => {
   const end = new Date(now);
   end.setHours(0, 0, 0, 0);

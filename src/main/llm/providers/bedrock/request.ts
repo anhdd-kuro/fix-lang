@@ -6,7 +6,10 @@ import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import { generateText } from "ai";
 import { reasoningForAiSdk } from "~/features/correction/shared/reasoningEffort";
 import { resolveBedrockRegion } from "~/features/providers/shared/bedrockEndpoint";
-import { getCurrentProfileId, getProviderEndpoint } from "~/features/providers/store/apiStore";
+import {
+  getCurrentProfileId,
+  getProviderEndpoint,
+} from "~/features/providers/store/apiStore";
 import { getProfileSecret } from "~/features/providers/store/profileSecretStore";
 import {
   sumTokenField,
@@ -26,7 +29,11 @@ export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
   }
 
   const accessKeyId = await getProfileSecret(profileId, "bedrock", "api");
-  const secretAccessKey = await getProfileSecret(profileId, "bedrock", "secret");
+  const secretAccessKey = await getProfileSecret(
+    profileId,
+    "bedrock",
+    "secret",
+  );
   if (!accessKeyId || !secretAccessKey) {
     const error = new Error("AWS Bedrock credentials are missing.");
     notifyRequestError(options, error);
@@ -71,7 +78,9 @@ export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
 
     const reasoningTexts = responses
       .map((response) => response.reasoningText)
-      .filter((text): text is string => typeof text === "string" && text.length > 0);
+      .filter(
+        (text): text is string => typeof text === "string" && text.length > 0,
+      );
     return {
       content: responses.map((response) => response.text),
       prompts: responses.map((response) => response.text),
@@ -84,7 +93,11 @@ export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("makeBedrockAIRequest error:", error);
-    notifyRequestError(options, error, "Failed to get a response from AWS Bedrock.");
+    notifyRequestError(
+      options,
+      error,
+      "Failed to get a response from AWS Bedrock.",
+    );
     throw error;
   }
 };

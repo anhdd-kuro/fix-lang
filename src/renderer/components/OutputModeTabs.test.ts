@@ -88,14 +88,17 @@ describe("OutputModeTabs", () => {
       .filter((b) => b.getAttribute("aria-pressed") === "true")
       .map((b) => b.textContent);
 
-    expect(pressed).toEqual([t("settings.general.correctionOutput.popup.label")]);
+    expect(pressed).toEqual([
+      t("settings.general.correctionOutput.popup.label"),
+    ]);
   });
 
   it("saves the mode when an inactive option is clicked", async () => {
     await mount("paste");
 
     const popup = buttons(container).find(
-      (b) => b.textContent === t("settings.general.correctionOutput.popup.label"),
+      (b) =>
+        b.textContent === t("settings.general.correctionOutput.popup.label"),
     );
     if (!popup) throw new Error("popup button not rendered");
     await click(popup);
@@ -108,7 +111,8 @@ describe("OutputModeTabs", () => {
     await mount("paste");
 
     const paste = buttons(container).find(
-      (b) => b.textContent === t("settings.general.correctionOutput.paste.label"),
+      (b) =>
+        b.textContent === t("settings.general.correctionOutput.paste.label"),
     );
     if (!paste) throw new Error("paste button not rendered");
     await click(paste);
@@ -121,7 +125,8 @@ describe("OutputModeTabs", () => {
     setCorrectionOutputMode.mockResolvedValueOnce({ success: false });
 
     const popup = buttons(container).find(
-      (b) => b.textContent === t("settings.general.correctionOutput.popup.label"),
+      (b) =>
+        b.textContent === t("settings.general.correctionOutput.popup.label"),
     );
     if (!popup) throw new Error("popup button not rendered");
     await click(popup);
@@ -129,7 +134,6 @@ describe("OutputModeTabs", () => {
 
     expect(popup.getAttribute("aria-pressed")).toBe("false");
   });
-
 
   it("shows save status in settings mode when persistence fails", async () => {
     await mount("paste");
@@ -148,7 +152,8 @@ describe("OutputModeTabs", () => {
     await waitForUi();
 
     const popup = buttons(container).find(
-      (b) => b.textContent === t("settings.general.correctionOutput.popup.label"),
+      (b) =>
+        b.textContent === t("settings.general.correctionOutput.popup.label"),
     );
     if (!popup) throw new Error("popup button not rendered");
     await click(popup);
@@ -156,7 +161,9 @@ describe("OutputModeTabs", () => {
 
     const status = container.querySelector('[role="status"]');
     expect(status?.textContent).toContain(
-      t("settings.general.error", { message: t("settings.general.outputMode.saveFailed") }),
+      t("settings.general.error", {
+        message: t("settings.general.outputMode.saveFailed"),
+      }),
     );
   });
 
@@ -187,7 +194,6 @@ describe("OutputModeTabs", () => {
     );
   });
 
-
   it("keeps failure status when a success clear timer would have fired", async () => {
     vi.useFakeTimers();
     try {
@@ -210,10 +216,12 @@ describe("OutputModeTabs", () => {
         .mockResolvedValueOnce({ success: false });
 
       const popup = buttons(container).find(
-        (b) => b.textContent === t("settings.general.correctionOutput.popup.label"),
+        (b) =>
+          b.textContent === t("settings.general.correctionOutput.popup.label"),
       );
       const paste = buttons(container).find(
-        (b) => b.textContent === t("settings.general.correctionOutput.paste.label"),
+        (b) =>
+          b.textContent === t("settings.general.correctionOutput.paste.label"),
       );
       if (!popup || !paste) throw new Error("output mode buttons not rendered");
 
@@ -225,7 +233,9 @@ describe("OutputModeTabs", () => {
 
       const status = container.querySelector('[role="status"]');
       expect(status?.textContent).toContain(
-        t("settings.general.error", { message: t("settings.general.outputMode.saveFailed") }),
+        t("settings.general.error", {
+          message: t("settings.general.outputMode.saveFailed"),
+        }),
       );
 
       await act(async () => {
@@ -235,7 +245,9 @@ describe("OutputModeTabs", () => {
       const liveStatus = container.querySelector('[role="status"]');
       expect(liveStatus).not.toBeNull();
       expect(liveStatus?.textContent).toContain(
-        t("settings.general.error", { message: t("settings.general.outputMode.saveFailed") }),
+        t("settings.general.error", {
+          message: t("settings.general.outputMode.saveFailed"),
+        }),
       );
     } finally {
       vi.useRealTimers();

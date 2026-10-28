@@ -4,7 +4,10 @@
  * single-provider `Profile.provider` shape to composite model refs. The
  * store-facing driver lives in `apiStore.ts`.
  */
-import { formatModelRef, isModelRef } from "~/features/providers/shared/modelRef";
+import {
+  formatModelRef,
+  isModelRef,
+} from "~/features/providers/shared/modelRef";
 import {
   groupModelsByProvider,
   isProviderId,
@@ -22,14 +25,19 @@ const asRecord = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
-const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+const asArray = (value: unknown): unknown[] =>
+  Array.isArray(value) ? value : [];
 
 const asObjectArray = (value: unknown): Record<string, unknown>[] =>
   asArray(value)
-    .filter((entry) => entry !== null && typeof entry === "object" && !Array.isArray(entry))
+    .filter(
+      (entry) =>
+        entry !== null && typeof entry === "object" && !Array.isArray(entry),
+    )
     .map((entry) => entry as Record<string, unknown>);
 
-const asModelIdString = (value: unknown): string => (typeof value === "string" ? value : "");
+const asModelIdString = (value: unknown): string =>
+  typeof value === "string" ? value : "";
 
 /**
  * Prefix a stored model value with the legacy provider. The `isModelRef`
@@ -49,7 +57,10 @@ const isBareModelValue = (value: unknown): boolean => {
   return raw !== "" && !isModelRef(raw);
 };
 
-const migratePresets = (legacyProvider: ProviderId, value: unknown): CorrectionPreset[] =>
+const migratePresets = (
+  legacyProvider: ProviderId,
+  value: unknown,
+): CorrectionPreset[] =>
   asObjectArray(value).map(
     (preset) =>
       ({
@@ -94,7 +105,8 @@ const migrateLegacyTranslateSettings = (
   return { ...record, model: prefixModelRef(legacyProvider, record.model) };
 };
 
-const asModelsArray = (value: unknown): Model[] => asObjectArray(value) as Model[];
+const asModelsArray = (value: unknown): Model[] =>
+  asObjectArray(value) as Model[];
 
 /**
  * Never recompute `enabledProviders` from `legacyProvider` on an already-migrated
@@ -166,9 +178,18 @@ export const migrateProfileForModelRefs = (profile: unknown): Profile => {
       ...settingsSummarize,
       model: prefixModelRef(legacyProvider, settingsSummarize.model),
     },
-    enabledProviders: resolveEnabledProviders(legacyProvider, needsMigration, settings),
+    enabledProviders: resolveEnabledProviders(
+      legacyProvider,
+      needsMigration,
+      settings,
+    ),
     ...(hasSettingsTranslate
-      ? { settingsTranslate: migrateLegacyTranslateSettings(legacyProvider, settingsTranslate) }
+      ? {
+          settingsTranslate: migrateLegacyTranslateSettings(
+            legacyProvider,
+            settingsTranslate,
+          ),
+        }
       : {}),
   } as SettingsStore;
 

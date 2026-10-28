@@ -49,7 +49,7 @@ export function getRecommendedModels(): RecommendedModel[] {
  * @returns The model if found, undefined otherwise
  */
 export function findRecommendedModel(
-  name: string
+  name: string,
 ): RecommendedModel | undefined {
   return RECOMMENDED_MODELS.find((model) => model.name === name);
 }

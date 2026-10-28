@@ -53,7 +53,11 @@ const DEFAULT_MENU_MAX_HEIGHT = 200;
 /** Replaces react-select's own heading, which ignores the theme CSS vars. */
 export const DefaultGroupHeading = <Option extends SearchableOption>({
   data,
-}: GroupHeadingProps<Option, false, GroupBase<Option>>): React.ReactElement | null => {
+}: GroupHeadingProps<
+  Option,
+  false,
+  GroupBase<Option>
+>): React.ReactElement | null => {
   const label = typeof data.label === "string" ? data.label : "";
   if (label === "") return null;
   return (

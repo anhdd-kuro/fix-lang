@@ -163,11 +163,7 @@ export const contrastRatio = (a: string, b: string): number =>
 const rgbDistance = (a: string, b: string): number => {
   const left = colord(a).toRgb();
   const right = colord(b).toRgb();
-  return Math.hypot(
-    left.r - right.r,
-    left.g - right.g,
-    left.b - right.b,
-  );
+  return Math.hypot(left.r - right.r, left.g - right.g, left.b - right.b);
 };
 
 type InteractionSurfaces = {

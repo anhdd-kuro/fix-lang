@@ -70,7 +70,9 @@ vi.mock("~/features/correction/store/keybindingStore", () => ({
 }));
 vi.mock("~/features/correction/store/outputModeStore", () => ({
   // "paste" so the restore-failure branch has a real paste to divert AWAY from.
-  outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("paste") },
+  outputModeStore: {
+    getCorrectionOutputMode: vi.fn().mockReturnValue("paste"),
+  },
 }));
 vi.mock("~/features/guards/store/guardStore", () => ({
   guardStore: { getSelectionGuardSettings: vi.fn() },
@@ -86,7 +88,9 @@ vi.mock("~/main/notifications/secretGuardDialog", () => ({
 vi.mock("~/features/i18n/store/localeStore", () => ({
   getLocale: vi.fn().mockReturnValue("en"),
 }));
-vi.mock("../clipboard/clipboardChangeTracker", () => ({ clipboardAge: vi.fn() }));
+vi.mock("../clipboard/clipboardChangeTracker", () => ({
+  clipboardAge: vi.fn(),
+}));
 vi.mock("../notifications/confirmSelectionGuard", () => ({
   confirmSelectionGuard: vi.fn(),
 }));
@@ -120,7 +124,9 @@ vi.mock("./askEnvironment", () => ({
     timeZone: "Asia/Tokyo",
     recentTransforms: [],
   }),
-  buildAskDirectives: vi.fn().mockReturnValue("App locale: en\nSystem language: en-US"),
+  buildAskDirectives: vi
+    .fn()
+    .mockReturnValue("App locale: en\nSystem language: en-US"),
 }));
 // `withHotkeyThrottle` stays REAL, same reason as `correction-preset-hotkeys.test.ts`.
 vi.mock("./utils", async (importOriginal) => {
@@ -136,7 +142,10 @@ import { guardStore } from "~/features/guards/store/guardStore";
 import { syncHistory } from "~/features/history/main/history";
 import { createTranslator } from "~/features/i18n/shared/translate";
 import { redactLogContext } from "~/features/logs/shared/logging";
-import { getProfileSetting, normalizeCorrectionSettings } from "~/features/providers/store/apiStore";
+import {
+  getProfileSetting,
+  normalizeCorrectionSettings,
+} from "~/features/providers/store/apiStore";
 import { secretGuardStore } from "~/features/secretGuard/store/secretGuardStore";
 import { confirmSecretSend } from "~/main/notifications/secretGuardDialog";
 import { buildAskDirectives } from "./askEnvironment";
@@ -187,7 +196,9 @@ const fakeMainWindow = () =>
 
 const registerCorrectionHandler = (): (() => Promise<void>) => {
   (getProfileSetting as Mock).mockImplementation((key: string) =>
-    key === "models" ? [] : normalizeCorrectionSettings(SINGLE_BUILT_IN_PROFILE),
+    key === "models"
+      ? []
+      : normalizeCorrectionSettings(SINGLE_BUILT_IN_PROFILE),
   );
 
   registerCorrectionShortcut(fakeMainWindow());
@@ -239,10 +250,13 @@ const mockReply = (transform: (sent: string) => string): void => {
 };
 
 /** What the request was handed. */
-const sentToProvider = (): string => (fixGrammar as Mock).mock.calls[0][0] as string;
+const sentToProvider = (): string =>
+  (fixGrammar as Mock).mock.calls[0][0] as string;
 
 const latencyFinishCalls = () =>
-  (logger.info as Mock).mock.calls.filter(([scope]) => scope === "correction.latency");
+  (logger.info as Mock).mock.calls.filter(
+    ([scope]) => scope === "correction.latency",
+  );
 
 const historyEntry = () =>
   (syncHistory as Mock).mock.calls[0]?.[0]?.entry as
@@ -251,12 +265,14 @@ const historyEntry = () =>
 
 const goodJobShown = (): boolean =>
   notificationMocks.shown.some(
-    (options) => options.title === tEn("notifications.correction.goodJob.title"),
+    (options) =>
+      options.title === tEn("notifications.correction.goodJob.title"),
   );
 
 const restoreFailedShown = (): boolean =>
   notificationMocks.shown.some(
-    (options) => options.title === tEn("notifications.secretGuard.restoreFailed.title"),
+    (options) =>
+      options.title === tEn("notifications.secretGuard.restoreFailed.title"),
   );
 
 beforeEach(() => {
@@ -433,12 +449,17 @@ describe("correction secret guard — mask and restore", () => {
     const pasted = (pasteText as Mock).mock.calls[0][0] as string;
     expect(pasted).toContain(OPENAI_KEY);
     expect(pasted).not.toMatch(PLACEHOLDER_PATTERN);
-    expect(pasted).toBe(`Please fix this sentence my key is ${OPENAI_KEY} thanks`);
+    expect(pasted).toBe(
+      `Please fix this sentence my key is ${OPENAI_KEY} thanks`,
+    );
 
     expect(showCorrectionResultWindow).not.toHaveBeenCalled();
     const finishes = latencyFinishCalls();
     expect(finishes).toHaveLength(1);
-    expect(finishes[0][2]).toMatchObject({ outcome: "delivered", delivery: "pasted" });
+    expect(finishes[0][2]).toMatchObject({
+      outcome: "delivered",
+      delivery: "pasted",
+    });
   });
 
   it("stores MASKED text on both sides of history", async () => {
@@ -477,7 +498,9 @@ describe("correction secret guard — mask and restore", () => {
 
 describe("correction secret guard — mask, restore failure", () => {
   const mockMangledReply = (): void => {
-    mockReply((sent) => sent.replace(PLACEHOLDER_PATTERN, "[[REDACTED_BY_MODEL]]"));
+    mockReply((sent) =>
+      sent.replace(PLACEHOLDER_PATTERN, "[[REDACTED_BY_MODEL]]"),
+    );
   };
 
   it("diverts to the popup with the MASKED reply and never pastes", async () => {
@@ -491,7 +514,9 @@ describe("correction secret guard — mask, restore failure", () => {
     expect(pasteText).not.toHaveBeenCalled();
     expect(showCorrectionResultWindow).toHaveBeenCalledTimes(1);
 
-    const payload = (showCorrectionResultWindow as Mock).mock.calls[0][0] as { text: string };
+    const payload = (showCorrectionResultWindow as Mock).mock.calls[0][0] as {
+      text: string;
+    };
     // Not a partial restore: a mixture of real secrets and placeholders is
     // indistinguishable, and the popup is copyable.
     expect(payload.text).not.toContain(OPENAI_KEY);
@@ -559,14 +584,18 @@ describe("correction secret guard — mask, restore failure", () => {
     const sent = sentToProvider();
     // The precondition the good-job guard is named for: the model returned
     // exactly what it was sent.
-    const popupPayload = (showCorrectionResultWindow as Mock).mock.calls[0]?.[0] as
-      | { text: string }
-      | undefined;
+    const popupPayload = (showCorrectionResultWindow as Mock).mock
+      .calls[0]?.[0] as { text: string } | undefined;
     expect(popupPayload?.text).toBe(sent);
     // And the restore genuinely failed on residue, not on a missing placeholder.
     expect(restoreFailedShown()).toBe(true);
-    const warn = (logger.warn as Mock).mock.calls.find(([scope]) => scope === "secretGuard.mask");
-    expect(warn?.[2]).toMatchObject({ reason: "placeholder-residue", missingCount: 0 });
+    const warn = (logger.warn as Mock).mock.calls.find(
+      ([scope]) => scope === "secretGuard.mask",
+    );
+    expect(warn?.[2]).toMatchObject({
+      reason: "placeholder-residue",
+      missingCount: 0,
+    });
     expect(pasteText).not.toHaveBeenCalled();
 
     // The property under test: a failed restore must suppress the good-job
@@ -587,7 +616,10 @@ describe("correction secret guard — mask, restore failure", () => {
     expect(handleError).not.toHaveBeenCalled();
     const finishes = latencyFinishCalls();
     expect(finishes).toHaveLength(1);
-    expect(finishes[0][2]).toMatchObject({ outcome: "delivered", delivery: "popup" });
+    expect(finishes[0][2]).toMatchObject({
+      outcome: "delivered",
+      delivery: "popup",
+    });
   });
 
   it("still stores masked text on both sides", async () => {
@@ -630,7 +662,8 @@ describe("correction secret guard — decline log redaction safety", () => {
 
     const declineContext = (logger.info as Mock).mock.calls.find(
       ([scope, message]) =>
-        scope === "correction.hotkey" && message === "Transform declined at the secret guard",
+        scope === "correction.hotkey" &&
+        message === "Transform declined at the secret guard",
     )?.[2];
     expect(declineContext).toBeDefined();
     expect(redactLogContext(declineContext)).toEqual(declineContext);

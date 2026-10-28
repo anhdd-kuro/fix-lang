@@ -77,7 +77,9 @@ export const makeAnthropicAIRequest = async (options: AIRequestOptions) => {
 
     const reasoningTexts = responses
       .map((response) => response.reasoningText)
-      .filter((text): text is string => typeof text === "string" && text.length > 0);
+      .filter(
+        (text): text is string => typeof text === "string" && text.length > 0,
+      );
     return {
       content: responses.map((response) => response.text),
       prompts: responses.map((response) => response.text),
@@ -90,7 +92,11 @@ export const makeAnthropicAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("makeAnthropicAIRequest error:", error);
-    notifyRequestError(options, error, "Failed to get a response from Anthropic.");
+    notifyRequestError(
+      options,
+      error,
+      "Failed to get a response from Anthropic.",
+    );
     throw error;
   }
 };

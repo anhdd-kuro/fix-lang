@@ -30,10 +30,16 @@ export const TextAreaBox = ({
   return (
     <div className={`relative flex flex-col text-xs md:text-base ${className}`}>
       <div className="flex justify-between items-center">
-        <label htmlFor={id} className="block text-muted-foreground mb-1 font-bold">
+        <label
+          htmlFor={id}
+          className="block text-muted-foreground mb-1 font-bold"
+        >
           {label}
         </label>
-        <CopyButton value={value} label={t("common.textAreaBox.copyResultText")} />
+        <CopyButton
+          value={value}
+          label={t("common.textAreaBox.copyResultText")}
+        />
       </div>
       <Textarea
         id={id}

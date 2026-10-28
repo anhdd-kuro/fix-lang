@@ -144,7 +144,7 @@ export const alacrittyToTmTheme = (
     "menu.background": panel,
     "menu.foreground": palette.foreground,
     "editorWidget.background": panel,
-    "descriptionForeground": palette.brightBlack,
+    descriptionForeground: palette.brightBlack,
     "progressBar.background": accent,
     "terminal.ansiBlack": palette.black,
     "terminal.ansiRed": palette.red,

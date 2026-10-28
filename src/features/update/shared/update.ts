@@ -95,7 +95,8 @@ export const isUpdateState = (value: unknown): value is UpdateState => {
   if (
     (value.availableVersion !== undefined &&
       typeof value.availableVersion !== "string") ||
-    (value.releaseNotes !== undefined && typeof value.releaseNotes !== "string") ||
+    (value.releaseNotes !== undefined &&
+      typeof value.releaseNotes !== "string") ||
     (value.message !== undefined && !isMessage(value.message)) ||
     (value.canInstall !== undefined && typeof value.canInstall !== "boolean") ||
     !isOptionalByteCount(value.downloadedBytes) ||

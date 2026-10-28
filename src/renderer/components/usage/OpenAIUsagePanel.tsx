@@ -65,7 +65,9 @@ const CardShell = ({
   children: React.ReactNode;
 }) => (
   <div className="rounded-lg border border-card-control-border bg-card p-3">
-    <div className="mb-1 text-xs uppercase tracking-wide text-primary">{title}</div>
+    <div className="mb-1 text-xs uppercase tracking-wide text-primary">
+      {title}
+    </div>
     {children}
   </div>
 );
@@ -89,7 +91,10 @@ const CardBody = ({
     <>{children}</>
   ) : (
     <div className="text-sm text-muted-foreground">
-      {usageDegradedMessage((result as { reason: UsageDegradedReason }).reason, t)}
+      {usageDegradedMessage(
+        (result as { reason: UsageDegradedReason }).reason,
+        t,
+      )}
     </div>
   );
 
@@ -151,7 +156,10 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
           <p className="mb-3 text-sm text-muted-foreground">
             {t("usage.openai.emptyState.description")}
           </p>
-          <Button onClick={onOpenSettings} className="rounded px-3 py-1.5 text-sm">
+          <Button
+            onClick={onOpenSettings}
+            className="rounded px-3 py-1.5 text-sm"
+          >
             {t("usage.emptyState.openSettings")}
           </Button>
         </div>
@@ -342,7 +350,10 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
               </thead>
               <tbody>
                 {completions.data.perModel.map((row) => (
-                  <tr key={row.model} className="border-t border-card-control-border">
+                  <tr
+                    key={row.model}
+                    className="border-t border-card-control-border"
+                  >
                     <td
                       className="py-1 pr-2 text-foreground max-w-[10rem] truncate"
                       title={row.model}
@@ -368,7 +379,9 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
       {/* Charts. Cost comes from the costs card, tokens from the usage card, so
           each chart renders only when ITS source parsed. */}
       {costs?.ok && <UsageDailyCostChart points={costs.data.daily} />}
-      {completions?.ok && <UsageDailyTokenChart points={completions.data.daily} />}
+      {completions?.ok && (
+        <UsageDailyTokenChart points={completions.data.daily} />
+      )}
       {costs?.ok && (
         <UsageCostShareChart
           slices={costs.data.lineItems}

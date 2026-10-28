@@ -146,6 +146,10 @@ describe("createClipboardObserver", () => {
 
     const dump = JSON.stringify(observer.snapshot());
     expect(dump).not.toContain(secret);
-    expect(Object.keys(observer.snapshot()).sort()).toEqual(["hasBaseline", "lastChangedAt", "length"]);
+    expect(Object.keys(observer.snapshot()).sort()).toEqual([
+      "hasBaseline",
+      "lastChangedAt",
+      "length",
+    ]);
   });
 });

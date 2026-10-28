@@ -324,8 +324,9 @@ describe("SettingCorrection output-mode and markdown controls", () => {
     // `inputId`, not `id`: react-select's `htmlFor` target is the input.
     expect(input.getAttribute("role")).toBe("combobox");
     expect(
-      container.querySelector<HTMLLabelElement>('label[for="preset-output-mode"]')
-        ?.textContent,
+      container.querySelector<HTMLLabelElement>(
+        'label[for="preset-output-mode"]',
+      )?.textContent,
     ).toBe(tEn("settings.correction.outputMode.label"));
     expect(outputModeControlText()).toContain(
       tEn("settings.correction.outputMode.inherit"),
@@ -482,7 +483,8 @@ describe("SettingCorrection output-mode and markdown controls", () => {
     );
 
     const resetButton = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === tEn("settings.correction.resetBuiltIn"),
+      (button) =>
+        button.textContent === tEn("settings.correction.resetBuiltIn"),
     );
     await act(async () => {
       resetButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -812,10 +814,7 @@ describe("SettingCorrection preset-scoped options", () => {
     // under the jsdom environment `import.meta.url` is not a file: URL, so
     // handing it to `readFile` throws "The URL must be of scheme file".
     const source = await readFile(
-      path.join(
-        process.cwd(),
-        "src/renderer/components/SettingCorrection.tsx",
-      ),
+      path.join(process.cwd(), "src/renderer/components/SettingCorrection.tsx"),
       "utf8",
     );
 

@@ -15,7 +15,11 @@ vi.mock("electron", () => ({
   ipcRenderer: { invoke: invokeMock, send: sendMock },
 }));
 import { PROVIDER_IDS } from "~/features/providers/shared/providers";
-import { apiFeature, isProviderConnectInput, type ProviderConnectInput } from "./api";
+import {
+  apiFeature,
+  isProviderConnectInput,
+  type ProviderConnectInput,
+} from "./api";
 
 beforeEach(() => {
   // Resolved values survive vi.clearAllMocks(), so reset them explicitly.
@@ -58,13 +62,15 @@ describe("isProviderConnectInput", () => {
   });
 
   it("rejects a non-string apiKey", () => {
-    expect(isProviderConnectInput({ provider: "openai", apiKey: 123 })).toBe(false);
+    expect(isProviderConnectInput({ provider: "openai", apiKey: 123 })).toBe(
+      false,
+    );
   });
 
   it("rejects a non-string provisioningKey", () => {
-    expect(isProviderConnectInput({ provider: "openrouter", provisioningKey: {} })).toBe(
-      false,
-    );
+    expect(
+      isProviderConnectInput({ provider: "openrouter", provisioningKey: {} }),
+    ).toBe(false);
   });
 });
 
@@ -136,7 +142,10 @@ describe("valid calls reach the right channel and resync open windows", () => {
   it("connectProvider invokes connect-provider and broadcasts settings-updated", async () => {
     invokeMock.mockResolvedValue({ success: true, profile: { id: "p1" } });
 
-    const result = await apiFeature.connectProvider({ provider: "openai", apiKey: "sk-a" });
+    const result = await apiFeature.connectProvider({
+      provider: "openai",
+      apiKey: "sk-a",
+    });
 
     expect(invokeMock).toHaveBeenCalledWith("connect-provider", {
       provider: "openai",
@@ -147,9 +156,15 @@ describe("valid calls reach the right channel and resync open windows", () => {
   });
 
   it("connectProvider does NOT broadcast when main reported failure", async () => {
-    invokeMock.mockResolvedValue({ success: false, error: { kind: "text", text: "401" } });
+    invokeMock.mockResolvedValue({
+      success: false,
+      error: { kind: "text", text: "401" },
+    });
 
-    const result = await apiFeature.connectProvider({ provider: "openai", apiKey: "sk-a" });
+    const result = await apiFeature.connectProvider({
+      provider: "openai",
+      apiKey: "sk-a",
+    });
 
     expect(result.success).toBe(false);
     expect(sendMock).not.toHaveBeenCalled();
@@ -181,19 +196,31 @@ describe("valid calls reach the right channel and resync open windows", () => {
   });
 
   it("disconnectProvider passes `cleared` through unmodified", async () => {
-    const cleared = { selectedModel: true, presetIds: ["p1"], features: ["promptGen"] };
+    const cleared = {
+      selectedModel: true,
+      presetIds: ["p1"],
+      features: ["promptGen"],
+    };
     invokeMock.mockResolvedValue({ success: true, cleared });
 
     const result = await apiFeature.disconnectProvider("openrouter");
 
-    expect(invokeMock).toHaveBeenCalledWith("disconnect-provider", "openrouter");
+    expect(invokeMock).toHaveBeenCalledWith(
+      "disconnect-provider",
+      "openrouter",
+    );
     expect(result.cleared).toEqual(cleared);
     expect(sendMock).toHaveBeenCalledWith("settings-updated");
   });
 
   it("getProviderStates is a plain read — no payload, no broadcast", async () => {
     invokeMock.mockResolvedValue({
-      openai: { configured: true, apiKeySet: true, provisioningKeySet: false, modelCount: 2 },
+      openai: {
+        configured: true,
+        apiKeySet: true,
+        provisioningKeySet: false,
+        modelCount: 2,
+      },
     });
 
     await apiFeature.getProviderStates();
@@ -210,7 +237,10 @@ describe("valid calls reach the right channel and resync open windows", () => {
     vi.clearAllMocks();
     invokeMock.mockResolvedValue({ success: false });
     await apiFeature.setSelectedModel("openrouter::not-connected");
-    expect(invokeMock).toHaveBeenCalledWith("set-selected-model", "openrouter::not-connected");
+    expect(invokeMock).toHaveBeenCalledWith(
+      "set-selected-model",
+      "openrouter::not-connected",
+    );
     expect(sendMock).not.toHaveBeenCalled();
   });
 
@@ -223,10 +253,18 @@ describe("valid calls reach the right channel and resync open windows", () => {
       apiKey: "sk-should-never-cross",
     });
 
-    const result = await apiFeature.connectProvider({ provider: "openai", apiKey: "sk-a" });
+    const result = await apiFeature.connectProvider({
+      provider: "openai",
+      apiKey: "sk-a",
+    });
 
     expect(JSON.stringify(result)).not.toContain("sk-should-never-cross");
-    expect(Object.keys(result).sort()).toEqual(["error", "note", "profile", "success"]);
+    expect(Object.keys(result).sort()).toEqual([
+      "error",
+      "note",
+      "profile",
+      "success",
+    ]);
   });
 
   it("disconnectProvider does not forward an unexpected field main might add", async () => {
@@ -239,7 +277,12 @@ describe("valid calls reach the right channel and resync open windows", () => {
     const result = await apiFeature.disconnectProvider("openai");
 
     expect(JSON.stringify(result)).not.toContain("sk-should-never-cross");
-    expect(Object.keys(result).sort()).toEqual(["cleared", "error", "profile", "success"]);
+    expect(Object.keys(result).sort()).toEqual([
+      "cleared",
+      "error",
+      "profile",
+      "success",
+    ]);
   });
 
   it("fetchAIModels carries the per-provider errors map through", async () => {

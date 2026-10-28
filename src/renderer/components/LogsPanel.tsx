@@ -52,8 +52,7 @@ const entryMatchesFilters = (
   levels: readonly LogLevel[],
   search: string,
 ): boolean =>
-  logEntryMatchesLevels(entry, levels) &&
-  logEntryMatchesSearch(entry, search);
+  logEntryMatchesLevels(entry, levels) && logEntryMatchesSearch(entry, search);
 
 const mergeNewestFirst = (
   existing: readonly LogEntry[],

@@ -115,7 +115,7 @@ export function getHistory(featureId: HistoryFeatureId): HistoryEntry[] {
  */
 export function getRecentHistory(
   featureId: HistoryFeatureId,
-  limit: number
+  limit: number,
 ): RecentHistorySummary[] {
   return getHistoryRepo().getRecentByFeature(featureId, limit);
 }
@@ -132,7 +132,7 @@ export function clearHistory(featureId: HistoryFeatureId): void {
 export function addHistoryEntry(
   featureId: HistoryFeatureId,
   entry: HistoryEntry,
-  maxEntries = 100
+  maxEntries = 100,
 ): void {
   // maxEntries is intentionally inert (kept for source-compat); the SQLite
   // backing is uncapped. Reference it so lint does not flag it unused while we
@@ -143,14 +143,17 @@ export function addHistoryEntry(
 
 export const overrideHistory = (
   featureId: HistoryFeatureId,
-  entries: HistoryEntry[]
+  entries: HistoryEntry[],
 ): void => {
-  getHistoryRepo().overrideFeature(featureId, entries.map(withFallbackTokenCounts));
+  getHistoryRepo().overrideFeature(
+    featureId,
+    entries.map(withFallbackTokenCounts),
+  );
 };
 
 export function removeHistoryEntry(
   featureId: HistoryFeatureId,
-  entry: HistoryEntry
+  entry: HistoryEntry,
 ): void {
   getHistoryRepo().remove(featureId, entry);
 }

@@ -103,7 +103,8 @@ const rollupCostSum = (rollup: AutocompleteDayRollup): CostSum => ({
 
 export const SettingAutocomplete: React.FC = () => {
   const { t, tm, tl, formatNumber, formatCurrency } = useI18n();
-  const [settings, setSettings] = useState<AutocompleteSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] =
+    useState<AutocompleteSettings>(DEFAULT_SETTINGS);
   const [usage, setUsage] = useState<AutocompleteUsageSnapshot>(emptyUsage);
   /**
    * The cap field while it is being typed, or `null` for "show what is stored".
@@ -186,7 +187,10 @@ export const SettingAutocomplete: React.FC = () => {
    * revert to `previous` rather than keep showing a value that was never
    * actually persisted.
    */
-  const persist = async (previous: AutocompleteSettings, next: AutocompleteSettings) => {
+  const persist = async (
+    previous: AutocompleteSettings,
+    next: AutocompleteSettings,
+  ) => {
     setSettings(next);
     try {
       const result = await window.electronAPI.setAutocompleteSettings(next);
@@ -221,7 +225,10 @@ export const SettingAutocomplete: React.FC = () => {
   // recomputed: an inline `estimatedCostUsd / cap` here printed `$0.00 of $5.00`
   // over a day whose responses all went unpriced — the exact false zero the
   // readout below already refuses for its own cost line.
-  const cap = resolveAutocompleteCapUsage(usage.today, settings.dailyCostCapUsd);
+  const cap = resolveAutocompleteCapUsage(
+    usage.today,
+    settings.dailyCostCapUsd,
+  );
   const capPct = Math.round(cap.ratio * 100);
 
   /**
@@ -241,8 +248,16 @@ export const SettingAutocomplete: React.FC = () => {
     void persist(settings, { ...settings, dailyCostCapUsd: next });
   };
 
-  const todayCostHint = formatOverviewCostHint(rollupCostSum(usage.today), t, formatNumber);
-  const monthCostHint = formatOverviewCostHint(rollupCostSum(usage.month), t, formatNumber);
+  const todayCostHint = formatOverviewCostHint(
+    rollupCostSum(usage.today),
+    t,
+    formatNumber,
+  );
+  const monthCostHint = formatOverviewCostHint(
+    rollupCostSum(usage.month),
+    t,
+    formatNumber,
+  );
 
   return (
     <section className="mb-4">
@@ -256,7 +271,9 @@ export const SettingAutocomplete: React.FC = () => {
       <div className="mt-3">
         <Checkbox
           checked={settings.enabled}
-          onChange={(enabled) => void persist(settings, { ...settings, enabled })}
+          onChange={(enabled) =>
+            void persist(settings, { ...settings, enabled })
+          }
           label={t("settings.autocomplete.enabled.label")}
           className="text-card-foreground"
         />
@@ -340,7 +357,9 @@ export const SettingAutocomplete: React.FC = () => {
             {t("settings.autocomplete.usage.today")}
           </p>
           <p className="text-sm font-semibold text-foreground">
-            {t("settings.autocomplete.usage.requests", { count: usage.today.requests })}
+            {t("settings.autocomplete.usage.requests", {
+              count: usage.today.requests,
+            })}
           </p>
           {todayCostHint && (
             <p className="text-xs text-muted-foreground">{todayCostHint}</p>
@@ -351,7 +370,9 @@ export const SettingAutocomplete: React.FC = () => {
             {t("settings.autocomplete.usage.month")}
           </p>
           <p className="text-sm font-semibold text-foreground">
-            {t("settings.autocomplete.usage.requests", { count: usage.month.requests })}
+            {t("settings.autocomplete.usage.requests", {
+              count: usage.month.requests,
+            })}
           </p>
           {monthCostHint && (
             <p className="text-xs text-muted-foreground">{monthCostHint}</p>

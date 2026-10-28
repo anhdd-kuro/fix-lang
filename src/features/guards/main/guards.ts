@@ -88,7 +88,9 @@ const isSelectionGuardSettings = (
 };
 
 export const registerSelectionGuardHandlers = (): void => {
-  ipcMain.handle("get-selection-guards", async () => guardStore.getSelectionGuardSettings());
+  ipcMain.handle("get-selection-guards", async () =>
+    guardStore.getSelectionGuardSettings(),
+  );
 
   ipcMain.handle(
     "set-selection-guards",
@@ -139,13 +141,16 @@ export const registerSelectionGuardHandlers = (): void => {
    * through the same resolver as a drop: main chose them, but the "existing
    * .app with a readable identifier" rule has exactly one implementation.
    */
-  ipcMain.handle("choose-denied-apps", async (): Promise<AppBundleIdsResult> => {
-    const selection = await dialog.showOpenDialog({
-      properties: ["openFile", "multiSelections"],
-      filters: [{ name: "Applications", extensions: ["app"] }],
-      defaultPath: "/Applications",
-    });
-    if (selection.canceled) return { success: true, bundleIds: [] };
-    return resolveAppBundleIds(selection.filePaths);
-  });
+  ipcMain.handle(
+    "choose-denied-apps",
+    async (): Promise<AppBundleIdsResult> => {
+      const selection = await dialog.showOpenDialog({
+        properties: ["openFile", "multiSelections"],
+        filters: [{ name: "Applications", extensions: ["app"] }],
+        defaultPath: "/Applications",
+      });
+      if (selection.canceled) return { success: true, bundleIds: [] };
+      return resolveAppBundleIds(selection.filePaths);
+    },
+  );
 };

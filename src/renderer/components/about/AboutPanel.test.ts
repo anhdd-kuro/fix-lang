@@ -46,12 +46,10 @@ const buildApi = (overrides: ApiOverrides = {}) => ({
     presets: CONFIGURED_PRESETS,
     selectedPresetId: "correction",
   }),
-  getKeyBindings: vi
-    .fn()
-    .mockResolvedValue({
-      promptGen: "Control+Shift+G",
-      profileSwitch: "Alt+P",
-    }),
+  getKeyBindings: vi.fn().mockResolvedValue({
+    promptGen: "Control+Shift+G",
+    profileSwitch: "Alt+P",
+  }),
   getCorrectionOutputMode: vi.fn().mockResolvedValue("popup"),
   getProviderStates: vi.fn().mockResolvedValue({
     openai: { connected: true },

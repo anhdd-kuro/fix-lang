@@ -3,7 +3,12 @@
  * @description Shared appearance typography ids, defaults, and CSS values.
  */
 
-export const FONT_SIZE_IDS = Object.freeze(["sm", "md", "lg", "custom"] as const);
+export const FONT_SIZE_IDS = Object.freeze([
+  "sm",
+  "md",
+  "lg",
+  "custom",
+] as const);
 export type FontSizeId = (typeof FONT_SIZE_IDS)[number];
 
 export const FONT_FAMILY_IDS = Object.freeze([
@@ -28,19 +33,21 @@ export const DEFAULT_CUSTOM_FONT_SIZE = "14px";
 export const DEFAULT_CUSTOM_FONT_FAMILY =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
-export const DEFAULT_APPEARANCE_TYPOGRAPHY: AppearanceTypography = Object.freeze({
-  fontSize: DEFAULT_FONT_SIZE,
-  fontFamily: DEFAULT_FONT_FAMILY,
-  customFontSize: DEFAULT_CUSTOM_FONT_SIZE,
-  customFontFamily: DEFAULT_CUSTOM_FONT_FAMILY,
-});
-
-export const FONT_SIZE_PX: Readonly<Record<Exclude<FontSizeId, "custom">, number>> =
+export const DEFAULT_APPEARANCE_TYPOGRAPHY: AppearanceTypography =
   Object.freeze({
-    sm: 12,
-    md: 13,
-    lg: 16,
+    fontSize: DEFAULT_FONT_SIZE,
+    fontFamily: DEFAULT_FONT_FAMILY,
+    customFontSize: DEFAULT_CUSTOM_FONT_SIZE,
+    customFontFamily: DEFAULT_CUSTOM_FONT_FAMILY,
   });
+
+export const FONT_SIZE_PX: Readonly<
+  Record<Exclude<FontSizeId, "custom">, number>
+> = Object.freeze({
+  sm: 12,
+  md: 13,
+  lg: 16,
+});
 
 export const FONT_FAMILY_STACKS: Readonly<
   Record<Exclude<FontFamilyId, "custom">, string>
@@ -106,7 +113,9 @@ export const resolveFontSizeCss = (typography: AppearanceTypography): string =>
     ? typography.customFontSize
     : `${FONT_SIZE_PX[typography.fontSize]}px`;
 
-export const resolveFontFamilyCss = (typography: AppearanceTypography): string =>
+export const resolveFontFamilyCss = (
+  typography: AppearanceTypography,
+): string =>
   typography.fontFamily === "custom"
     ? typography.customFontFamily
     : FONT_FAMILY_STACKS[typography.fontFamily];

@@ -11,7 +11,10 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
 import { reasoningForAiSdk } from "~/features/correction/shared/reasoningEffort";
 import { getApiKey } from "~/features/providers/store/apiKeyStore";
-import { apiStore, getProfileSetting } from "~/features/providers/store/apiStore";
+import {
+  apiStore,
+  getProfileSetting,
+} from "~/features/providers/store/apiStore";
 import {
   buildCachedMessages,
   extractCacheUsage,
@@ -43,7 +46,10 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       `Sending request to OpenRouter with model: ${options.model}, top_p: ${options.top_p}, reasoning: ${options.reasoning ?? "provider-default"}`,
     );
 
-    const openRouter = createOpenRouter({ apiKey: apiKey.trim(), fetch: keepAliveFetch });
+    const openRouter = createOpenRouter({
+      apiKey: apiKey.trim(),
+      fetch: keepAliveFetch,
+    });
     const modelId = options.model as string;
     const modelOpenRouter = openRouter(modelId, {
       extraBody: {
@@ -136,7 +142,10 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     // The provider reports the model it actually served in the response body.
     // For floating aliases (e.g. "~openai/gpt-mini-latest") this is the concrete
     // pinned id; falls back to the requested id when absent.
-    const resolvedModel = extractResolvedModel(resBody, options.model as string);
+    const resolvedModel = extractResolvedModel(
+      resBody,
+      options.model as string,
+    );
 
     // Return the processed content and token information
     return {
@@ -155,7 +164,11 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("makeOpenRouterAIRequest error:", error);
-    notifyRequestError(options, error, "Failed to get a response from the AI provider.");
+    notifyRequestError(
+      options,
+      error,
+      "Failed to get a response from the AI provider.",
+    );
     throw error;
   }
 };

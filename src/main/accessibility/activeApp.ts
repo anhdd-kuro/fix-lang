@@ -108,7 +108,10 @@ const runFrontmostAppScript = (): Promise<string> =>
  * `accessibility.activeApp` log scope regardless of which `osascript`
  * invocation produced the raw line.
  */
-export const logActiveAppRead = (app: ActiveApp | null, rawStdout: string): void => {
+export const logActiveAppRead = (
+  app: ActiveApp | null,
+  rawStdout: string,
+): void => {
   if (app) recordActiveApp(app);
   logger.debug(
     "accessibility.activeApp",

@@ -146,7 +146,11 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("Local LLM request failed:", error);
-    notifyRequestError(options, error, "The local AI request failed. Please try again.");
+    notifyRequestError(
+      options,
+      error,
+      "The local AI request failed. Please try again.",
+    );
     throw error;
   }
 };

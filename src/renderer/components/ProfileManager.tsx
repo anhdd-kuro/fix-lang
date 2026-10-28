@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/message";
+import {
+  messageLabel,
+  textLabel,
+  type Label,
+} from "~/features/i18n/shared/message";
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { HotkeyInput } from "./HotkeyInput";
@@ -92,7 +96,9 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       });
 
       if (!result.success) {
-        setError(result.error ?? messageLabel("profiles.manager.error.createFailed"));
+        setError(
+          result.error ?? messageLabel("profiles.manager.error.createFailed"),
+        );
         return;
       }
 
@@ -119,7 +125,9 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       const result = await window.electronAPI.applyProfile({ profileId });
 
       if (!result.success) {
-        setError(result.error ?? messageLabel("profiles.manager.error.applyFailed"));
+        setError(
+          result.error ?? messageLabel("profiles.manager.error.applyFailed"),
+        );
         return;
       }
 
@@ -149,7 +157,9 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
         const result = await window.electronAPI.deleteProfile({ profileId });
 
         if (!result.success) {
-          setError(result.error ?? messageLabel("profiles.manager.error.deleteFailed"));
+          setError(
+            result.error ?? messageLabel("profiles.manager.error.deleteFailed"),
+          );
           return;
         }
 
@@ -174,7 +184,9 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       const result = await window.electronAPI.exportProfile({ profileId });
 
       if (!result.success) {
-        setError(result.error ?? messageLabel("profiles.manager.error.exportFailed"));
+        setError(
+          result.error ?? messageLabel("profiles.manager.error.exportFailed"),
+        );
         return;
       }
 
@@ -219,7 +231,9 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       });
 
       if (!result.success) {
-        setError(result.error ?? messageLabel("profiles.manager.error.importFailed"));
+        setError(
+          result.error ?? messageLabel("profiles.manager.error.importFailed"),
+        );
         return;
       }
 
@@ -250,7 +264,10 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
     if (!file) {
       return;
     }
-    if (!file.name.toLowerCase().endsWith(".json") && file.type !== "application/json") {
+    if (
+      !file.name.toLowerCase().endsWith(".json") &&
+      file.type !== "application/json"
+    ) {
       setError(messageLabel("profiles.manager.error.invalidJson"));
       return;
     }
@@ -274,7 +291,9 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
   return (
     <div className={`flex flex-col ${className}`}>
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium text-foreground">{t("profiles.manager.title")}</h3>
+        <h3 className="text-lg font-medium text-foreground">
+          {t("profiles.manager.title")}
+        </h3>
         <div className="flex gap-2">
           <Button
             type="button"
@@ -309,9 +328,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       ) : (
         <div
           className={`space-y-2 max-h-72 overflow-y-auto pr-1 rounded border border-dashed p-2 transition-colors ${
-            isDragOver
-              ? "border-primary bg-primary/10"
-              : "border-transparent"
+            isDragOver ? "border-primary bg-primary/10" : "border-transparent"
           }`}
           onDragOver={(event) => {
             event.preventDefault();
@@ -343,7 +360,9 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               >
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <h4 className="font-medium text-foreground">{profile.name}</h4>
+                    <h4 className="font-medium text-foreground">
+                      {profile.name}
+                    </h4>
                     {profile.description && (
                       <p className="text-sm text-muted-foreground mt-1">
                         {profile.description}
@@ -458,7 +477,9 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       <Dialog
         isOpen={isExportDialogOpen}
         onClose={() => setIsExportDialogOpen(false)}
-        title={t("profiles.manager.exportDialogTitle", { name: exportProfileName })}
+        title={t("profiles.manager.exportDialogTitle", {
+          name: exportProfileName,
+        })}
       >
         <div className="space-y-4">
           <div>

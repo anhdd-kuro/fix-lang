@@ -3,11 +3,12 @@
  * @description IPC handlers for UI theme persistence and cross-window sync.
  */
 import { BrowserWindow, ipcMain } from "electron";
-import { isThemeId, themeStore, type ThemeId } from "~/features/theme/store/themeStore";
 import {
-  syncErrorPopupTheme,
-  syncOverlayTheme,
-} from "~/main/webViewWindows";
+  isThemeId,
+  themeStore,
+  type ThemeId,
+} from "~/features/theme/store/themeStore";
+import { syncErrorPopupTheme, syncOverlayTheme } from "~/main/webViewWindows";
 
 /**
  * Broadcasts the active theme to every open BrowserWindow.

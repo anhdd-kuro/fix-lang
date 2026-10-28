@@ -44,12 +44,21 @@ import type {
  * field added to the wire request that this function forgets to validate and
  * forward fails to compile here rather than being silently dropped.
  */
-const toAutocompleteRequest = (raw: unknown, sessionId: string): AutocompleteRequest => {
-  const record = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
+const toAutocompleteRequest = (
+  raw: unknown,
+  sessionId: string,
+): AutocompleteRequest => {
+  const record =
+    typeof raw === "object" && raw !== null
+      ? (raw as Record<string, unknown>)
+      : {};
   // `Number.isFinite` is not decoration. A `NaN` requestId echoes back
   // unchanged, and `NaN !== NaN` makes the renderer's staleness check reject
   // every reply — ghost text silently never appears, with no error anywhere.
-  const requestId = typeof record.requestId === "number" && Number.isFinite(record.requestId) ? record.requestId : 0;
+  const requestId =
+    typeof record.requestId === "number" && Number.isFinite(record.requestId)
+      ? record.requestId
+      : 0;
   const prefix = typeof record.prefix === "string" ? record.prefix : "";
   // The prompt is built OUTSIDE the service's try, so a non-string suffix
   // throws out of `ipcMain.handle` rather than returning "no suggestion".
@@ -88,7 +97,8 @@ const toSkipReport = (raw: unknown): AutocompleteSkipReport | null => {
     suppressedSincePrevious: toCount(record.suppressedSincePrevious),
     // Never logged, only matched. An unmatched id yields no line at all, so a
     // junk value costs a dropped report rather than a fabricated one.
-    ...(typeof record.requestId === "number" && Number.isFinite(record.requestId)
+    ...(typeof record.requestId === "number" &&
+    Number.isFinite(record.requestId)
       ? { requestId: record.requestId }
       : {}),
   };
@@ -129,7 +139,10 @@ const logLateArrival = (
   suppressed: SuppressedCounts,
 ): void => {
   if (report.requestId === undefined) return;
-  const resolution = takeAutocompleteResolution(String(event.sender.id), report.requestId);
+  const resolution = takeAutocompleteResolution(
+    String(event.sender.id),
+    report.requestId,
+  );
   if (resolution === null) return;
   const level = wastedSuggestionLogLevel(
     suppressed.suppressedInRenderer + suppressed.suppressedInMain,
@@ -169,7 +182,10 @@ export const registerAutocompleteHandlers = (): void => {
 
   ipcMain.handle(
     "autocomplete-suggest",
-    async (event: Electron.IpcMainInvokeEvent, raw: unknown): Promise<AutocompleteSuggestReply> => {
+    async (
+      event: Electron.IpcMainInvokeEvent,
+      raw: unknown,
+    ): Promise<AutocompleteSuggestReply> => {
       const sessionId = String(event.sender.id);
       const request = toAutocompleteRequest(raw, sessionId);
       try {
@@ -189,33 +205,40 @@ export const registerAutocompleteHandlers = (): void => {
 
   // One-way and answerless by design: the renderer is telling main something,
   // not asking. See the preload bridge for why this is `send` and not `invoke`.
-  ipcMain.on(AUTOCOMPLETE_SKIP_CHANNEL, (event: Electron.IpcMainEvent, raw: unknown) => {
-    const report = toSkipReport(raw);
-    if (report === null) return;
-    const decision = rendererSkipThrottle.admit(report.reason, Date.now());
-    if (!decision.emit) return;
-    // Two counters, because the throttles are two. The renderer's says what
-    // never reached the wire; main's says what reached it and was dropped
-    // here. Collapsing them would hide a renderer whose own throttle is broken.
-    const suppressed = {
-      suppressedInRenderer: report.suppressedSincePrevious,
-      suppressedInMain: decision.suppressedSincePrevious,
-    };
+  ipcMain.on(
+    AUTOCOMPLETE_SKIP_CHANNEL,
+    (event: Electron.IpcMainEvent, raw: unknown) => {
+      const report = toSkipReport(raw);
+      if (report === null) return;
+      const decision = rendererSkipThrottle.admit(report.reason, Date.now());
+      if (!decision.emit) return;
+      // Two counters, because the throttles are two. The renderer's says what
+      // never reached the wire; main's says what reached it and was dropped
+      // here. Collapsing them would hide a renderer whose own throttle is broken.
+      const suppressed = {
+        suppressedInRenderer: report.suppressedSincePrevious,
+        suppressedInMain: decision.suppressedSincePrevious,
+      };
 
-    if (report.reason === "reply-too-late") {
-      logLateArrival(event, report, suppressed);
-      return;
-    }
+      if (report.reason === "reply-too-late") {
+        logLateArrival(event, report, suppressed);
+        return;
+      }
 
-    logger.debug("autocomplete", "Ghost text not requested by the input window", {
-      reason: report.reason,
-      // The LENGTH of what was typed, never the text: these lines are copyable
-      // and exportable, and the typed text is the payload the user has not
-      // chosen to send anywhere.
-      prefixLength: report.prefixLength,
-      ...suppressed,
-    });
-  });
+      logger.debug(
+        "autocomplete",
+        "Ghost text not requested by the input window",
+        {
+          reason: report.reason,
+          // The LENGTH of what was typed, never the text: these lines are copyable
+          // and exportable, and the typed text is the payload the user has not
+          // chosen to send anywhere.
+          prefixLength: report.prefixLength,
+          ...suppressed,
+        },
+      );
+    },
+  );
 
   ipcMain.handle(
     "autocomplete-usage",

@@ -98,7 +98,9 @@ export type AutocompleteSkipReport = {
   requestId?: number;
 };
 
-const RENDERER_SKIP_REASONS = new Set<string>(AUTOCOMPLETE_RENDERER_SKIP_REASONS);
+const RENDERER_SKIP_REASONS = new Set<string>(
+  AUTOCOMPLETE_RENDERER_SKIP_REASONS,
+);
 
 export const isAutocompleteRendererSkipReason = (
   value: unknown,
@@ -144,7 +146,10 @@ export const AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS = 60_000;
  * types and then pauses produces nothing but the second; a user on a model that
  * answers in prose produces nothing but the third, on every single request.
  */
-export type AutocompleteWastedReason = "superseded" | "reply-too-late" | "unparseable-reply";
+export type AutocompleteWastedReason =
+  | "superseded"
+  | "reply-too-late"
+  | "unparseable-reply";
 
 /**
  * How loudly to say a suggestion was wasted.

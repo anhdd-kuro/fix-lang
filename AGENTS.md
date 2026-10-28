@@ -164,7 +164,7 @@ Translation strings live in `src/features/i18n/shared/locales/{en,ja}/` as per-n
    ```tsx
    import { useI18n } from "~/renderer/i18n/useI18n";
    const { t } = useI18n();
-   <h1>{t("overview.stat.sessions")}</h1>
+   <h1>{t("overview.stat.sessions")}</h1>;
    ```
 
 ### Plurals
@@ -183,7 +183,7 @@ English defines both singular and plural variants; Japanese defines only the plu
 const { t, formatNumber } = useI18n();
 // Calls t("history.count_one") if count is 1, t("history.count_other") otherwise;
 // the raw count is never shown, so never pass count as a string.
-t("history.count", { count: 12 })  // "12 transforms" (EN) / "12 件の変換" (JA)
+t("history.count", { count: 12 }); // "12 transforms" (EN) / "12 件の変換" (JA)
 ```
 
 ### Number and date formatting
@@ -193,14 +193,14 @@ t("history.count", { count: 12 })  // "12 transforms" (EN) / "12 件の変換" (
 ```tsx
 const { t, formatCurrency, formatDate } = useI18n();
 t("overview.tokenBudget", {
-  tokens: 123456,           // auto-formatted: "123,456" (EN) / "123,456" (JA)
+  tokens: 123456, // auto-formatted: "123,456" (EN) / "123,456" (JA)
   pct: 50,
   budget: 100_000,
 });
 
 // For dates and currency, format first, pass as string:
 t("model.lastUsed", {
-  date: formatDate(new Date()),      // "Jul 25, 2026" (EN) / "2026年7月25日" (JA)
+  date: formatDate(new Date()), // "Jul 25, 2026" (EN) / "2026年7月25日" (JA)
   cost: formatCurrency(12.5, "USD"), // "$12.50"
 });
 ```
@@ -279,17 +279,17 @@ new Notification({
 
 ## Release & Distribution
 
-- **Trigger** — bump `package.json` to a strictly higher stable semver, PR to `main`, merge. Push to `main` fires `.github/workflows/release.yml` (`prepare` on ubuntu creates the `v<version>` tag; `release` on macos-14 runs lint → test → `i18n:check` → build → `check:bundle` → DMG, validates the DMG, publishes `FixLang-<v>-arm64.dmg` + `SHA256SUMS.txt`). The DMG is compressed with ULFO (LZFSE) via `build.dmg.format` and ships only the `en`/`ja` Electron locale paks (`build.mac.electronLanguages`); with `node_modules` gone from `app.asar` that lands at ~102 MiB. Between *Build renderer and processes* and *Build unsigned arm64 DMG*, a `bun run check:bundle` step AST-scans the built CommonJS for bare `require()` specifiers so a future dynamic dependency cannot silently become a `MODULE_NOT_FOUND` in a shipped app. Docs-only pushes no-op (version already public).
+- **Trigger** — bump `package.json` to a strictly higher stable semver, PR to `main`, merge. Push to `main` fires `.github/workflows/release.yml` (`prepare` on ubuntu creates the `v<version>` tag; `release` on macos-14 runs lint → test → `i18n:check` → build → `check:bundle` → DMG, validates the DMG, publishes `FixLang-<v>-arm64.dmg` + `SHA256SUMS.txt`). The DMG is compressed with ULFO (LZFSE) via `build.dmg.format` and ships only the `en`/`ja` Electron locale paks (`build.mac.electronLanguages`); with `node_modules` gone from `app.asar` that lands at ~102 MiB. Between _Build renderer and processes_ and _Build unsigned arm64 DMG_, a `bun run check:bundle` step AST-scans the built CommonJS for bare `require()` specifiers so a future dynamic dependency cannot silently become a `MODULE_NOT_FOUND` in a shipped app. Docs-only pushes no-op (version already public).
 - **The DMG validation step is the packaged-artifact half of that guard** — it mounts the image, matches `CFBundleShortVersionString` against `package.json`, then asserts via `bunx @electron/asar list` that `app.asar` holds **no** `/node_modules/` entries and **does** hold `/out/renderer/` (a missing renderer ships a white-screen app). `@electron/asar` is a declared devDependency on purpose: the bare `asar` bin was only hoisted transitively through electron-builder, and `bunx asar` would otherwise fetch the deprecated standalone package from the registry.
 - **Homebrew** — public tap `anhdd-kuro/homebrew-tap` auto-syncs verified releases into `Casks/fixlang.rb`; users run `brew install --cask anhdd-kuro/tap/fixlang` and `brew update && brew upgrade --cask fixlang`. arm64-only, unsigned — never automate Gatekeeper/`xattr`.
 - **In-app update** — `updates:install` starts a detached `/bin/sh` helper that waits for FixLang to exit, runs `brew update && brew upgrade --cask fixlang` (`NONINTERACTIVE=1`), then reopens the app; the app quits itself right after. brew is resolved only from `/opt/homebrew/bin/brew` or `/usr/local/bin/brew` (never PATH), and the button is off unless `<prefix>/Caskroom/fixlang` exists. A `pending-update.json` marker under `userData` reports a stalled upgrade on the next launch; helper output goes to `userData/logs/homebrew-update.log`.
 - **The check asks Homebrew, not GitHub** — for a cask install `checkForUpdates` offers `HomebrewUpgrader.getInstallableVersion()`, because Homebrew is what the button runs. GitHub is queried in parallel but only supplies release notes and the DMG size, and only when it describes the exact version being offered. A published release the tap has not synced yet is reported as `up-to-date` + `tapPendingMessage`, never as an offer — but it still carries that release's notes and points `getReleaseUrl()` at its tag, so the panel shows what changed next to a **Download from GitHub** button. Only the DMG size is withheld, because the download bar it feeds belongs to an install that cannot start. Cost control: the routine check reads the local tap clone (`getInstallableVersion(false)`, no `brew update` — that is a git fetch across every tap) and pays for one refresh only when GitHub shows something newer. Manual DMG installs, and casks whose brew probe returns null, still fall back to GitHub.
-- **Two version sources** — **GitHub Releases** is what publishes a version (and, for manual DMG installs, what the check reads), the install runs **the Homebrew tap**, and the tap lags the release (cron, up to 6h). `installUpdate` therefore probes `brew info --cask fixlang --json=v2` (after `brew update`) and refuses to quit when the tap is still behind. Never delete that gate: `brew upgrade` exits **0** on "already installed", so without it the app quits and reopens unchanged and the button looks dead. A null/unparseable probe means "unknown" → proceed; only a *parsed lower* version blocks.
+- **Two version sources** — **GitHub Releases** is what publishes a version (and, for manual DMG installs, what the check reads), the install runs **the Homebrew tap**, and the tap lags the release (cron, up to 6h). `installUpdate` therefore probes `brew info --cask fixlang --json=v2` (after `brew update`) and refuses to quit when the tap is still behind. Never delete that gate: `brew upgrade` exits **0** on "already installed", so without it the app quits and reopens unchanged and the button looks dead. A null/unparseable probe means "unknown" → proceed; only a _parsed lower_ version blocks.
 - **An unchanged version on relaunch is not proof of failure** — the app quits in under a second, Homebrew keeps downloading ~101.6 MiB for a minute or more, and a user who reopens FixLang meanwhile lands in `reconcileLastInstall` with the old bundle still in place. Treating that as failure clears the marker, shows "Homebrew did not finish the last update", and re-arms the button, so the next click starts a second `brew upgrade` that dies on the first one's **download lock**. The marker therefore carries `startedAt`, and reconcile returns `in-progress` (keep marker, keep the button inert, poll the Caskroom) until either `<prefix>/Caskroom/fixlang/<target>` appears → `restart-required`, or `UPGRADE_GRACE_MS` (20 min) passes → `failed`.
 - **Download happens while the app is alive** — `installUpdate` runs `brew fetch --cask fixlang` first (fills the download cache only, installed bundle untouched) and publishes a `downloading` phase with byte progress read by `statSync` from `<HOMEBREW_CACHE>/downloads/*--FixLang-<v>-arm64.dmg[.incomplete]`. Progress is read from the growing cache file, never parsed out of brew's output, and the denominator is the GitHub release asset `size`. Only after the fetch succeeds does the app quit; the detached helper then just runs `brew upgrade` off the cache (no `brew update` — the tap probe already refreshed it), so the app is away for seconds instead of a minute.
-- **`open -b` cannot replace a running app** — the helper's closing `open -b com.fixlang.app` resolves with `preferIdentical`, so when FixLang is already running it merely *focuses* the stale process while `/Applications` already holds the new bundle. That is why the `restart-required` phase exists, and why its restart re-executes `process.execPath` (`app.relaunch()` + `app.exit(0)`) instead of shelling out to `open`.
-- **The bundle id is not a unique app** — a `pack:mac` build sitting in a checkout used to carry `com.fixlang.app` too, so the helper's closing `open -b` could reopen *that* copy right after a successful upgrade, and the user landed on an older version. Two defences: the helper reopens the recorded `.app` path (`open -a "<path>"`, id only as fallback), and `pack:mac` now builds as `com.fixlang.app.dev` / `FixLang Dev` (use `pack:mac:prod` for a production-identity local build; `pack:install` already does). Dev builds still share `userData` — the packaged `package.json` keeps `name: fix-lang`, which is what `app.getName()` reads.
-- **A changed version is not proof of success** — `reconcilePendingInstall` compares against `toVersion` and against the recorded `appPath`, not merely "differs from `fromVersion`"; otherwise reopening a stray *older* copy reports as a completed update. A mismatched path yields `wrong-bundle` → `restart-required` carrying `wrongBundleMessage`, and that restart opens `pending.appPath` instead of re-executing `process.execPath` (which would just relaunch the wrong copy forever).
+- **`open -b` cannot replace a running app** — the helper's closing `open -b com.fixlang.app` resolves with `preferIdentical`, so when FixLang is already running it merely _focuses_ the stale process while `/Applications` already holds the new bundle. That is why the `restart-required` phase exists, and why its restart re-executes `process.execPath` (`app.relaunch()` + `app.exit(0)`) instead of shelling out to `open`.
+- **The bundle id is not a unique app** — a `pack:mac` build sitting in a checkout used to carry `com.fixlang.app` too, so the helper's closing `open -b` could reopen _that_ copy right after a successful upgrade, and the user landed on an older version. Two defences: the helper reopens the recorded `.app` path (`open -a "<path>"`, id only as fallback), and `pack:mac` now builds as `com.fixlang.app.dev` / `FixLang Dev` (use `pack:mac:prod` for a production-identity local build; `pack:install` already does). Dev builds still share `userData` — the packaged `package.json` keeps `name: fix-lang`, which is what `app.getName()` reads.
+- **A changed version is not proof of success** — `reconcilePendingInstall` compares against `toVersion` and against the recorded `appPath`, not merely "differs from `fromVersion`"; otherwise reopening a stray _older_ copy reports as a completed update. A mismatched path yields `wrong-bundle` → `restart-required` carrying `wrongBundleMessage`, and that restart opens `pending.appPath` instead of re-executing `process.execPath` (which would just relaunch the wrong copy forever).
 - **Traps** — release Test step needs Node 24 on macos runners (`node:sqlite` builtin); tap cask generation + `brew style/audit` have several traps. See the gotcha below before touching release or tap code.
 
 ## References

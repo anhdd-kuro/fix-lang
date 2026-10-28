@@ -73,7 +73,9 @@ describe("validateCombo — a well-formed combo", () => {
 
 describe("validateCombo — rule 1: step count", () => {
   const stepsOfLength = (length: number): ComboStep[] =>
-    Array.from({ length }, (_, index) => step("correction", { id: `s${index}` }));
+    Array.from({ length }, (_, index) =>
+      step("correction", { id: `s${index}` }),
+    );
 
   it(`accepts exactly ${COMBO_MIN_STEPS} steps`, () => {
     const result = validateCombo(
@@ -96,7 +98,11 @@ describe("validateCombo — rule 1: step count", () => {
   });
 
   it("rejects a single step — that is just a preset", () => {
-    const result = validateCombo(combo({ steps: stepsOfLength(1) }), PRESETS, []);
+    const result = validateCombo(
+      combo({ steps: stepsOfLength(1) }),
+      PRESETS,
+      [],
+    );
 
     expect(codesOf(result)).toEqual(["step-count"]);
   });

@@ -36,7 +36,11 @@ import {
   registerUiHandlers,
   registerUpdateHandlers,
 } from "./ipc";
-import { registerHotkeys, reloadHotkeys, unregisterHotkeys } from "./keybindings";
+import {
+  registerHotkeys,
+  reloadHotkeys,
+  unregisterHotkeys,
+} from "./keybindings";
 import { startModelMonitoring } from "./llm/models/monitor";
 import { initializeUpdateService, type UpdateService } from "./update";
 import { shouldCheckForUpdatesOnLaunch } from "./update/installationPath";
@@ -234,7 +238,9 @@ function initializeApp() {
     // Starts (or leaves off) the 1 Hz stale-clipboard poll to match whatever
     // was persisted from a previous launch — `guardStore`'s own writes keep
     // this in sync afterward, this call only covers app start.
-    clipboardChangeTracker.applySettings(guardStore.getSelectionGuardSettings());
+    clipboardChangeTracker.applySettings(
+      guardStore.getSelectionGuardSettings(),
+    );
 
     registerHotkeys(mainWindow); // Register global shortcuts, passing the window
   });

@@ -168,9 +168,7 @@ describe("createTranslator plural selection", () => {
     expect(t("fixture.count" as TKey, { count: Number.NaN })).toBe(
       "fixture.count",
     );
-    expect(t("fixture.count" as TKey, { count: "many" })).toBe(
-      "fixture.count",
-    );
+    expect(t("fixture.count" as TKey, { count: "many" })).toBe("fixture.count");
     expect(warnSpy).toHaveBeenCalled();
   });
 });

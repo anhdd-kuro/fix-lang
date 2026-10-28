@@ -34,7 +34,6 @@ describe("historySessionDetailsView", () => {
     ]);
   });
 
-
   it("extracts chat session metadata", () => {
     const withEffort = JSON.stringify({
       messages: [{ role: "user", content: "Hi" }],

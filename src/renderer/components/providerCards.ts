@@ -22,7 +22,10 @@ export type ProviderConnectionState = {
 
 /** Typed into a card but not yet submitted. */
 export type TypedProviderKeys = Partial<
-  Record<ProviderId, { apiKey?: string; secretKey?: string; provisioningKey?: string }>
+  Record<
+    ProviderId,
+    { apiKey?: string; secretKey?: string; provisioningKey?: string }
+  >
 >;
 
 /**
@@ -55,7 +58,8 @@ export const ADMIN_KEY_MESSAGE_KEYS: Partial<
   },
   openrouter: {
     label: "settings.general.provisioningKey.label.openrouter",
-    placeholderNew: "settings.general.provisioningKey.placeholderNew.openrouter",
+    placeholderNew:
+      "settings.general.provisioningKey.placeholderNew.openrouter",
     help: "settings.general.provisioningKey.help.openrouter",
     helpUrl: "https://openrouter.ai/settings/provisioning-keys",
   },
@@ -122,7 +126,8 @@ export const buildProviderCards = (
       canConnect: requiresApiKey
         ? provider === "bedrock"
           ? ((state?.accessKeySet ?? false) || typedApiKey.trim() !== "") &&
-            ((state?.secretKeySet ?? false) || (typedKeys[provider]?.secretKey ?? "").trim() !== "")
+            ((state?.secretKeySet ?? false) ||
+              (typedKeys[provider]?.secretKey ?? "").trim() !== "")
           : apiKeySet || typedApiKey.trim() !== ""
         : true,
     };
@@ -150,7 +155,9 @@ export const describeDisconnectImpact = (
     lines.push(msg("settings.general.providers.disconnect.warning.key"));
   }
   if (cleared.selectedModel) {
-    lines.push(msg("settings.general.providers.disconnect.warning.selectedModel"));
+    lines.push(
+      msg("settings.general.providers.disconnect.warning.selectedModel"),
+    );
   }
   if (cleared.presetIds.length > 0) {
     lines.push(

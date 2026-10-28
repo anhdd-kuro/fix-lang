@@ -1,6 +1,6 @@
 ---
 name: fixlang-usage-analytics
-description: "Use when editing the Usage tab, the OpenAI/OpenRouter usage panels, the tray Providers card, or the Overview/Models analytics. Examples: \"add a usage card\", \"why is OpenAI missing a per-model cost\", \"tray shows a duplicate provider card\", \"add a range-aware dashboard tab\". Covers src/renderer/components/usage/, src/main/llm/providers/*/usage*, src/renderer/TrayWindow/."
+description: 'Use when editing the Usage tab, the OpenAI/OpenRouter usage panels, the tray Providers card, or the Overview/Models analytics. Examples: "add a usage card", "why is OpenAI missing a per-model cost", "tray shows a duplicate provider card", "add a range-aware dashboard tab". Covers src/renderer/components/usage/, src/main/llm/providers/*/usage*, src/renderer/TrayWindow/.'
 ---
 
 # FixLang — Usage, Analytics & Tray Gotchas

@@ -16,7 +16,10 @@ import type { Model } from "~/features/providers/store/apiStore";
 // Fixture: prompt $0.000002/token, completion $0.000008/token for gpt-4o.
 const priceMap: PriceMap = new Map([
   ["openai/gpt-4o", { prompt: "0.000002", completion: "0.000008" }],
-  ["anthropic/claude-3.5-sonnet", { prompt: "0.000003", completion: "0.000015" }],
+  [
+    "anthropic/claude-3.5-sonnet",
+    { prompt: "0.000003", completion: "0.000015" },
+  ],
 ]);
 
 describe("buildPriceMap", () => {
@@ -51,7 +54,7 @@ describe("normalizeModelId", () => {
   it("strips the provider prefix, lowercases, and trims", () => {
     expect(normalizeModelId("OpenAI/GPT-5.4-Mini")).toBe("gpt-5.4-mini");
     expect(normalizeModelId("  anthropic/Claude-3.5-Sonnet  ")).toBe(
-      "claude-3.5-sonnet"
+      "claude-3.5-sonnet",
     );
   });
   it("leaves a prefix-less id unchanged (lowercased)", () => {
@@ -69,7 +72,21 @@ describe("computeCost", () => {
         completionTokens: 500,
       },
       buildPriceMap([
-        { id: "openai/gpt-4o", name: "GPT-4o", created: 0, pricing: { prompt: "0.000002", completion: "0.000008", image: "0", request: "0", input_cache_read: "0", input_cache_write: "0", web_search: "0", internal_reasoning: "0" } },
+        {
+          id: "openai/gpt-4o",
+          name: "GPT-4o",
+          created: 0,
+          pricing: {
+            prompt: "0.000002",
+            completion: "0.000008",
+            image: "0",
+            request: "0",
+            input_cache_read: "0",
+            input_cache_write: "0",
+            web_search: "0",
+            internal_reasoning: "0",
+          },
+        },
       ]),
     );
     expect(result).toMatchObject({ status: "na", estimatedCostUsd: null });
@@ -87,15 +104,22 @@ describe("computeCost", () => {
         completionTokens: 500,
       },
       new Map([
-        ["anthropic/claude-opus-4.1", { prompt: "0.000015", completion: "0.000075" }],
+        [
+          "anthropic/claude-opus-4.1",
+          { prompt: "0.000015", completion: "0.000075" },
+        ],
       ]),
     );
     expect(result).toMatchObject({ status: "na", estimatedCostUsd: null });
   });
   it("computes a confident exact match in USD with the prices used", () => {
     const result = computeCost(
-      { resolvedModel: "openai/gpt-4o", promptTokens: 1000, completionTokens: 500 },
-      priceMap
+      {
+        resolvedModel: "openai/gpt-4o",
+        promptTokens: 1000,
+        completionTokens: 500,
+      },
+      priceMap,
     );
     expect(result.status).toBe("ok");
     // 1000*0.000002 + 500*0.000008 = 0.002 + 0.004 = 0.006
@@ -107,7 +131,7 @@ describe("computeCost", () => {
   it("records Ollama/local as $0 (zero), prices null — even if a price exists", () => {
     const result = computeCost(
       { model: "openai/gpt-4o", isLocal: true, promptTokens: 1000 },
-      priceMap
+      priceMap,
     );
     expect(result.status).toBe("zero");
     expect(result.estimatedCostUsd).toBe(0);
@@ -117,7 +141,12 @@ describe("computeCost", () => {
 
   it("prices lmstudio provider usage as zero", () => {
     const snapshot = computeCost(
-      { provider: "lmstudio", model: "local-model", promptTokens: 100, completionTokens: 50 },
+      {
+        provider: "lmstudio",
+        model: "local-model",
+        promptTokens: 100,
+        completionTokens: 50,
+      },
       new Map(),
     );
     expect(snapshot).toEqual({
@@ -131,7 +160,7 @@ describe("computeCost", () => {
   it("records N/A for an unmatched model (never $0, never a guess)", () => {
     const result = computeCost(
       { resolvedModel: "totally-unknown-xyz-9000", promptTokens: 100 },
-      priceMap
+      priceMap,
     );
     expect(result.status).toBe("na");
     expect(result.estimatedCostUsd).toBeNull();
@@ -146,7 +175,7 @@ describe("computeCost", () => {
         promptTokens: 1000,
         completionTokens: 0,
       },
-      priceMap
+      priceMap,
     );
     expect(result.status).toBe("ok");
     expect(result.pricePrompt).toBe("0.000002");
@@ -155,8 +184,12 @@ describe("computeCost", () => {
   it("fuzzy-matches a prefix/case variant of a priced id", () => {
     // Different provider prefix + casing, same model → should match gpt-4o.
     const result = computeCost(
-      { resolvedModel: "OpenRouter/GPT-4o", promptTokens: 1000, completionTokens: 0 },
-      priceMap
+      {
+        resolvedModel: "OpenRouter/GPT-4o",
+        promptTokens: 1000,
+        completionTokens: 0,
+      },
+      priceMap,
     );
     expect(result.status).toBe("ok");
     expect(result.priceCompletion).toBe("0.000008");
@@ -164,8 +197,11 @@ describe("computeCost", () => {
 
   it("falls below the fuzzy threshold for a sufficiently different id → N/A", () => {
     const result = computeCost(
-      { resolvedModel: "openai/some-completely-different-model", promptTokens: 1 },
-      priceMap
+      {
+        resolvedModel: "openai/some-completely-different-model",
+        promptTokens: 1,
+      },
+      priceMap,
     );
     expect(result.status).toBe("na");
   });
@@ -187,7 +223,7 @@ describe("computeCost", () => {
     ]);
     expect(
       computeCost({ resolvedModel: "openai/gpt-4o", promptTokens: 10 }, badMap)
-        .status
+        .status,
     ).toBe("na");
   });
 });
@@ -226,7 +262,10 @@ describe("computeCost — composite model refs", () => {
     expect(result.pricePrompt).toBe("0.000002");
     expect(result.priceCompletion).toBe("0.000008");
     expect(result).toEqual(
-      computeCost({ resolvedModel: "openai/gpt-4o", promptTokens: 1000 }, decoyMap),
+      computeCost(
+        { resolvedModel: "openai/gpt-4o", promptTokens: 1000 },
+        decoyMap,
+      ),
     );
   });
 
@@ -246,7 +285,10 @@ describe("computeCost — composite model refs", () => {
   });
 
   it("prices an anthropic model behind an openrouter:: ref as the raw id", () => {
-    sameAsRaw("anthropic/claude-3.5-sonnet", "openrouter::anthropic/claude-3.5-sonnet");
+    sameAsRaw(
+      "anthropic/claude-3.5-sonnet",
+      "openrouter::anthropic/claude-3.5-sonnet",
+    );
   });
 
   it("prices an ollama:: ref to a colon-tagged id as the raw id", () => {
@@ -257,16 +299,24 @@ describe("computeCost — composite model refs", () => {
     ]);
     sameAsRaw("llama3.2:3b", "ollama::llama3.2:3b", taggedMap);
     expect(
-      computeCost({ resolvedModel: "ollama::llama3.2:3b", promptTokens: 1000 }, taggedMap)
-        .pricePrompt,
+      computeCost(
+        { resolvedModel: "ollama::llama3.2:3b", promptTokens: 1000 },
+        taggedMap,
+      ).pricePrompt,
     ).toBe("0.000001");
   });
 
   it("an unmatched composite ref is still N/A, never a fabricated price", () => {
-    sameAsRaw("totally-unknown-xyz-9000", "openrouter::totally-unknown-xyz-9000");
+    sameAsRaw(
+      "totally-unknown-xyz-9000",
+      "openrouter::totally-unknown-xyz-9000",
+    );
     expect(
       computeCost(
-        { resolvedModel: "openrouter::totally-unknown-xyz-9000", promptTokens: 100 },
+        {
+          resolvedModel: "openrouter::totally-unknown-xyz-9000",
+          promptTokens: 100,
+        },
         priceMap,
       ).status,
     ).toBe("na");
@@ -274,8 +324,13 @@ describe("computeCost — composite model refs", () => {
 
   it("a composite ref in `model` (not `resolvedModel`) prices the same too", () => {
     expect(
-      computeCost({ model: "openrouter::openai/gpt-4o", promptTokens: 1000 }, decoyMap),
-    ).toEqual(computeCost({ model: "openai/gpt-4o", promptTokens: 1000 }, decoyMap));
+      computeCost(
+        { model: "openrouter::openai/gpt-4o", promptTokens: 1000 },
+        decoyMap,
+      ),
+    ).toEqual(
+      computeCost({ model: "openai/gpt-4o", promptTokens: 1000 }, decoyMap),
+    );
   });
 });
 

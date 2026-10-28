@@ -50,8 +50,12 @@ const resolveCopy = (verdict: ConfirmVerdict): DialogCopy => {
   if (verdict.reason === "large-selection") {
     return {
       titleKey: "notifications.confirm.largeSelection.title",
-      message: mainT("notifications.confirm.largeSelection.message", { chars: verdict.chars }),
-      detail: mainT("notifications.confirm.largeSelection.detail", { limit: verdict.limit }),
+      message: mainT("notifications.confirm.largeSelection.message", {
+        chars: verdict.chars,
+      }),
+      detail: mainT("notifications.confirm.largeSelection.detail", {
+        limit: verdict.limit,
+      }),
     };
   }
 
@@ -93,7 +97,9 @@ const showDialog = async (verdict: ConfirmVerdict): Promise<boolean> => {
 };
 
 /** Resolves `true` only when the user picked "Send anyway". */
-export const confirmSelectionGuard = async (verdict: ConfirmVerdict): Promise<boolean> => {
+export const confirmSelectionGuard = async (
+  verdict: ConfirmVerdict,
+): Promise<boolean> => {
   if (pending) return false;
 
   pending = showDialog(verdict);

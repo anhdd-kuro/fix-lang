@@ -31,7 +31,10 @@ import {
   sanitizeProviderEndpoint,
   type ProviderEndpoint,
 } from "~/features/providers/shared/lmstudioEndpoint";
-import { modelRefForModel, parseModelRef } from "~/features/providers/shared/modelRef";
+import {
+  modelRefForModel,
+  parseModelRef,
+} from "~/features/providers/shared/modelRef";
 import { sanitizeOpenAIProjectId } from "~/features/providers/shared/openaiProject";
 import {
   isModelForProvider,
@@ -68,11 +71,13 @@ import type { Schema } from "electron-store";
 export { isModelForProvider, isProviderId, PROVIDER_IDS };
 export type { Model, ProviderId };
 
-export type ProviderEndpointMap = Partial<Record<ProviderId, { host: string; port: number }>>;
+export type ProviderEndpointMap = Partial<
+  Record<ProviderId, { host: string; port: number }>
+>;
 
-
-
-export const sanitizeProviderEndpoints = (raw: unknown): ProviderEndpointMap => {
+export const sanitizeProviderEndpoints = (
+  raw: unknown,
+): ProviderEndpointMap => {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const result: ProviderEndpointMap = {};
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
@@ -98,10 +103,11 @@ export const getProviderEndpoint = (
   provider: ProviderId,
   endpoints?: ProviderEndpointMap | null,
 ): ProviderEndpoint | undefined => {
-  const map = endpoints ?? sanitizeProviderEndpoints(getProfileSetting("providerEndpoints"));
+  const map =
+    endpoints ??
+    sanitizeProviderEndpoints(getProfileSetting("providerEndpoints"));
   return map[provider];
 };
-
 
 export type KeyBindings = {
   promptGen: string; // generate a new prompt based on current selection
@@ -221,7 +227,10 @@ export type CorrectionSettings = {
 // `seenIds` dedup `sanitizeCombos` already does across combos, and record
 // the winner so later steps see it as taken too. A collision must resolve
 // to a distinct id, never a dropped step.
-const resolveUniqueStepId = (candidateId: string, seenStepIds: Set<string>): string => {
+const resolveUniqueStepId = (
+  candidateId: string,
+  seenStepIds: Set<string>,
+): string => {
   if (!seenStepIds.has(candidateId)) return candidateId;
 
   let suffix = 2;
@@ -249,7 +258,9 @@ const sanitizeComboStep = (
   // Kept verbatim: it is free text the model receives. Whitespace-only is a
   // validation error (`validateCombo`), not something to silently rewrite.
   const inlineInput =
-    typeof candidate.inlineInput === "string" ? candidate.inlineInput : undefined;
+    typeof candidate.inlineInput === "string"
+      ? candidate.inlineInput
+      : undefined;
 
   const id = resolveUniqueStepId(storedId || `step-${index + 1}`, seenStepIds);
   seenStepIds.add(id);
@@ -832,7 +843,8 @@ export const normalizeCorrectionSettings = (
       (preset) =>
         !!preset &&
         typeof preset === "object" &&
-        (preset as Partial<CorrectionPreset>).id === DEFAULT_TRANSLATE_PRESET_ID,
+        (preset as Partial<CorrectionPreset>).id ===
+          DEFAULT_TRANSLATE_PRESET_ID,
     );
 
   const getTrimmedString = (candidate: unknown): string | undefined => {
@@ -1078,7 +1090,11 @@ export const apiStoreSchema = {
              * wipes the ENTIRE config — every profile, preset, and key reference.
              * Validity is enforced in code by `sanitizeEnabledProviders`.
              */
-            enabledProviders: { type: "array", items: { type: "string" }, default: [] },
+            enabledProviders: {
+              type: "array",
+              items: { type: "string" },
+              default: [],
+            },
             providerEndpoints: { type: "object", default: {} },
             openaiProjectId: { type: "string", default: "" },
             models: {
@@ -1226,7 +1242,10 @@ export const apiStoreSchema = {
                 // stored value outside the range must be CLAMPED by
                 // `normalizeDailyCostCapUsd`, not fail validation and wipe the
                 // whole config.
-                dailyCostCapUsd: { type: "number", default: DEFAULT_DAILY_COST_CAP_USD },
+                dailyCostCapUsd: {
+                  type: "number",
+                  default: DEFAULT_DAILY_COST_CAP_USD,
+                },
               },
               // Belt and braces for the whole-node-absent case only.
               // `useDefaults` injects an *object* default, so a stored object
@@ -1354,7 +1373,8 @@ export const connectProviderToProfile = (
   );
 
   const providerEndpoints =
-    options?.endpoint && (provider === "lmstudio" || provider === "ollama" || provider === "bedrock")
+    options?.endpoint &&
+    (provider === "lmstudio" || provider === "ollama" || provider === "bedrock")
       ? {
           ...sanitizeProviderEndpoints(settings.providerEndpoints),
           [provider]: options.endpoint,
@@ -1378,7 +1398,10 @@ export const connectProviderToProfile = (
     // Absent means "leave what is stored"; `""` is a deliberate clear, so the
     // key must only be written when the caller actually supplied a value.
     ...(options?.openaiProjectId !== undefined
-      ? { openaiProjectId: sanitizeOpenAIProjectId(options.openaiProjectId) ?? "" }
+      ? {
+          openaiProjectId:
+            sanitizeOpenAIProjectId(options.openaiProjectId) ?? "",
+        }
       : {}),
   });
 };
@@ -1428,11 +1451,14 @@ export const disconnectProviderFromProfile = (
   const promptGenModel = settings.settingsPromptGen?.model ?? "";
   const summarizeModel = settings.settingsSummarize?.model ?? "";
   const autocompleteModel = settings.settingsAutocomplete?.model ?? "";
-  if (refBelongsToProvider(promptGenModel, provider)) clearedFeatures.push("promptGen");
-  if (refBelongsToProvider(summarizeModel, provider)) clearedFeatures.push("summarize");
+  if (refBelongsToProvider(promptGenModel, provider))
+    clearedFeatures.push("promptGen");
+  if (refBelongsToProvider(summarizeModel, provider))
+    clearedFeatures.push("summarize");
   // Without this the feature keeps firing at a provider whose key is gone —
   // one failed request per keystroke rather than a single visible error.
-  if (refBelongsToProvider(autocompleteModel, provider)) clearedFeatures.push("autocomplete");
+  if (refBelongsToProvider(autocompleteModel, provider))
+    clearedFeatures.push("autocomplete");
 
   const clearedSelectedModel = refBelongsToProvider(
     settings.selectedModel ?? "",
@@ -1599,7 +1625,8 @@ export const getCurrentProfileSettings = (): SettingsStore => {
 const extractLegacyTranslateSettings = (
   settings: SettingsStore,
 ): LegacyTranslateSettings | undefined => {
-  const legacy = (settings as { settingsTranslate?: unknown }).settingsTranslate;
+  const legacy = (settings as { settingsTranslate?: unknown })
+    .settingsTranslate;
   if (!legacy || typeof legacy !== "object") {
     return undefined;
   }
@@ -1635,17 +1662,23 @@ export const getProfileSetting = <K extends keyof SettingsStore>(
   }
 
   if (settingType === "providerEndpoints") {
-    return sanitizeProviderEndpoints(settings.providerEndpoints) as SettingsStore[K];
+    return sanitizeProviderEndpoints(
+      settings.providerEndpoints,
+    ) as SettingsStore[K];
   }
 
   if (settingType === "openaiProjectId") {
-    return sanitizeOpenAIProjectId(settings.openaiProjectId) as SettingsStore[K];
+    return sanitizeOpenAIProjectId(
+      settings.openaiProjectId,
+    ) as SettingsStore[K];
   }
 
   // Reading through the normalizer is what keeps the feature off for a profile
   // that predates it: the stored node is absent, and absent reads as disabled.
   if (settingType === "settingsAutocomplete") {
-    return normalizeAutocompleteSettings(settings.settingsAutocomplete) as SettingsStore[K];
+    return normalizeAutocompleteSettings(
+      settings.settingsAutocomplete,
+    ) as SettingsStore[K];
   }
 
   return settings[settingType];
@@ -1824,7 +1857,9 @@ export const resetCurrentProfileSettings = (): {
         apiKey: existing.apiKey ?? "",
         models: existing.models ?? [],
         enabledProviders: existing.enabledProviders ?? [],
-        providerEndpoints: sanitizeProviderEndpoints(existing.providerEndpoints),
+        providerEndpoints: sanitizeProviderEndpoints(
+          existing.providerEndpoints,
+        ),
       },
     };
     apiStore.set("profiles", profiles);

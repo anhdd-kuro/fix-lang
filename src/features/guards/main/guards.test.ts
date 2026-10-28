@@ -5,29 +5,37 @@ import {
 } from "~/features/guards/shared/guardSettings";
 import { registerSelectionGuardHandlers } from "./guards";
 
-const { electronMocks, guardStoreMocks, recentActiveAppsMocks, appBundleIdMocks } =
-  vi.hoisted(() => ({
-    electronMocks: { handle: vi.fn(), showOpenDialog: vi.fn() },
-    guardStoreMocks: {
-      getSelectionGuardSettings: vi.fn(),
-      setSelectionGuardSettings: vi.fn(),
-    },
-    recentActiveAppsMocks: { getRecentActiveApps: vi.fn() },
-    appBundleIdMocks: { resolveAppBundleIds: vi.fn() },
-  }));
+const {
+  electronMocks,
+  guardStoreMocks,
+  recentActiveAppsMocks,
+  appBundleIdMocks,
+} = vi.hoisted(() => ({
+  electronMocks: { handle: vi.fn(), showOpenDialog: vi.fn() },
+  guardStoreMocks: {
+    getSelectionGuardSettings: vi.fn(),
+    setSelectionGuardSettings: vi.fn(),
+  },
+  recentActiveAppsMocks: { getRecentActiveApps: vi.fn() },
+  appBundleIdMocks: { resolveAppBundleIds: vi.fn() },
+}));
 
 vi.mock("electron", () => ({
   ipcMain: { handle: electronMocks.handle },
   dialog: { showOpenDialog: electronMocks.showOpenDialog },
 }));
-vi.mock("~/features/guards/store/guardStore", () => ({ guardStore: guardStoreMocks }));
+vi.mock("~/features/guards/store/guardStore", () => ({
+  guardStore: guardStoreMocks,
+}));
 vi.mock("~/main/accessibility/recentActiveApps", () => recentActiveAppsMocks);
 vi.mock("~/features/guards/main/appBundleIds", () => appBundleIdMocks);
 
 type Handler = (event: unknown, raw?: unknown) => unknown;
 
 const getHandler = (channel: string): Handler => {
-  const call = electronMocks.handle.mock.calls.find(([name]) => name === channel);
+  const call = electronMocks.handle.mock.calls.find(
+    ([name]) => name === channel,
+  );
   if (!call) throw new Error(`no handler registered for channel "${channel}"`);
   return call[1] as Handler;
 };
@@ -57,9 +65,14 @@ describe("registerSelectionGuardHandlers", () => {
 
   describe("set-selection-guards", () => {
     it("persists a valid payload through guardStore", async () => {
-      const result = await getHandler("set-selection-guards")(undefined, validSettings);
+      const result = await getHandler("set-selection-guards")(
+        undefined,
+        validSettings,
+      );
 
-      expect(guardStoreMocks.setSelectionGuardSettings).toHaveBeenCalledWith(validSettings);
+      expect(guardStoreMocks.setSelectionGuardSettings).toHaveBeenCalledWith(
+        validSettings,
+      );
       expect(result).toEqual({ success: true });
     });
 
@@ -80,11 +93,18 @@ describe("registerSelectionGuardHandlers", () => {
     ])(
       "rejects a malformed payload without ever calling guardStore (case %#): %j",
       async (payload) => {
-        const result = await getHandler("set-selection-guards")(undefined, payload);
+        const result = await getHandler("set-selection-guards")(
+          undefined,
+          payload,
+        );
 
-        expect(guardStoreMocks.setSelectionGuardSettings).not.toHaveBeenCalled();
+        expect(
+          guardStoreMocks.setSelectionGuardSettings,
+        ).not.toHaveBeenCalled();
         expect(result).toMatchObject({ success: false });
-        expect((result as { error?: { kind?: string } }).error?.kind).toBe("text");
+        expect((result as { error?: { kind?: string } }).error?.kind).toBe(
+          "text",
+        );
       },
     );
 
@@ -101,9 +121,14 @@ describe("registerSelectionGuardHandlers", () => {
     ])(
       "rejects a value the normalizer would coerce to 0 (case %#): %j",
       async (payload) => {
-        const result = await getHandler("set-selection-guards")(undefined, payload);
+        const result = await getHandler("set-selection-guards")(
+          undefined,
+          payload,
+        );
 
-        expect(guardStoreMocks.setSelectionGuardSettings).not.toHaveBeenCalled();
+        expect(
+          guardStoreMocks.setSelectionGuardSettings,
+        ).not.toHaveBeenCalled();
         expect(result).toMatchObject({ success: false });
       },
     );
@@ -113,25 +138,44 @@ describe("registerSelectionGuardHandlers", () => {
     it.each([
       { ...validSettings, clipboardMaxAgeSeconds: 0 },
       { ...validSettings, maxSelectionChars: 0 },
-    ])("still accepts an explicit 0 as a deliberate disable (case %#): %j", async (payload) => {
-      const result = await getHandler("set-selection-guards")(undefined, payload);
+    ])(
+      "still accepts an explicit 0 as a deliberate disable (case %#): %j",
+      async (payload) => {
+        const result = await getHandler("set-selection-guards")(
+          undefined,
+          payload,
+        );
 
-      expect(guardStoreMocks.setSelectionGuardSettings).toHaveBeenCalledWith(payload);
-      expect(result).toEqual({ success: true });
-    });
+        expect(guardStoreMocks.setSelectionGuardSettings).toHaveBeenCalledWith(
+          payload,
+        );
+        expect(result).toEqual({ success: true });
+      },
+    );
 
     // f2/f4: an entry the normalizer would silently drop (over-length,
     // control character) must be refused rather than accepted-and-truncated.
     it.each([
-      { ...validSettings, deniedBundleIds: ["z".repeat(MAX_BUNDLE_ID_LENGTH + 1)] },
+      {
+        ...validSettings,
+        deniedBundleIds: ["z".repeat(MAX_BUNDLE_ID_LENGTH + 1)],
+      },
       { ...validSettings, deniedBundleIds: ["com.example\u0001app"] },
       { ...validSettings, deniedBundleIds: ["   "] }, // empty after trim
-    ])("rejects a deniedBundleIds entry the normalizer would drop (case %#): %j", async (payload) => {
-      const result = await getHandler("set-selection-guards")(undefined, payload);
+    ])(
+      "rejects a deniedBundleIds entry the normalizer would drop (case %#): %j",
+      async (payload) => {
+        const result = await getHandler("set-selection-guards")(
+          undefined,
+          payload,
+        );
 
-      expect(guardStoreMocks.setSelectionGuardSettings).not.toHaveBeenCalled();
-      expect(result).toMatchObject({ success: false });
-    });
+        expect(
+          guardStoreMocks.setSelectionGuardSettings,
+        ).not.toHaveBeenCalled();
+        expect(result).toMatchObject({ success: false });
+      },
+    );
 
     // f4: a list longer than the store will ever persist is refused outright
     // rather than accepted and silently truncated to MAX_DENIED_BUNDLE_IDS.
@@ -159,9 +203,14 @@ describe("registerSelectionGuardHandlers", () => {
       );
       const payload = { ...validSettings, deniedBundleIds: exactlyAtCap };
 
-      const result = await getHandler("set-selection-guards")(undefined, payload);
+      const result = await getHandler("set-selection-guards")(
+        undefined,
+        payload,
+      );
 
-      expect(guardStoreMocks.setSelectionGuardSettings).toHaveBeenCalledWith(payload);
+      expect(guardStoreMocks.setSelectionGuardSettings).toHaveBeenCalledWith(
+        payload,
+      );
       expect(result).toEqual({ success: true });
     });
 
@@ -173,12 +222,15 @@ describe("registerSelectionGuardHandlers", () => {
         throw new Error("EACCES: permission denied");
       });
 
-      const result = await getHandler("set-selection-guards")(undefined, validSettings);
+      const result = await getHandler("set-selection-guards")(
+        undefined,
+        validSettings,
+      );
 
       expect(result).toMatchObject({ success: false });
-      expect((result as { error?: { kind?: string; text?: string } }).error?.text).toBe(
-        "EACCES: permission denied",
-      );
+      expect(
+        (result as { error?: { kind?: string; text?: string } }).error?.text,
+      ).toBe("EACCES: permission denied");
     });
   });
 
@@ -204,16 +256,23 @@ describe("registerSelectionGuardHandlers", () => {
       const failure = { success: false, error: { kind: "text", text: "nope" } };
       appBundleIdMocks.resolveAppBundleIds.mockResolvedValue(failure);
 
-      const result = await getHandler("resolve-app-bundle-ids")(undefined, ["../evil"]);
+      const result = await getHandler("resolve-app-bundle-ids")(undefined, [
+        "../evil",
+      ]);
 
-      expect(appBundleIdMocks.resolveAppBundleIds).toHaveBeenCalledWith(["../evil"]);
+      expect(appBundleIdMocks.resolveAppBundleIds).toHaveBeenCalledWith([
+        "../evil",
+      ]);
       expect(result).toEqual(failure);
     });
   });
 
   describe("choose-denied-apps", () => {
     it("opens a multi-select .app picker rooted at /Applications", async () => {
-      electronMocks.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
+      electronMocks.showOpenDialog.mockResolvedValue({
+        canceled: true,
+        filePaths: [],
+      });
 
       await getHandler("choose-denied-apps")(undefined);
 
@@ -226,7 +285,10 @@ describe("registerSelectionGuardHandlers", () => {
 
     // Cancelling is the user changing their mind, not a failure to report.
     it("reports a cancelled dialog as a success with no ids, without resolving anything", async () => {
-      electronMocks.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
+      electronMocks.showOpenDialog.mockResolvedValue({
+        canceled: true,
+        filePaths: [],
+      });
 
       const result = await getHandler("choose-denied-apps")(undefined);
 
@@ -252,7 +314,10 @@ describe("registerSelectionGuardHandlers", () => {
       expect(appBundleIdMocks.resolveAppBundleIds).toHaveBeenCalledWith([
         "/Applications/Slack.app",
       ]);
-      expect(result).toEqual({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] });
+      expect(result).toEqual({
+        success: true,
+        bundleIds: ["com.tinyspeck.slackmacgap"],
+      });
     });
   });
 });

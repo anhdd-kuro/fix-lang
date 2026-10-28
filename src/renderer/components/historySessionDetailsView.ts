@@ -22,7 +22,11 @@ export const HISTORY_SESSION_DETAILS_TABS: readonly {
 export const formatHistorySessionJson = (raw: string): string => {
   const session = parseHistorySession(raw);
   if (session) {
-    return JSON.stringify(JSON.parse(serializeHistorySession(session)), null, 2);
+    return JSON.stringify(
+      JSON.parse(serializeHistorySession(session)),
+      null,
+      2,
+    );
   }
 
   try {

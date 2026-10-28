@@ -23,23 +23,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SelectionGuardSettings } from "~/features/guards/shared/guardSettings";
 
-const { readTextMock, powerMonitorOnMock, powerMonitorHandlers } = vi.hoisted(() => {
-  const handlers = new Map<string, () => void>();
-  return {
-    readTextMock: vi.fn<() => string>(),
-    powerMonitorHandlers: handlers,
-    powerMonitorOnMock: vi.fn((event: string, handler: () => void) => {
-      handlers.set(event, handler);
-    }),
-  };
-});
+const { readTextMock, powerMonitorOnMock, powerMonitorHandlers } = vi.hoisted(
+  () => {
+    const handlers = new Map<string, () => void>();
+    return {
+      readTextMock: vi.fn<() => string>(),
+      powerMonitorHandlers: handlers,
+      powerMonitorOnMock: vi.fn((event: string, handler: () => void) => {
+        handlers.set(event, handler);
+      }),
+    };
+  },
+);
 
 vi.mock("electron", () => ({
   clipboard: { readText: readTextMock },
   powerMonitor: { on: powerMonitorOnMock },
 }));
 
-const settingsWith = (clipboardMaxAgeSeconds: number): SelectionGuardSettings => ({
+const settingsWith = (
+  clipboardMaxAgeSeconds: number,
+): SelectionGuardSettings => ({
   clipboardMaxAgeSeconds,
   maxSelectionChars: 20_000,
   deniedBundleIds: [],
@@ -147,12 +151,18 @@ describe("clipboardChangeTracker", () => {
 
     // Immediately on wake, before any new poll: age already reflects the
     // real elapsed time because it is computed from the clock, not ticks.
-    expect(tracker.clipboardAge()).toEqual({ ms: EIGHT_HOURS_MS, origin: "change" });
+    expect(tracker.clipboardAge()).toEqual({
+      ms: EIGHT_HOURS_MS,
+      origin: "change",
+    });
 
     // The clipboard is unchanged across the sleep, so the next real poll
     // must not reset lastChangedAt back toward 0.
     vi.advanceTimersByTime(1_000);
-    expect(tracker.clipboardAge()).toEqual({ ms: EIGHT_HOURS_MS + 1_000, origin: "change" });
+    expect(tracker.clipboardAge()).toEqual({
+      ms: EIGHT_HOURS_MS + 1_000,
+      origin: "change",
+    });
   });
 
   it("pauses the poll on suspend so it does not read the clipboard while the machine is asleep", async () => {

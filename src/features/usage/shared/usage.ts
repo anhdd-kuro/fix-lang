@@ -49,7 +49,8 @@ export type UsageCostSlice = {
 };
 
 /** UTC day key for a Date — the grain every provider's buckets are keyed by. */
-export const utcDayKey = (date: Date): string => date.toISOString().slice(0, 10);
+export const utcDayKey = (date: Date): string =>
+  date.toISOString().slice(0, 10);
 
 /**
  * Inclusive UTC-midnight start of the range, as unix seconds (what OpenAI's

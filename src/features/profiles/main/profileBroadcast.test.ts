@@ -21,7 +21,10 @@ import { ACTIVE_PROFILE_CHANGED } from "~/features/core/shared/ipcChannels";
 import { dismissAskInputWindow } from "~/main/webViewWindows/askInputWindow";
 import { registerProfileHandlers } from "./profiles";
 
-const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
+const handlers = new Map<
+  string,
+  (event: unknown, ...args: unknown[]) => unknown
+>();
 
 const { getAllWindowsMock } = vi.hoisted(() => ({
   getAllWindowsMock: vi.fn(),

@@ -5,9 +5,14 @@
  */
 import { describe, expect, it } from "vitest";
 import { migrateProfileForModelRefs } from "~/features/profiles/store/profileMigration";
-import type { CorrectionPreset, SettingsStore } from "~/features/providers/store/apiStore";
+import type {
+  CorrectionPreset,
+  SettingsStore,
+} from "~/features/providers/store/apiStore";
 
-const buildPreset = (overrides: Partial<CorrectionPreset> = {}): CorrectionPreset => ({
+const buildPreset = (
+  overrides: Partial<CorrectionPreset> = {},
+): CorrectionPreset => ({
   id: "correction",
   name: "Correction",
   hotkey: "Control+Shift+F",
@@ -78,7 +83,9 @@ describe("migrateProfileForModelRefs — prefixes bare model ids with the legacy
     const migrated = migrateProfileForModelRefs(raw);
 
     expect(migrated.settings.selectedModel).toBe("openai::gpt-4o");
-    expect(migrated.settings.settingsCorrect.presets[0].model).toBe("openai::gpt-4o-mini");
+    expect(migrated.settings.settingsCorrect.presets[0].model).toBe(
+      "openai::gpt-4o-mini",
+    );
     expect(migrated.settings.settingsCorrect.presets[1].model).toBe("");
     expect(migrated).not.toHaveProperty("provider");
     expect(migrated.settings.enabledProviders).toEqual(["openai"]);
@@ -109,7 +116,9 @@ describe("migrateProfileForModelRefs — prefixes bare model ids with the legacy
     const migrated = migrateProfileForModelRefs(raw);
 
     expect(migrated.settings.settingsPromptGen.model).toBe("openai::gpt-4o");
-    expect(migrated.settings.settingsSummarize.model).toBe("openai::gpt-4o-mini");
+    expect(migrated.settings.settingsSummarize.model).toBe(
+      "openai::gpt-4o-mini",
+    );
   });
 });
 
@@ -144,13 +153,15 @@ describe("migrateProfileForModelRefs — Business Writing and Structured Text pr
 
     expect(ids).toEqual(["correction", "business-writing", "structured-text"]);
     expect(
-      migrated.settings.settingsCorrect.presets.find((p) => p.id === "business-writing")
-        ?.model,
+      migrated.settings.settingsCorrect.presets.find(
+        (p) => p.id === "business-writing",
+      )?.model,
     ).toBe("openai::gpt-4o");
     // An empty preset model stays untouched — it means "inherit global".
     expect(
-      migrated.settings.settingsCorrect.presets.find((p) => p.id === "structured-text")
-        ?.model,
+      migrated.settings.settingsCorrect.presets.find(
+        (p) => p.id === "structured-text",
+      )?.model,
     ).toBe("");
   });
 
@@ -171,8 +182,9 @@ describe("migrateProfileForModelRefs — Business Writing and Structured Text pr
     const migrated = migrateProfileForModelRefs(raw);
 
     expect(
-      migrated.settings.settingsCorrect.presets.find((p) => p.id === "business-writing")
-        ?.model,
+      migrated.settings.settingsCorrect.presets.find(
+        (p) => p.id === "business-writing",
+      )?.model,
     ).toBe("openai::gpt-4o");
   });
 });
@@ -223,7 +235,9 @@ describe("migrateProfileForModelRefs — idempotency", () => {
 
     expect(once.settings.selectedModel).toBe("ollama::local-model");
     expect(twice.settings.selectedModel).toBe("ollama::local-model");
-    expect(twice.settings.enabledProviders).toEqual(once.settings.enabledProviders);
+    expect(twice.settings.enabledProviders).toEqual(
+      once.settings.enabledProviders,
+    );
     expect(twice).toEqual(once);
   });
 });
@@ -259,7 +273,14 @@ describe("migrateProfileForModelRefs — enabledProviders predicate", () => {
     const raw = buildRawProfile({
       provider: "openrouter",
       settings: buildSettings({
-        models: [{ id: "llama3.2:3b", name: "llama", created: 2, local: { path: "/x" } }],
+        models: [
+          {
+            id: "llama3.2:3b",
+            name: "llama",
+            created: 2,
+            local: { path: "/x" },
+          },
+        ],
         enabledProviders: [],
       }),
     });
@@ -267,7 +288,10 @@ describe("migrateProfileForModelRefs — enabledProviders predicate", () => {
     const migrated = migrateProfileForModelRefs(raw);
 
     // Kills `model.provider === provider`, which seeds only ["openrouter"] here.
-    expect(migrated.settings.enabledProviders).toEqual(["openrouter", "ollama"]);
+    expect(migrated.settings.enabledProviders).toEqual([
+      "openrouter",
+      "ollama",
+    ]);
   });
 });
 
@@ -281,7 +305,13 @@ describe("migrateProfileForModelRefs — total over malformed shapes", () => {
   });
 
   it("does not throw when settings is missing", () => {
-    const raw = { id: "p", name: "n", createdAt: "c", updatedAt: "c", provider: "openai" };
+    const raw = {
+      id: "p",
+      name: "n",
+      createdAt: "c",
+      updatedAt: "c",
+      provider: "openai",
+    };
     expect(() => migrateProfileForModelRefs(raw)).not.toThrow();
   });
 
@@ -349,7 +379,9 @@ describe("migrateProfileForModelRefs — second pass stays inert for a fresh (po
   it("does not invent enabledProviders from the model cache when there is no legacy provider field and nothing left to prefix", () => {
     const raw = buildRawProfile({
       settings: buildSettings({
-        models: [{ id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" }],
+        models: [
+          { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
+        ],
         enabledProviders: [],
         selectedModel: "",
       }),
@@ -368,14 +400,17 @@ describe("migrateProfileForModelRefs — fifth model field: settingsTranslate.mo
   it("prefixes settingsTranslate.model", () => {
     const raw = buildRawProfile({
       provider: "openrouter",
-      settings: { ...buildSettings(), settingsTranslate: { model: "anthropic/claude-3" } },
+      settings: {
+        ...buildSettings(),
+        settingsTranslate: { model: "anthropic/claude-3" },
+      },
     });
 
     const migrated = migrateProfileForModelRefs(raw);
 
     expect(
-      (migrated.settings as unknown as { settingsTranslate: { model: string } }).settingsTranslate
-        .model,
+      (migrated.settings as unknown as { settingsTranslate: { model: string } })
+        .settingsTranslate.model,
     ).toBe("openrouter::anthropic/claude-3");
   });
 
@@ -384,15 +419,21 @@ describe("migrateProfileForModelRefs — fifth model field: settingsTranslate.mo
       provider: "openrouter",
       settings: {
         ...buildSettings(),
-        settingsTranslate: { model: "anthropic/claude-3", destinationLang: "ja" },
+        settingsTranslate: {
+          model: "anthropic/claude-3",
+          destinationLang: "ja",
+        },
       },
     });
 
     const migrated = migrateProfileForModelRefs(raw);
 
     expect(
-      (migrated.settings as unknown as { settingsTranslate: { destinationLang: string } })
-        .settingsTranslate.destinationLang,
+      (
+        migrated.settings as unknown as {
+          settingsTranslate: { destinationLang: string };
+        }
+      ).settingsTranslate.destinationLang,
     ).toBe("ja");
   });
 

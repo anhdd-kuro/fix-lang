@@ -46,7 +46,11 @@ describe("I18nProvider — stale initial-resolve race", () => {
 
   const Harness = () => {
     const { t, locale } = useI18n();
-    return createElement("div", { "data-testid": "locale-text" }, `${locale}:${t("common.loading")}`);
+    return createElement(
+      "div",
+      { "data-testid": "locale-text" },
+      `${locale}:${t("common.loading")}`,
+    );
   };
 
   afterEach(async () => {

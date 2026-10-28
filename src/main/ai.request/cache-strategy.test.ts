@@ -129,7 +129,10 @@ describe("resolveCacheProvider — composite model refs", () => {
   });
 
   it("an openrouter:: ref to a Gemini id matches the raw id", () => {
-    equivalent("google/gemini-2.0-flash", "openrouter::google/gemini-2.0-flash");
+    equivalent(
+      "google/gemini-2.0-flash",
+      "openrouter::google/gemini-2.0-flash",
+    );
   });
 
   it("an openai:: ref to a GPT id matches the raw id", () => {
@@ -147,7 +150,9 @@ describe("resolveCacheProvider — composite model refs", () => {
 
   // Pinned so a future "just split on any ::" shortcut fails here.
   it("an unrecognized head is NOT a prefix — it stays part of the id", () => {
-    expect(resolveCacheProvider("bogus::claude-3")).toBe(CacheProvider.ANTHROPIC);
+    expect(resolveCacheProvider("bogus::claude-3")).toBe(
+      CacheProvider.ANTHROPIC,
+    );
     expect(resolveCacheProvider("bogus::openai/o3-mini")).toBe(
       CacheProvider.UNSUPPORTED,
     );
