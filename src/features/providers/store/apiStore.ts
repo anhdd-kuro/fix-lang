@@ -265,11 +265,9 @@ const sanitizeComboStep = (
   const id = resolveUniqueStepId(storedId || `step-${index + 1}`, seenStepIds);
   seenStepIds.add(id);
 
-  return {
-    id,
-    presetId,
-    ...(inlineInput !== undefined ? { inlineInput } : {}),
-  };
+  const step: ComboStep = { id, presetId };
+  if (inlineInput !== undefined) step.inlineInput = inlineInput;
+  return step;
 };
 
 const sanitizeComboSchemaVersion = (raw: unknown): ComboSchemaVersion =>
@@ -298,7 +296,7 @@ const sanitizeCombo = (raw: unknown): ComboPreset | null => {
   const outputMode = sanitizePresetOutputMode(candidate.outputMode);
   const markdownOutput = sanitizeBoolean(candidate.markdownOutput);
 
-  return {
+  const combo: Omit<ComboPreset, "schemaVersion"> = {
     id,
     name,
     // Never rewritten here, not even onto a hotkey some preset or app binding
@@ -307,8 +305,11 @@ const sanitizeCombo = (raw: unknown): ComboPreset | null => {
     // `validateHotkeys` gate's job, not the sanitizer's.
     hotkey: typeof candidate.hotkey === "string" ? candidate.hotkey.trim() : "",
     steps,
-    ...(outputMode !== undefined ? { outputMode } : {}),
-    ...(markdownOutput !== undefined ? { markdownOutput } : {}),
+  };
+  if (outputMode !== undefined) combo.outputMode = outputMode;
+  if (markdownOutput !== undefined) combo.markdownOutput = markdownOutput;
+  return {
+    ...combo,
     // A stored `2` MUST survive: it is the record that this combo has already
     // been offered the resequencing, and downgrading it here would re-arm the
     // migration and rewrite a chain the user rebuilt on purpose. Absent or
@@ -929,28 +930,33 @@ export const normalizeCorrectionSettings = (
     // read time, so nothing has to be materialized here.
     const extraOptions = sanitizePresetOptions(id, rawCandidate.extraOptions);
 
+    const normalizedPreset: CorrectionPreset = {
+      id,
+      name: candidate.name?.trim() || fallback?.name || `Preset ${index + 1}`,
+      hotkey: getTrimmedString(candidate.hotkey) ?? fallback?.hotkey ?? "",
+      systemPrompt:
+        candidate.systemPrompt?.trim() ||
+        fallback?.systemPrompt ||
+        DEFAULT_CUSTOM_PROMPT.trim(),
+      // Empty stays empty (inherit global). A stored explicit model is kept
+      // as-is; only the built-in fallback is consulted, never the const.
+      model: candidate.model?.trim() || fallback?.model || INHERIT_GLOBAL_MODEL,
+      isBuiltIn: fallback ? true : Boolean(candidate.isBuiltIn),
+    };
+    if (reasoning !== undefined) normalizedPreset.reasoning = reasoning;
+    if (requiresInput !== undefined) {
+      normalizedPreset.requiresInput = requiresInput;
+    }
+    if (outputMode !== undefined) normalizedPreset.outputMode = outputMode;
+    if (markdownOutput !== undefined) {
+      normalizedPreset.markdownOutput = markdownOutput;
+    }
+    if (extraOptions !== undefined)
+      normalizedPreset.extraOptions = extraOptions;
+
     return [
       {
-        preset: {
-          id,
-          name:
-            candidate.name?.trim() || fallback?.name || `Preset ${index + 1}`,
-          hotkey: getTrimmedString(candidate.hotkey) ?? fallback?.hotkey ?? "",
-          systemPrompt:
-            candidate.systemPrompt?.trim() ||
-            fallback?.systemPrompt ||
-            DEFAULT_CUSTOM_PROMPT.trim(),
-          // Empty stays empty (inherit global). A stored explicit model is kept
-          // as-is; only the built-in fallback is consulted, never the const.
-          model:
-            candidate.model?.trim() || fallback?.model || INHERIT_GLOBAL_MODEL,
-          isBuiltIn: fallback ? true : Boolean(candidate.isBuiltIn),
-          ...(reasoning !== undefined ? { reasoning } : {}),
-          ...(requiresInput !== undefined ? { requiresInput } : {}),
-          ...(outputMode !== undefined ? { outputMode } : {}),
-          ...(markdownOutput !== undefined ? { markdownOutput } : {}),
-          ...(extraOptions !== undefined ? { extraOptions } : {}),
-        } satisfies CorrectionPreset,
+        preset: normalizedPreset,
         // A missing or non-string `hotkey` above inherits the built-in default.
         // That injected value is not the user's choice, so it neither counts as
         // a claim nor survives colliding with one.
@@ -1381,7 +1387,7 @@ export const connectProviderToProfile = (
         }
       : sanitizeProviderEndpoints(settings.providerEndpoints);
 
-  return commitProfileAt(profiles, index, {
+  const nextSettings: SettingsStore = {
     ...settings,
     enabledProviders: sanitizeEnabledProviders([
       ...(settings.enabledProviders ?? []),
@@ -1395,15 +1401,14 @@ export const connectProviderToProfile = (
       })),
     ],
     providerEndpoints,
-    // Absent means "leave what is stored"; `""` is a deliberate clear, so the
-    // key must only be written when the caller actually supplied a value.
-    ...(options?.openaiProjectId !== undefined
-      ? {
-          openaiProjectId:
-            sanitizeOpenAIProjectId(options.openaiProjectId) ?? "",
-        }
-      : {}),
-  });
+  };
+  // Absent means "leave what is stored"; `""` is a deliberate clear, so the
+  // key must only be written when the caller actually supplied a value.
+  if (options?.openaiProjectId !== undefined) {
+    nextSettings.openaiProjectId =
+      sanitizeOpenAIProjectId(options.openaiProjectId) ?? "";
+  }
+  return commitProfileAt(profiles, index, nextSettings);
 };
 
 export const connectProviderToActiveProfile = (
@@ -1465,7 +1470,7 @@ export const disconnectProviderFromProfile = (
     provider,
   );
 
-  const profile = commitProfileAt(profiles, index, {
+  const nextSettings: SettingsStore = {
     ...settings,
     enabledProviders: enabledProviders.filter((entry) => entry !== provider),
     models: (settings.models || []).filter(
@@ -1474,10 +1479,13 @@ export const disconnectProviderFromProfile = (
     selectedModel: clearedSelectedModel
       ? INHERIT_GLOBAL_MODEL
       : (settings.selectedModel ?? ""),
-    // The project belongs to the organization the admin key names, so it does not
-    // survive the connection. Reconnecting with a key for a DIFFERENT org would
-    // otherwise keep attributing spend to a project that org has never heard of.
-    ...(provider === "openai" ? { openaiProjectId: "" } : {}),
+  };
+  // The project belongs to the organization the admin key names, so it does not
+  // survive the connection. Reconnecting with a key for a DIFFERENT org would
+  // otherwise keep attributing spend to a project that org has never heard of.
+  if (provider === "openai") nextSettings.openaiProjectId = "";
+  const profile = commitProfileAt(profiles, index, {
+    ...nextSettings,
     settingsCorrect: { ...correct, presets },
     settingsPromptGen: {
       ...settings.settingsPromptGen,

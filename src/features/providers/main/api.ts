@@ -77,6 +77,7 @@ import { probeLmStudio } from "~/main/llm/providers/lmstudio/client";
 import { logger } from "~/main/logging/logService";
 import type { Label } from "~/features/i18n/shared/message";
 import type { Model, ProviderId } from "~/features/providers/shared/providers";
+import type { Profile } from "~/features/providers/store/apiStore";
 
 // Provider predicates come from `~/features/providers/shared/providers`, not `~/features/providers/store/apiStore`'s
 // re-export, so the apiStore mock every test here installs cannot stand in for
@@ -171,22 +172,38 @@ export const parseProviderConnect = (
     if (sanitized === null) return null;
     port = sanitized;
   }
-  return {
-    provider: value.provider,
-    ...(typeof value.apiKey === "string" ? { apiKey: value.apiKey } : {}),
-    ...(typeof value.provisioningKey === "string"
-      ? { provisioningKey: value.provisioningKey }
-      : {}),
-    ...(typeof value.secretKey === "string"
-      ? { secretKey: value.secretKey }
-      : {}),
-    ...(typeof value.region === "string" ? { region: value.region } : {}),
-    ...(typeof value.projectId === "string"
-      ? { projectId: value.projectId }
-      : {}),
-    ...(host !== undefined ? { host } : {}),
-    ...(port !== undefined ? { port } : {}),
+  const payload: ProviderConnectPayload = { provider: value.provider };
+  if (typeof value.apiKey === "string") payload.apiKey = value.apiKey;
+  if (typeof value.provisioningKey === "string") {
+    payload.provisioningKey = value.provisioningKey;
+  }
+  if (typeof value.secretKey === "string") payload.secretKey = value.secretKey;
+  if (typeof value.region === "string") payload.region = value.region;
+  if (typeof value.projectId === "string") payload.projectId = value.projectId;
+  if (host !== undefined) payload.host = host;
+  if (port !== undefined) payload.port = port;
+  return payload;
+};
+
+type ConnectedResult = {
+  success: true;
+  profile: Profile;
+  /** Advice for a connect that did succeed; absent, not `undefined`, when there is none. */
+  note?: Label;
+};
+
+// SECURITY: `SettingsStore` still declares the deprecated plaintext `apiKey`,
+// so an unmigrated profile must be stripped before it crosses.
+const connectedResult = (
+  profile: Profile,
+  note: Label | undefined,
+): ConnectedResult => {
+  const result: ConnectedResult = {
+    success: true,
+    profile: withoutProfileSecrets(profile),
   };
+  if (note) result.note = note;
+  return result;
 };
 
 /**
@@ -571,11 +588,7 @@ export const registerApiHandlers = (): void => {
             ),
           };
         }
-        return {
-          success: true,
-          profile: withoutProfileSecrets(profile),
-          ...(note ? { note } : {}),
-        };
+        return connectedResult(profile, note);
       } else if (payload.provider === "lmstudio") {
         const endpoint = resolveLmStudioEndpoint({
           host:
@@ -632,11 +645,7 @@ export const registerApiHandlers = (): void => {
             ),
           };
         }
-        return {
-          success: true,
-          profile: withoutProfileSecrets(profile),
-          ...(note ? { note } : {}),
-        };
+        return connectedResult(profile, note);
       } else if (payload.provider === "bedrock") {
         const accessKeyId = await getSetupApiKey(
           profileId,
@@ -779,11 +788,7 @@ export const registerApiHandlers = (): void => {
       }
       // SECURITY: `SettingsStore` still declares the deprecated plaintext
       // `apiKey`, so an unmigrated profile must be stripped before it crosses.
-      return {
-        success: true,
-        profile: withoutProfileSecrets(profile),
-        ...(note ? { note } : {}),
-      };
+      return connectedResult(profile, note);
     } catch (error) {
       return { success: false, error: providerErrorLabel(error) };
     }
