@@ -36,10 +36,6 @@ import { useOpenAIUsage } from "../../hooks/useOpenAIUsage";
 import { useOpenRouterAnalytics } from "../../hooks/useOpenRouterAnalytics";
 import { useI18n } from "../../i18n/useI18n";
 import type { ProviderId } from "~/features/providers/shared/providers";
-import type {
-  CardResult,
-  Credits,
-} from "~/main/llm/providers/openrouter/parsers";
 
 /** The tray's own window is not the dashboard, so opening a tab closes it. */
 const openUsageTab = (provider: ProviderId): void => {
@@ -83,7 +79,7 @@ const Figure: React.FC<{ emphasize?: boolean; children: React.ReactNode }> = ({
 const OpenRouterCreditBody: React.FC<BodyProps> = ({ label }) => {
   const { t } = useI18n();
   const { data, loading, hasKey } = useOpenRouterAnalytics("7d");
-  const credits = data?.credits as CardResult<Credits> | undefined;
+  const credits = data?.credits;
 
   if (hasKey === false) {
     return <MutedMessage>{t("tray.credit.missingKey")}</MutedMessage>;
@@ -92,8 +88,7 @@ const OpenRouterCreditBody: React.FC<BodyProps> = ({ label }) => {
     return <MutedMessage>{t("common.loading")}</MutedMessage>;
   }
   if (!credits?.ok) {
-    const reason = (credits?.reason ??
-      "unavailable") as OpenRouterDegradedReason;
+    const reason: OpenRouterDegradedReason = credits?.reason ?? "unavailable";
     return <MutedMessage>{openRouterDegradedMessage(reason, t)}</MutedMessage>;
   }
 
@@ -132,8 +127,7 @@ const OpenAIProjectSpendBody: React.FC<BodyProps> = ({ label }) => {
     return <MutedMessage>{t("common.loading")}</MutedMessage>;
   }
   if (!projectCosts?.ok) {
-    const reason = (projectCosts?.reason ??
-      "unavailable") as UsageDegradedReason;
+    const reason: UsageDegradedReason = projectCosts?.reason ?? "unavailable";
     return <MutedMessage>{usageDegradedMessage(reason, t)}</MutedMessage>;
   }
 

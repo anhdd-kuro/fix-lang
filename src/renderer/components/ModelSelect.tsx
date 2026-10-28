@@ -317,7 +317,7 @@ export const ModelSelect: React.FC<{
                 GroupBase<ModelOption>
               >,
             ) => {
-              // `GroupBase` declares no `error`; `options` is always a
+              // SAFETY: `GroupBase` declares no `error`; `options` is always a
               // `ModelOptionGroup[]`, so the narrowing holds.
               const group = props.data as ModelOptionGroup;
               if (!group.label && !group.error) return null;

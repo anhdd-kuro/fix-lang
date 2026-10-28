@@ -32,13 +32,6 @@ import { UsagePanelSkeleton } from "../Skeleton";
 import type { TranslationKey } from "~/features/i18n/shared/keys";
 import type { Translator } from "~/features/i18n/shared/translate";
 import type { OpenRouterRange } from "~/features/usage/preload/openrouter";
-import type {
-  Activity,
-  CardResult,
-  Credits,
-  EnabledKeys,
-  KeyUsage,
-} from "~/main/llm/providers/openrouter/parsers";
 
 type OpenRouterUsagePanelProps = {
   /** Opens the Settings modal (General tab) for the empty-state affordance. */
@@ -50,7 +43,7 @@ const RANGES: { id: OpenRouterRange; labelKey: TranslationKey }[] = [
   { id: "30d", labelKey: "models.openrouter.range.30d" },
 ];
 
-type Card = { ok: false; reason: string } | { ok: true };
+type Card = { ok: false; reason: OpenRouterDegradedReason } | { ok: true };
 
 const Card = ({
   title,
@@ -71,10 +64,7 @@ const Card = ({
       children
     ) : (
       <div className="text-sm text-muted-foreground">
-        {openRouterDegradedMessage(
-          (result as { reason: OpenRouterDegradedReason }).reason,
-          t,
-        )}
+        {openRouterDegradedMessage(result.reason, t)}
       </div>
     )}
   </div>
@@ -123,10 +113,10 @@ export const OpenRouterUsagePanel = ({
     );
   }
 
-  const credits = data?.credits as CardResult<Credits> | undefined;
-  const keyUsage = data?.keyUsage as CardResult<KeyUsage> | undefined;
-  const activity = data?.activity as CardResult<Activity> | undefined;
-  const enabledKeys = data?.enabledKeys as CardResult<EnabledKeys> | undefined;
+  const credits = data?.credits;
+  const keyUsage = data?.keyUsage;
+  const activity = data?.activity;
+  const enabledKeys = data?.enabledKeys;
 
   if (loading && data === null) {
     return <UsagePanelSkeleton ariaLabel={t("usage.loading")} />;

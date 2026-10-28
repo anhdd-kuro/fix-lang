@@ -65,11 +65,17 @@ export const buildUsageSubTabs = (
     (provider) => states[provider]?.provisioningKeySet !== true,
   );
 
-  return [...withKey, ...withoutKey].map((provider) => ({
-    provider,
-    labelKey: LABEL_KEYS.get(provider) as MessageKey,
-    hasAdminKey: states[provider]?.provisioningKeySet === true,
-  }));
+  return [...withKey, ...withoutKey].flatMap((provider) => {
+    const labelKey = LABEL_KEYS.get(provider);
+    if (labelKey === undefined) return [];
+    return [
+      {
+        provider,
+        labelKey,
+        hasAdminKey: states[provider]?.provisioningKeySet === true,
+      },
+    ];
+  });
 };
 
 /**

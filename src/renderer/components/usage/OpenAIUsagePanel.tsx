@@ -37,13 +37,7 @@ import { UsagePanelSkeleton } from "../Skeleton";
 import type { TranslationKey } from "~/features/i18n/shared/keys";
 import type { Translator } from "~/features/i18n/shared/translate";
 import type { UsageRange } from "~/features/usage/shared/usage";
-import type {
-  CardResult,
-  OpenAICompletionsUsage,
-  OpenAICosts,
-  OpenAIProjectCosts,
-  OpenAIProjectSpendRow,
-} from "~/main/llm/providers/openai/usage.parsers";
+import type { OpenAIProjectSpendRow } from "~/main/llm/providers/openai/usage.parsers";
 
 type OpenAIUsagePanelProps = {
   /** Opens the Settings modal (General tab) for the empty-state affordance. */
@@ -55,7 +49,7 @@ const RANGES: { id: UsageRange; labelKey: TranslationKey }[] = [
   { id: "30d", labelKey: "usage.range.30d" },
 ];
 
-type CardOutcome = { ok: false; reason: string } | { ok: true };
+type CardOutcome = { ok: false; reason: UsageDegradedReason } | { ok: true };
 
 const CardShell = ({
   title,
@@ -91,10 +85,7 @@ const CardBody = ({
     <>{children}</>
   ) : (
     <div className="text-sm text-muted-foreground">
-      {usageDegradedMessage(
-        (result as { reason: UsageDegradedReason }).reason,
-        t,
-      )}
+      {usageDegradedMessage(result.reason, t)}
     </div>
   );
 
@@ -167,13 +158,9 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
     );
   }
 
-  const costs = data?.costs as CardResult<OpenAICosts> | undefined;
-  const completions = data?.completions as
-    | CardResult<OpenAICompletionsUsage>
-    | undefined;
-  const projectCosts = data?.projectCosts as
-    | CardResult<OpenAIProjectCosts>
-    | undefined;
+  const costs = data?.costs;
+  const completions = data?.completions;
+  const projectCosts = data?.projectCosts;
 
   if (loading && data === null) {
     return <UsagePanelSkeleton ariaLabel={t("usage.loading")} />;

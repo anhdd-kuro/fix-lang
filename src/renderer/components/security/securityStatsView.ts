@@ -118,7 +118,10 @@ const KNOWN_RULE_IDS: ReadonlySet<string> = new Set(
   SECRET_RULES.map((rule) => rule.id),
 );
 
-/** The cast holds only because `KNOWN_RULE_IDS` was checked first. */
+/**
+ * SAFETY: `KNOWN_RULE_IDS` holds exactly the `SECRET_RULES` ids, and the cast
+ * is only reached after `has(ruleId)` returned true, so `ruleId` is one of them.
+ */
 const ruleLabelKey = (ruleId: string): MessageKey | null =>
   KNOWN_RULE_IDS.has(ruleId)
     ? (`security.rules.${ruleId as SecretRuleId}` satisfies MessageKey)

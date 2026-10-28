@@ -131,6 +131,8 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
 
     // Check intra-app duplicate (against sibling keybinding).
     if (keyBindings) {
+      // SAFETY: `keyBindings` is the store's `KeyBindings` object, whose keys
+      // are the `HotkeyKey` union; each key only indexes that same object.
       const siblingKeys = (Object.keys(keyBindings) as HotkeyKey[]).filter(
         (k) => k !== hotkeyKey,
       );

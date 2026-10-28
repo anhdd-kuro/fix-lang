@@ -39,7 +39,7 @@ export const LanguageTabs: React.FC<LanguageTabsProps> = ({
     <SegmentedControl
       value={locale}
       onChange={(code) => {
-        void setLocale(code as Locale);
+        void setLocale(code);
       }}
       ariaLabel={t("settings.general.language.label")}
       size={size}

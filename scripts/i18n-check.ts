@@ -18,7 +18,10 @@ import {
   parseCatalog,
 } from "../src/features/i18n/shared/catalogIntegrity";
 import { CATALOG_NAMESPACES } from "../src/features/i18n/shared/locales";
-import { LOCALE_CODES } from "../src/features/i18n/shared/registry";
+import {
+  LOCALE_CODES,
+  type Locale,
+} from "../src/features/i18n/shared/registry";
 
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const localesDir = path.join(
@@ -43,10 +46,10 @@ const loadNamespaces = (): NamespaceRaw[] =>
 
 const countKeys = (
   namespaces: readonly NamespaceRaw[],
-  locale: string,
+  locale: Locale,
 ): number =>
   namespaces.reduce((sum, { rawByLocale }) => {
-    const raw = rawByLocale[locale as (typeof LOCALE_CODES)[number]];
+    const raw = rawByLocale[locale];
     return (
       sum + (raw === undefined ? 0 : Object.keys(parseCatalog(raw)).length)
     );

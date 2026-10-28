@@ -27,6 +27,8 @@ type ThemeEntry = {
   tokens: ReturnType<typeof tmThemeToSemanticTokens>;
 };
 
+// SAFETY: `tmThemeToSemanticTokens` returns a `SemanticTokens` record, whose
+// keys are exactly the `SemanticTokenKey` union.
 const SEMANTIC_KEYS = Object.keys(
   tmThemeToSemanticTokens({ name: "fallback", colors: {} }),
 ) as SemanticTokenKey[];
@@ -227,6 +229,9 @@ const loadThemeEntries = async (): Promise<ThemeEntry[]> => {
 
   for (const source of sourceFiles) {
     const raw = await readFile(source.filePath, "utf8");
+    // SAFETY: every source is a checked-in tm-theme JSON written by
+    // `themes:download` (shiki tm-themes) or `alacrittyToTmTheme`, and
+    // `tmThemeToSemanticTokens` falls back for any absent optional field.
     const theme = JSON.parse(raw) as TmTheme;
     const tokens = tmThemeToSemanticTokens(theme);
     const type = theme.type === "light" ? "light" : "dark";

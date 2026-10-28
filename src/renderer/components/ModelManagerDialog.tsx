@@ -103,9 +103,7 @@ export default function ModelManagerDialog({
       // Update the status of the model being installed
       setRecommendedModels((prev) =>
         prev.map((model) =>
-          model.name === modelName
-            ? { ...model, status: "installing" as ModelInstallStatus }
-            : model,
+          model.name === modelName ? { ...model, status: "installing" } : model,
         ),
       );
 

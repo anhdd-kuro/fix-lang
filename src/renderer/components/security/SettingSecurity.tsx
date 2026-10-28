@@ -771,6 +771,8 @@ export const SettingSecurity = () => {
         // and inputs inside this section would strobe the highlight off and on.
         // Only a leave that actually exits the section counts.
         onDragLeave={(event) => {
+          // SAFETY: a DOM `dragleave`'s relatedTarget is the element being
+          // entered or null (left the window), never a non-Node EventTarget.
           if (event.currentTarget.contains(event.relatedTarget as Node | null))
             return;
           setIsDropTarget(false);

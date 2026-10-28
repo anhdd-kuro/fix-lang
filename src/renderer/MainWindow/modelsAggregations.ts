@@ -111,7 +111,7 @@ export const perModelBreakdown = (entries: HistoryEntry[]): ModelRow[] => {
     acc.inputTokens += input;
     acc.outputTokens += output;
     if (isPricedEntry(e)) {
-      acc.costUsd += e.estimatedCostUsd as number;
+      acc.costUsd += e.estimatedCostUsd;
       acc.pricedCount += 1;
     } else {
       acc.hasNa = true;

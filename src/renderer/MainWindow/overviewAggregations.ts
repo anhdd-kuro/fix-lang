@@ -524,7 +524,10 @@ export const sevenDayHourBlockHeatmap = (
  * `max` is the busiest day's count in the window; thresholds are quartiles of
  * `max` so the palette scales to the data. Pure — the panel maps level→class.
  */
-export const intensityLevel = (count: number, max: number): number => {
+export const intensityLevel = (
+  count: number,
+  max: number,
+): TokenActivityIntensityLevel => {
   if (count <= 0 || max <= 0) {
     return 0;
   }
@@ -675,8 +678,7 @@ const aggregateBySundayWeek = (
 const asTokenActivityLevel = (
   count: number,
   max: number,
-): TokenActivityIntensityLevel =>
-  intensityLevel(count, max) as TokenActivityIntensityLevel;
+): TokenActivityIntensityLevel => intensityLevel(count, max);
 
 /**
  * GitHub-style rolling token calendar for the last 12 months ending today.
