@@ -1275,7 +1275,7 @@ describe("Card 06 management and PromptGen Button runtime behavior", () => {
 
   const mount = async (
     element: ReturnType<typeof createElement>,
-    api: object,
+    api: Partial<Window["electronAPI"]>,
   ) => {
     Object.defineProperty(window, "electronAPI", {
       configurable: true,

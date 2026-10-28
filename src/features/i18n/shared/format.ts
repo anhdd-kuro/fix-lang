@@ -40,27 +40,24 @@ export type Formatters = {
 // Intl instance cache
 // ---------------------------------------------------------------------------
 
-/**
- * Sorts object keys (recursively) so two option objects with the same
- * key/value pairs in different insertion order produce the same cache key.
- */
-const canonicalize = (value: unknown): unknown => {
-  if (value === null || typeof value !== "object") {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map(canonicalize);
-  }
-  return Object.keys(value as Record<string, unknown>)
-    .sort()
-    .reduce<Record<string, unknown>>((acc, key) => {
-      acc[key] = canonicalize((value as Record<string, unknown>)[key]);
-      return acc;
-    }, {});
-};
+type IntlFormatOptions =
+  | Intl.NumberFormatOptions
+  | Intl.DateTimeFormatOptions
+  | Intl.RelativeTimeFormatOptions;
 
-const cacheKey = (locale: Locale, options?: object): string =>
-  `${locale}:${JSON.stringify(canonicalize(options ?? {}))}`;
+/**
+ * Sorts option keys so two option objects with the same key/value pairs in
+ * different insertion order produce the same cache key. Intl options are
+ * flat (primitive values only), so one level of sorting is the whole job.
+ */
+const cacheKey = (locale: Locale, options: IntlFormatOptions = {}): string =>
+  `${locale}:${JSON.stringify(
+    Object.fromEntries(
+      Object.entries(options).sort(([left], [right]) =>
+        left < right ? -1 : left > right ? 1 : 0,
+      ),
+    ),
+  )}`;
 
 const getOrCreate = <T>(
   cache: Map<string, T>,
