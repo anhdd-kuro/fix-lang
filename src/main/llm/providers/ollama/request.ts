@@ -34,6 +34,8 @@ const tokenCount = (raw: unknown): number | null =>
   typeof raw === "number" && Number.isFinite(raw) ? raw : null;
 
 export const makeLocalAIRequest = async (options: AIRequestOptions) => {
+  // SAFETY: production calls arrive only through the provider registry from
+  // `makeAIRequest`, which always sets `model` to the resolved raw model id.
   const modelId = options.model as string;
 
   console.log(`Sending request to local LLM with model: ${modelId}`);

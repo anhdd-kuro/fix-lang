@@ -126,7 +126,7 @@ type FetchOutcome =
 export const createOpenAIUsageClient = (
   deps: ClientDeps = {},
 ): OpenAIUsageClient => {
-  const doFetch = (deps.fetch ?? (globalThis.fetch as unknown)) as FetchLike;
+  const doFetch: FetchLike = deps.fetch ?? globalThis.fetch;
   const getKey = deps.getKey ?? (() => getProvisioningKey("openai"));
   const now = deps.now ?? (() => new Date());
 

@@ -109,7 +109,7 @@ export type OpenRouterClient = {
 export const createOpenRouterClient = (
   deps: ClientDeps = {},
 ): OpenRouterClient => {
-  const doFetch = (deps.fetch ?? (globalThis.fetch as unknown)) as FetchLike;
+  const doFetch: FetchLike = deps.fetch ?? globalThis.fetch;
   const getKey = deps.getKey ?? (() => getProvisioningKey("openrouter"));
 
   /**

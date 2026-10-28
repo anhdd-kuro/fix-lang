@@ -44,6 +44,8 @@ export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {
   }
 
   try {
+    // SAFETY: production calls arrive only through the provider registry from
+    // `makeAIRequest`, which always sets `model` to the resolved raw model id.
     const modelId = options.model as string;
     const openai = createOpenAI({ apiKey, baseURL });
     const conversation = toConversation(rawMessages);

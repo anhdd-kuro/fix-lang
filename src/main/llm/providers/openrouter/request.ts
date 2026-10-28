@@ -36,7 +36,9 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
   const apiKey =
     (await getApiKey()) ||
     // Legacy fallback for stores not yet migrated to safeStorage.
-    (getProfileSetting("apiKey") as string) ||
+    getProfileSetting("apiKey") ||
+    // SAFETY: the legacy top-level `apiKey` was only ever written as the
+    // OpenRouter key string, before keys moved to safeStorage.
     (apiStore.get("apiKey") as string) ||
     "";
   if (!apiKey) {
@@ -54,6 +56,8 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       apiKey: apiKey.trim(),
       fetch: keepAliveFetch,
     });
+    // SAFETY: production calls arrive only through the provider registry from
+    // `makeAIRequest`, which always sets `model` to the resolved raw model id.
     const modelId = options.model as string;
     const modelOpenRouter = openRouter(modelId, {
       extraBody: {
@@ -79,10 +83,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       )
       .join("\n\n");
     const conversationMessages = buildCachedMessages(
-      rawMessages.filter((m) => m.role !== "system") as {
-        role: string;
-        content: unknown;
-      }[],
+      rawMessages.filter((m) => m.role !== "system"),
       cacheProvider,
     );
 
@@ -91,6 +92,8 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     const genResponse = await generateText({
       model: modelOpenRouter,
       ...aiSdkSystemOption(systemPrompt),
+      // SAFETY: these are the caller's non-system messages, unchanged —
+      // `buildCachedMessages` only rewrites `system` entries, filtered out above.
       messages: conversationMessages as never,
       ...aiSdkCallSettings({
         reasoning: options.reasoning,
@@ -101,7 +104,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     const { usage, text, reasoningText } = genResponse;
     const normalizedUsage = usageCounts(usage);
     console.log(
-      `makeOpenRouterAIRequest: model=${options.model as string} promptTokens=${normalizedUsage.promptTokens ?? null} completionTokens=${normalizedUsage.completionTokens ?? null}`,
+      `makeOpenRouterAIRequest: model=${modelId} promptTokens=${normalizedUsage.promptTokens ?? null} completionTokens=${normalizedUsage.completionTokens ?? null}`,
     );
 
     const resBody = genResponse.response.body;
@@ -147,10 +150,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     // The provider reports the model it actually served in the response body.
     // For floating aliases (e.g. "~openai/gpt-mini-latest") this is the concrete
     // pinned id; falls back to the requested id when absent.
-    const resolvedModel = extractResolvedModel(
-      resBody,
-      options.model as string,
-    );
+    const resolvedModel = extractResolvedModel(resBody, modelId);
 
     // Return the processed content and token information
     const result: AIRequestResponse = {
@@ -158,7 +158,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       prompts: processedContent, // For compatibility with existing code
       promptTokens,
       completionTokens,
-      model: options.model as string,
+      model: modelId,
       provider: "openrouter",
       resolvedModel,
       cachedTokens,

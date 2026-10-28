@@ -46,6 +46,9 @@ const keepAliveAgent: Dispatcher = new Agent({
  * (Homebrew/GitHub update checks, etc.) is unaffected.
  */
 export const keepAliveFetch: typeof fetch = (input, init) =>
+  // SAFETY: undici's `fetch` is the implementation behind Node's global
+  // `fetch`; its init and Response differ from the DOM typings only by
+  // undici-specific extensions such as `dispatcher`.
   undiciFetch(input, {
     ...init,
     dispatcher: keepAliveAgent,
