@@ -4,8 +4,9 @@
  *
  * Computes an estimated USD cost for a served model + token counts, by matching
  * the model id against OpenRouter per-token pricing (built from the already
- * cached `/api/v1/models` `Model[]`). Matching is exact-then-fuzzy (fuse.js),
- * preferring `resolvedModel` over `model`. Local/Ollama usage is always $0.
+ * cached `/api/v1/models` `Model[]`). Matching order is exact on
+ * `resolvedModel`, exact on the requested `model`, then fuzzy (fuse.js) on
+ * `resolvedModel ?? model`. Local/Ollama usage is always $0.
  *
  * Honesty rules (load-bearing, enforced by `cost_status`):
  * - Local/Ollama  → status "zero", cost 0 (renders "$0.00", never "N/A").
@@ -97,6 +98,9 @@ const parsePrice = (raw: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+const lookupExact = (id: string, priceMap: PriceMap) =>
+  priceMap.get(stripModelRefPrefix(id).toLowerCase());
+
 /**
  * Resolve the priced entry for a served id: exact (lowercased) match first,
  * then a normalized-key fuzzy match via fuse.js under the score threshold.
@@ -108,10 +112,16 @@ const parsePrice = (raw: string): number | null => {
  */
 const matchPrice = (
   servedId: string,
+  requestedId: string,
   priceMap: PriceMap
 ): { prompt: string; completion: string } | null => {
-  const lower = stripModelRefPrefix(servedId).toLowerCase();
-  const exact = priceMap.get(lower);
+  // Exact on the served id, then exact on the requested id, BEFORE any fuzzy
+  // pass: the served id is often a dated variant (`gpt-4o-2024-11-20`) that
+  // fuzzy-matches a neighbouring dated entry, while the requested slug
+  // (`openai/gpt-4o`) is the row the catalogue actually prices.
+  const exact =
+    lookupExact(servedId, priceMap) ??
+    (requestedId.length > 0 ? lookupExact(requestedId, priceMap) : undefined);
   if (exact) {
     return exact;
   }
@@ -163,14 +173,14 @@ export const computeCost = (
     };
   }
 
-  // 2. Prefer the resolved (served) id over the requested model.
+  // 2. The served id drives fuzzy matching; the requested id is an exact-only fallback.
   const servedId = (input.resolvedModel ?? input.model ?? "").trim();
   if (servedId.length === 0) {
     return NA;
   }
 
-  // 3. Exact-then-fuzzy match.
-  const matched = matchPrice(servedId, priceMap);
+  // 3. Exact(served) → exact(requested) → fuzzy(served).
+  const matched = matchPrice(servedId, (input.model ?? "").trim(), priceMap);
   if (!matched) {
     return NA;
   }
