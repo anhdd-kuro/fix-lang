@@ -32,13 +32,21 @@ vi.mock("~/main/logging/logService", () => {
     },
   };
 });
+/** What electron-store persists: JSON. */
+type StoredValue =
+  | string
+  | number
+  | boolean
+  | null
+  | StoredValue[]
+  | { [key: string]: StoredValue };
 vi.mock("electron-store", () => {
   class MockStore {
-    private data: Record<string, unknown> = {};
-    get(key: string, defaultValue?: unknown) {
+    private data: Record<string, StoredValue> = {};
+    get(key: string, defaultValue?: StoredValue) {
       return key in this.data ? this.data[key] : defaultValue;
     }
-    set(key: string, value: unknown) {
+    set(key: string, value: StoredValue) {
       this.data[key] = value;
     }
     store = {};

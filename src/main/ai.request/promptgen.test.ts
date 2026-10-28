@@ -39,6 +39,7 @@ vi.mock("./shared", () => ({ makeAIRequest: vi.fn() }));
 import { getProfileSetting } from "~/features/providers/store/apiStore";
 import { generatePrompt } from "./promptgen";
 import { makeAIRequest } from "./shared";
+import type { AIRequestOptions } from "./requestTypes";
 import type { Mock } from "vitest";
 
 type StoredPromptGenSettings = {
@@ -77,7 +78,7 @@ const setup = (overrides: Partial<StoredPromptGenSettings> = {}) => {
 };
 
 /** The single options object `generatePrompt` handed to `makeAIRequest`. */
-const requestOptions = (): Record<string, unknown> =>
+const requestOptions = (): AIRequestOptions =>
   (makeAIRequest as Mock).mock.calls[0][0];
 
 // A stored profile setting overwriting an explicit caller value is silent —

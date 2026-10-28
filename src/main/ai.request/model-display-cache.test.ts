@@ -14,15 +14,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { openAIModelsListMock } = vi.hoisted(() => ({
   openAIModelsListMock: vi.fn(),
 }));
+/** What electron-store persists: JSON. */
+type StoredValue =
+  | string
+  | number
+  | boolean
+  | null
+  | StoredValue[]
+  | { [key: string]: StoredValue };
 // Stateful mock of electron-store so seeded profiles/currentProfileId are
 // readable by the real apiStore.ts helpers, and writes are observable.
 vi.mock("electron-store", () => {
   class MockStore {
-    private data: Record<string, unknown> = {};
-    get(key: string, defaultValue?: unknown) {
+    private data: Record<string, StoredValue> = {};
+    get(key: string, defaultValue?: StoredValue) {
       return key in this.data ? this.data[key] : defaultValue;
     }
-    set(key: string, value: unknown) {
+    set(key: string, value: StoredValue) {
       this.data[key] = value;
     }
     store = {};

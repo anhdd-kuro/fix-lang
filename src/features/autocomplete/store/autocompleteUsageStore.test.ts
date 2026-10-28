@@ -1,18 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { autocompleteUsageStore, localDayKey } from "./autocompleteUsageStore";
 
+/** What electron-store persists: JSON. */
+type StoredValue =
+  | string
+  | number
+  | boolean
+  | null
+  | StoredValue[]
+  | { [key: string]: StoredValue };
+
 // Stateful in-memory backing store so get/set round-trip within a test,
 // mirroring src/features/i18n/store/localeStore.test.ts.
 const { storeData } = vi.hoisted(() => ({
-  storeData: {} as Record<string, unknown>,
+  storeData: {} as Record<string, StoredValue>,
 }));
 
 vi.mock("electron-store", () => {
   class MockStore {
-    get(key: string, defaultValue?: unknown) {
+    get(key: string, defaultValue?: StoredValue) {
       return key in storeData ? storeData[key] : defaultValue;
     }
-    set(key: string, value: unknown) {
+    set(key: string, value: StoredValue) {
       storeData[key] = value;
     }
     store = {};
@@ -401,7 +410,7 @@ describe("autocompleteUsageStore", () => {
       record(usage(1, 1, 0), new Date(2026, 6, 31 - dayOffset, 9, 0));
     }
 
-    const days = storeData.days as Record<string, unknown>;
+    const days = storeData.days as Record<string, StoredValue>;
     expect(Object.keys(days)).toHaveLength(62);
     expect(days["2026-07-31"]).toBeDefined();
   });

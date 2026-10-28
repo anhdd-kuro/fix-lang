@@ -29,6 +29,7 @@ import {
 import type { AskContextSource } from "~/features/ask/shared/ask";
 import type { LogContext } from "~/features/logs/shared/logging";
 import type { ProviderEndpointMap } from "~/features/providers/store/apiStore";
+import type { AutocompleteRequest } from "./service";
 
 const {
   makeAIRequestMock,
@@ -218,7 +219,7 @@ describe("requestAutocompleteSuggestion", () => {
     respondWith(" over the lazy dog.");
   });
 
-  const ask = (overrides: Record<string, unknown> = {}) =>
+  const ask = (overrides: Partial<AutocompleteRequest> = {}) =>
     requestAutocompleteSuggestion({
       requestId: 1,
       sessionId: "window-1",

@@ -187,6 +187,8 @@ import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWi
 import type * as KeybindingUtils from "./utils";
 import type { BrowserWindow, WebContents } from "electron";
 import type { Mock } from "vitest";
+import type { FixGrammarResult } from "./comboFlow";
+import type { ComboPreset } from "~/features/providers/store/apiStore";
 import type { LogContext, LogValue } from "~/features/logs/shared/logging";
 
 /** Translate's built-in default accelerator — the one a stored preset claims. */
@@ -203,7 +205,7 @@ const storedBuiltIn = (id: string, name: string, hotkey: string) => ({
 });
 
 /** A valid 2-step combo referencing two real built-in presets. */
-const storedCombo = (overrides: Record<string, unknown> = {}) => ({
+const storedCombo = (overrides: Partial<ComboPreset> = {}) => ({
   id: "combo-1",
   name: "Polish and Summarize",
   hotkey: "Control+Alt+K",
@@ -215,7 +217,7 @@ const storedCombo = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const fixGrammarResult = (overrides: Record<string, unknown> = {}) => ({
+const fixGrammarResult = (overrides: Partial<FixGrammarResult> = {}) => ({
   correctedText: "some selected text",
   promptTokens: 10,
   completionTokens: 5,
@@ -1942,7 +1944,7 @@ describe("correction preset hotkeys — every combo press logs exactly one laten
 
     const lines = latencyLines();
     expect(lines).toHaveLength(1);
-    const [, , context] = lines[0] as [string, string, Record<string, unknown>];
+    const [, , context] = lines[0] as [string, string, LogContext];
     expect(context.outcome).toBe("delivered");
     expect(context.comboId).toBe("combo-1");
     expect(typeof context.totalMs).toBe("number");
@@ -1964,9 +1966,9 @@ describe("correction preset hotkeys — every combo press logs exactly one laten
 
     const lines = latencyLines();
     expect(lines).toHaveLength(1);
-    expect(
-      (lines[0] as [string, string, Record<string, unknown>])[2].outcome,
-    ).toBe("no-selection");
+    expect((lines[0] as [string, string, LogContext])[2].outcome).toBe(
+      "no-selection",
+    );
   });
 
   it("logs one failed line when a step fails, and never a second one after it", async () => {
@@ -1981,8 +1983,8 @@ describe("correction preset hotkeys — every combo press logs exactly one laten
 
     const lines = latencyLines();
     expect(lines).toHaveLength(1);
-    expect(
-      (lines[0] as [string, string, Record<string, unknown>])[2].outcome,
-    ).toBe("failed");
+    expect((lines[0] as [string, string, LogContext])[2].outcome).toBe(
+      "failed",
+    );
   });
 });
