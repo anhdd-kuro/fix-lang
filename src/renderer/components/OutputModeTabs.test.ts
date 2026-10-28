@@ -50,13 +50,18 @@ describe("OutputModeTabs", () => {
       .fn()
       .mockResolvedValue({ success: true, mode: "popup" });
 
-    (window as unknown as { electronAPI: unknown }).electronAPI = {
-      getCorrectionOutputMode: vi.fn().mockResolvedValue(initialMode),
-      setCorrectionOutputMode,
-      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
-      setLocale: vi.fn().mockResolvedValue({ success: true }),
-      onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
-    };
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: {
+        getCorrectionOutputMode: vi.fn().mockResolvedValue(initialMode),
+        setCorrectionOutputMode,
+        getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+        setLocale: vi.fn().mockResolvedValue({ success: true }),
+        onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
+      },
+    });
 
     await act(async () => {
       root.render(
@@ -168,11 +173,16 @@ describe("OutputModeTabs", () => {
   });
 
   it("shows unavailable status in settings mode when the bridge is missing on load", async () => {
-    (window as unknown as { electronAPI: unknown }).electronAPI = {
-      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
-      setLocale: vi.fn().mockResolvedValue({ success: true }),
-      onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
-    };
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: {
+        getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+        setLocale: vi.fn().mockResolvedValue({ success: true }),
+        onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
+      },
+    });
 
     await act(async () => {
       root.render(

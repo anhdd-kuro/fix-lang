@@ -45,9 +45,14 @@ describe("MarkdownView", () => {
 
   beforeEach(() => {
     openExternalLink = vi.fn().mockResolvedValue({ success: true });
-    (window as unknown as { electronAPI: unknown }).electronAPI = {
-      openExternalLink,
-    };
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: {
+        openExternalLink,
+      },
+    });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);

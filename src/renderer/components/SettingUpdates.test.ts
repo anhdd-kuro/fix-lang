@@ -131,7 +131,7 @@ type UpdateActionContract = {
 
 describe("SettingUpdates", () => {
   let container: HTMLDivElement;
-  let root: Root;
+  let root: Root | undefined;
   let updateListener: ((state: UpdateState) => void) | undefined;
   let localeListener: ((locale: "en" | "ja") => void) | undefined;
   let unsubscribe: ReturnType<typeof vi.fn>;
@@ -148,7 +148,7 @@ describe("SettingUpdates", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(
+      root?.render(
         createElement(I18nProvider, null, createElement(SettingUpdates)),
       );
     });
@@ -182,7 +182,7 @@ describe("SettingUpdates", () => {
   afterEach(async () => {
     if (root) {
       await act(async () => {
-        root.unmount();
+        root?.unmount();
       });
     }
     container?.remove();
@@ -783,10 +783,10 @@ describe("SettingUpdates", () => {
     );
 
     await act(async () => {
-      root.unmount();
+      root?.unmount();
     });
     expect(unsubscribe).toHaveBeenCalledTimes(1);
-    root = undefined as unknown as Root;
+    root = undefined;
   });
 
   it("does not let a late initial snapshot overwrite a newer update event", async () => {
@@ -799,7 +799,7 @@ describe("SettingUpdates", () => {
     api.getUpdateState.mockReturnValueOnce(initial);
 
     await act(async () => {
-      root.unmount();
+      root?.unmount();
     });
 
     container.remove();
@@ -807,7 +807,7 @@ describe("SettingUpdates", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(
+      root?.render(
         createElement(I18nProvider, null, createElement(SettingUpdates)),
       );
     });
@@ -844,7 +844,7 @@ describe("SettingUpdates", () => {
     api.getUpdateState.mockReturnValueOnce(initial);
 
     await act(async () => {
-      root.unmount();
+      root?.unmount();
     });
 
     container.remove();
@@ -852,7 +852,7 @@ describe("SettingUpdates", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(
+      root?.render(
         createElement(I18nProvider, null, createElement(SettingUpdates)),
       );
     });

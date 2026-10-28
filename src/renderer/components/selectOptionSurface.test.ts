@@ -6,7 +6,11 @@ import {
   selectOptionSurface,
   withThemeColors,
 } from "./selectOptionSurface";
-import type { CSSObjectWithLabel, Theme } from "react-select";
+import {
+  defaultTheme,
+  type CSSObjectWithLabel,
+  type Theme,
+} from "react-select";
 
 describe("option surface", () => {
   const REACT_SELECT_BLUES = [
@@ -154,16 +158,7 @@ describe("option surface", () => {
 });
 
 describe("withThemeColors", () => {
-  const reactSelectTheme = {
-    colors: {
-      primary: "#2684FF",
-      primary75: "#4C9AFF",
-      primary50: "#B2D4FF",
-      primary25: "#DEEBFF",
-      neutral0: "hsl(0, 0%, 100%)",
-      danger: "#DE350B",
-    },
-  } as unknown as Theme;
+  const reactSelectTheme: Theme = defaultTheme;
 
   it("remaps every react-select blue onto a theme var", () => {
     const { colors } = withThemeColors(reactSelectTheme);

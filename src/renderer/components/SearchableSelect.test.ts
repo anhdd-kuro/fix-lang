@@ -91,12 +91,15 @@ describe("grouped options", () => {
 });
 
 describe("DefaultGroupHeading", () => {
-  const headingProps = (label: string) =>
-    ({ data: { label, options: [] } }) as unknown as GroupHeadingProps<
-      SearchableOption,
-      false,
-      GroupBase<SearchableOption>
-    >;
+  type HeadingProps = GroupHeadingProps<
+    SearchableOption,
+    false,
+    GroupBase<SearchableOption>
+  >;
+  const headingProps = (label: string): HeadingProps => {
+    const props: Partial<HeadingProps> = { data: { label, options: [] } };
+    return props as HeadingProps;
+  };
 
   it("renders the group label", () => {
     expect(

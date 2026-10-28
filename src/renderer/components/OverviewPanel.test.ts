@@ -76,8 +76,12 @@ describe("OverviewPanel token-activity calendar tooltip", () => {
     });
     // `useElementWidth` constructs a real `ResizeObserver`, which jsdom does
     // not provide.
-    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
-      StubResizeObserver;
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: StubResizeObserver,
+    });
 
     container = document.createElement("div");
     document.body.append(container);
@@ -105,8 +109,12 @@ describe("OverviewPanel token-activity calendar tooltip", () => {
     }
     container?.remove();
     localeListener = undefined;
-    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
-      originalResizeObserver;
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: originalResizeObserver,
+    });
     vi.restoreAllMocks();
   });
 

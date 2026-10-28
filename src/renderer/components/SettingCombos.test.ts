@@ -63,17 +63,22 @@ describe("SettingCombos tab strip", () => {
   let root: Root;
 
   const render = async () => {
-    (window as unknown as { electronAPI: unknown }).electronAPI = {
-      getCorrectSettings: vi.fn().mockResolvedValue(correctionSettings()),
-      setCorrectSettings: vi.fn().mockResolvedValue({ success: true }),
-      getKeyBindings: vi.fn().mockResolvedValue({}),
-      fetchAIModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
-      getSelectedModel: vi.fn().mockResolvedValue(""),
-      onSettingsUpdated: vi.fn().mockReturnValue(() => undefined),
-      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
-      setLocale: vi.fn().mockResolvedValue({ success: true }),
-      onLocaleChanged: vi.fn().mockReturnValue(() => undefined),
-    };
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: {
+        getCorrectSettings: vi.fn().mockResolvedValue(correctionSettings()),
+        setCorrectSettings: vi.fn().mockResolvedValue({ success: true }),
+        getKeyBindings: vi.fn().mockResolvedValue({}),
+        fetchAIModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
+        getSelectedModel: vi.fn().mockResolvedValue(""),
+        onSettingsUpdated: vi.fn().mockReturnValue(() => undefined),
+        getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+        setLocale: vi.fn().mockResolvedValue({ success: true }),
+        onLocaleChanged: vi.fn().mockReturnValue(() => undefined),
+      },
+    });
 
     container = document.createElement("div");
     document.body.appendChild(container);

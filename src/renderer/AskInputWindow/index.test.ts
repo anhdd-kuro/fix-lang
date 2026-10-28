@@ -171,8 +171,12 @@ describe("AskInputWindow", () => {
   const originalResizeObserver = globalThis.ResizeObserver;
 
   const render = async () => {
-    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
-      StubResizeObserver;
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: StubResizeObserver,
+    });
     installTextMetrics();
 
     api = {
@@ -373,8 +377,12 @@ describe("AskInputWindow", () => {
     container?.remove();
     payloadListener = undefined;
     dismissListener = undefined;
-    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
-      originalResizeObserver;
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: originalResizeObserver,
+    });
     restoreTextMetrics();
     stubbedContextLines = 12;
     vi.useRealTimers();
