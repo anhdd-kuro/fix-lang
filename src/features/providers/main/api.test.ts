@@ -1,7 +1,7 @@
 /**
  * @file api.test.ts
  * @description Validation unit tests for the provider-connect payload parser
- * (`parseProviderConnect`). Pure input-shape rejection tests — no Electron IPC
+ * (`ProviderConnectPayloadSchema`). Pure input-shape rejection tests — no Electron IPC
  * is exercised (`registerApiHandlers` is never called), so every heavy
  * dependency the module imports is mocked at the module boundary, except
  * `~/features/providers/shared/providers` — a stand-in for `isProviderId` would test the stand-in.
@@ -61,9 +61,18 @@ vi.mock("~/features/providers/store/profileSecretStore", () => ({
   secretKindsForProvider: vi.fn().mockReturnValue([]),
   setProfileSecret: vi.fn(),
 }));
-// Import (after mocks) — the real function under test.
-import { parseProviderConnect } from "./api";
+// Import (after mocks) — the real schema under test.
+import { ProviderConnectPayloadSchema } from "./api";
 import type { Profile } from "~/features/providers/store/apiStore";
+
+/**
+ * The handlers' parse step: the schema's result, or `null` when the payload is
+ * refused. Generic because a test payload is arbitrary, exactly as IPC is.
+ */
+const parseProviderConnect = <Payload>(payload: Payload) => {
+  const parsed = ProviderConnectPayloadSchema.safeParse(payload);
+  return parsed.success ? parsed.data : null;
+};
 
 describe("parseProviderConnect", () => {
   it("accepts a bare provider — no modelId is required or carried", () => {

@@ -85,7 +85,7 @@ const projectSettings = (settings: CorrectionSettings) => ({
   ),
 });
 
-const normalizeOutcome = (input: unknown) => {
+const normalizeOutcome = <Input>(input: Input) => {
   try {
     return projectSettings(
       normalizeCorrectionSettings(

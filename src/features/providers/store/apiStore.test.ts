@@ -914,7 +914,7 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
     // Recursive on purpose — this must also catch an enum added to a nested
     // node, or to a property that does not exist yet.
     const enumPaths: string[] = [];
-    const walk = (node: unknown, path: string): void => {
+    const walk = (node: StoredJson, path: string): void => {
       if (!node || typeof node !== "object") return;
       if (Array.isArray(node)) {
         node.forEach((item, index) => walk(item, `${path}[${index}]`));

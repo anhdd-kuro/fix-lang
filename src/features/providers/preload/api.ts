@@ -1,9 +1,11 @@
 // API-related preload functionality
 import { ipcRenderer } from "electron";
+import { z } from "zod";
 import { messageLabel, type Label } from "~/features/i18n/shared/message";
+import { objectLike } from "~/features/providers/shared/objectLike";
 // From the shared registry, never a local copy: a hand-written chain would let
 // this boundary silently reject a newly added provider with no type error.
-import { isProviderId } from "~/features/providers/shared/providers";
+import { ProviderIdSchema } from "~/features/providers/shared/providers";
 import { asLabel } from "~/features/settings/preload/ipcLabel";
 import type { ProviderStates } from "~/features/providers/main/api";
 import type { Model, ProviderId } from "~/features/providers/shared/providers";
@@ -34,28 +36,24 @@ export type ProviderConnectInput = {
   projectId?: string;
 };
 
-export const isProviderConnectInput = (
-  value: unknown,
-): value is ProviderConnectInput => {
-  if (typeof value !== "object" || value === null) return false;
-  const input = value as Record<string, unknown>;
-  const hostOk = input.host === undefined || typeof input.host === "string";
-  const portOk =
-    input.port === undefined ||
-    (typeof input.port === "number" && Number.isInteger(input.port)) ||
-    typeof input.port === "string";
-  return (
-    isProviderId(input.provider) &&
-    (input.apiKey === undefined || typeof input.apiKey === "string") &&
-    (input.provisioningKey === undefined ||
-      typeof input.provisioningKey === "string") &&
-    (input.secretKey === undefined || typeof input.secretKey === "string") &&
-    (input.region === undefined || typeof input.region === "string") &&
-    (input.projectId === undefined || typeof input.projectId === "string") &&
-    hostOk &&
-    portOk
-  );
-};
+/**
+ * The renderer-side shape check for a connect/fetch payload. Deliberately
+ * looser than main's parse: `host` may be any string and `port` any integer or
+ * any string — main sanitizes both and refuses what it cannot use.
+ */
+export const ProviderConnectInputSchema = objectLike({
+  provider: ProviderIdSchema,
+  apiKey: z.string().optional(),
+  provisioningKey: z.string().optional(),
+  secretKey: z.string().optional(),
+  region: z.string().optional(),
+  projectId: z.string().optional(),
+  host: z.string().optional(),
+  // `Number.isInteger`, not `.int()`: the latter also caps at the safe-integer range.
+  port: z
+    .union([z.number().refine((port) => Number.isInteger(port)), z.string()])
+    .optional(),
+});
 
 /**
  * Exposes API-related functionality to the renderer process
@@ -79,7 +77,7 @@ export const apiFeature = {
     accessKeySet?: boolean;
     secretKeySet?: boolean;
   }> => {
-    if (!isProviderId(provider)) {
+    if (!ProviderIdSchema.safeParse(provider).success) {
       return { apiKeySet: false, provisioningKeySet: false };
     }
     return ipcRenderer.invoke("get-provider-secret-status", provider);
@@ -92,7 +90,7 @@ export const apiFeature = {
   fetchProviderModels: async (
     setup: ProviderConnectInput,
   ): Promise<{ success: boolean; models?: Model[]; error?: Label }> => {
-    if (!isProviderConnectInput(setup)) {
+    if (!ProviderConnectInputSchema.safeParse(setup).success) {
       return {
         success: false,
         error: messageLabel("models.providerSetup.error.invalidSetup"),
@@ -114,7 +112,7 @@ export const apiFeature = {
     note?: Label;
     error?: Label;
   }> => {
-    if (!isProviderConnectInput(input)) {
+    if (!ProviderConnectInputSchema.safeParse(input).success) {
       return {
         success: false,
         error: messageLabel("models.providerSetup.error.invalidSetup"),
@@ -141,7 +139,7 @@ export const apiFeature = {
     cleared?: ClearedModelRefs;
     error?: Label;
   }> => {
-    if (!isProviderId(provider)) {
+    if (!ProviderIdSchema.safeParse(provider).success) {
       return {
         success: false,
         error: messageLabel("models.providerSetup.error.invalidSetup"),
@@ -181,7 +179,7 @@ export const apiFeature = {
   setSelectedModel: async (
     modelId: string,
   ): Promise<{ success: boolean; error?: Label }> => {
-    if (typeof modelId !== "string") {
+    if (!z.string().safeParse(modelId).success) {
       return {
         success: false,
         error: messageLabel("models.select.error.modelNotAvailableForProvider"),
@@ -220,7 +218,7 @@ export const apiFeature = {
   setApiKey: async (
     key: string,
   ): Promise<{ success: boolean; error?: Label }> => {
-    if (typeof key !== "string") {
+    if (!z.string().safeParse(key).success) {
       return {
         success: false,
         error: messageLabel("models.providerSetup.error.invalidApiKeyInput"),

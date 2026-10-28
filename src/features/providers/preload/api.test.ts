@@ -1,7 +1,7 @@
 /**
  * @file api.test.ts
  * @description The preload boundary for the provider channels: the connect
- * payload guard (`isProviderConnectInput`), and the rule that **every** method
+ * payload guard (`ProviderConnectInputSchema`), and the rule that **every** method
  * validates its input BEFORE `ipcRenderer.invoke` is reached. An invalid
  * payload that still crosses is a bypassed boundary even when main would have
  * rejected it.
@@ -17,9 +17,16 @@ vi.mock("electron", () => ({
 import { PROVIDER_IDS } from "~/features/providers/shared/providers";
 import {
   apiFeature,
-  isProviderConnectInput,
+  ProviderConnectInputSchema,
   type ProviderConnectInput,
 } from "./api";
+
+/**
+ * The preload's shape check. Generic because a test input is arbitrary,
+ * exactly as what the renderer hands over is.
+ */
+const isProviderConnectInput = <Input>(input: Input): boolean =>
+  ProviderConnectInputSchema.safeParse(input).success;
 
 beforeEach(() => {
   // Resolved values survive vi.clearAllMocks(), so reset them explicitly.

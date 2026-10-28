@@ -4,6 +4,8 @@
  *
  * Electron-free — shared by main, preload, and renderer.
  */
+import { z } from "zod";
+import { objectLike } from "~/features/providers/shared/objectLike";
 
 export type ProviderEndpoint = {
   host: string;
@@ -21,40 +23,65 @@ export const LMSTUDIO_DEFAULT_ENDPOINT: ProviderEndpoint = Object.freeze({
 
 /**
  * Accept a hostname or IPv4/IPv6 literal only — schemes, paths, query strings,
- * and whitespace are rejected so they cannot smuggle into the base URL.
+ * and whitespace are rejected so they cannot smuggle into the base URL. Parses
+ * to the trimmed host.
  */
-export const sanitizeLmStudioHost = (raw: unknown): string | null => {
-  if (typeof raw !== "string") return null;
-  const host = raw.trim();
-  if (host.length === 0 || host.length > 253) return null;
-  if (/[\s/?#@:]/.test(host)) return null;
-  if (/^https?$/i.test(host)) return null;
-  return host;
-};
+export const LocalHostSchema = z
+  .string()
+  .trim()
+  .refine(
+    (host) =>
+      host.length > 0 &&
+      host.length <= 253 &&
+      !/[\s/?#@:]/.test(host) &&
+      !/^https?$/i.test(host),
+  );
 
-export const sanitizeLmStudioPort = (raw: unknown): number | null => {
-  const port =
-    typeof raw === "number"
-      ? raw
-      : typeof raw === "string" && raw.trim() !== ""
-        ? Number(raw.trim())
-        : NaN;
-  if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
-  return port;
-};
+/**
+ * A TCP port in 1..65535, given as a number or as a non-blank numeric string
+ * (`Number()` semantics, so `"0x10"` is 16). NaN, ±Infinity and fractions fail.
+ */
+export const LocalPortSchema = z
+  .union([
+    z.number(),
+    z
+      .string()
+      .trim()
+      .refine((port) => port !== "")
+      .transform(Number),
+  ])
+  .pipe(z.number().int().min(1).max(65535));
 
+/** A local daemon endpoint: both fields must parse, extra fields are dropped. */
+export const ProviderEndpointSchema = objectLike({
+  host: LocalHostSchema,
+  port: LocalPortSchema,
+});
+
+const parsedOrNull = <Parsed>(
+  result: { success: true; data: Parsed } | { success: false },
+): Parsed | null => (result.success ? result.data : null);
+
+export const sanitizeLmStudioHost = (
+  raw: string | null | undefined,
+): string | null => parsedOrNull(LocalHostSchema.safeParse(raw));
+
+export const sanitizeLmStudioPort = (
+  raw: number | string | null | undefined,
+): number | null => parsedOrNull(LocalPortSchema.safeParse(raw));
+
+/**
+ * Re-validates an endpoint at runtime even though it is typed: callers hand
+ * over values read from disk or from IPC, whose static type is a claim.
+ */
 export const sanitizeProviderEndpoint = (
-  raw: unknown,
-): ProviderEndpoint | null => {
-  if (!raw || typeof raw !== "object") return null;
-  const value = raw as Record<string, unknown>;
-  const host = sanitizeLmStudioHost(value.host);
-  const port = sanitizeLmStudioPort(value.port);
-  if (host === null || port === null) return null;
-  return { host, port };
-};
+  raw: ProviderEndpoint | null | undefined,
+): ProviderEndpoint | null =>
+  parsedOrNull(ProviderEndpointSchema.safeParse(raw));
 
-export const resolveLmStudioEndpoint = (raw: unknown): ProviderEndpoint =>
+export const resolveLmStudioEndpoint = (
+  raw: ProviderEndpoint | null | undefined,
+): ProviderEndpoint =>
   sanitizeProviderEndpoint(raw) ?? { ...LMSTUDIO_DEFAULT_ENDPOINT };
 
 export const buildLmStudioBaseUrl = (endpoint: ProviderEndpoint): string =>

@@ -22,6 +22,7 @@ describe("sanitizeOpenAIProjectId", () => {
     expect(sanitizeOpenAIProjectId("   ")).toBeUndefined();
     expect(sanitizeOpenAIProjectId(undefined)).toBeUndefined();
     expect(sanitizeOpenAIProjectId(null)).toBeUndefined();
+    // @ts-expect-error -- a stored value is typed `string` but may be anything on disk
     expect(sanitizeOpenAIProjectId(42)).toBeUndefined();
   });
 

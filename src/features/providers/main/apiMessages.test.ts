@@ -22,6 +22,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IpcMainInvokeEvent, ipcMain } from "electron";
+import type { ProviderEndpointMap } from "~/features/providers/store/apiStore";
 import { isLabel, resolveLabel } from "~/features/i18n/shared/message";
 import { createTranslator } from "~/features/i18n/shared/translate";
 // `registerApiHandlers` (registers the real handlers into `handlers`) and the
@@ -139,7 +140,7 @@ vi.mock("~/features/providers/store/apiStore", () => ({
   getDefaultModelId: vi.fn(),
   getProfileSetting: getProfileSettingMock,
   getProviderEndpoint: () => undefined,
-  sanitizeProviderEndpoints: (raw: unknown) =>
+  sanitizeProviderEndpoints: (raw: ProviderEndpointMap | undefined) =>
     raw && typeof raw === "object" ? raw : {},
   resetCurrentProfileSettings: resetCurrentProfileSettingsMock,
   updateProfileSetting: updateProfileSettingMock,

@@ -7,6 +7,7 @@
  * Electron, its store binding, or anything under the app's stores directory —
  * such a dependency breaks `bun run build`, not the tests.
  */
+import { z } from "zod";
 
 export const PROVIDER_IDS = Object.freeze([
   "openai",
@@ -18,9 +19,17 @@ export const PROVIDER_IDS = Object.freeze([
 ] as const);
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
+/**
+ * Parses a provider id. Membership is exact: `"constructor"`, a boxed string
+ * or a padded id is not a provider.
+ */
+export const ProviderIdSchema = z.enum(PROVIDER_IDS);
+
+/**
+ * Narrowing form of `ProviderIdSchema` for callers that hold a raw value.
+ */
 export const isProviderId = (value: unknown): value is ProviderId =>
-  typeof value === "string" &&
-  (PROVIDER_IDS as readonly string[]).includes(value);
+  ProviderIdSchema.safeParse(value).success;
 
 /** A tuple holding every member of `T` exactly once, so a new provider fails the build. */
 type Permutation<T extends string, Rest extends string = T> = [T] extends [
@@ -190,11 +199,16 @@ export const isProviderConfigured = (
     ? state.hasApiKey
     : state.explicitlyEnabled);
 
+/**
+ * A stored `enabledProviders` list: not an array reads as `[]`, entries that
+ * are not provider ids are dropped. Order and duplicates are settled by the
+ * sanitizer below, not here.
+ */
+export const StoredEnabledProvidersSchema = z
+  .array(ProviderIdSchema.nullable().catch(null))
+  .catch([]);
+
 export const sanitizeEnabledProviders = (raw: unknown): ProviderId[] => {
-  if (!Array.isArray(raw)) return [];
-  const known = new Set<ProviderId>();
-  for (const value of raw) {
-    if (isProviderId(value)) known.add(value);
-  }
+  const known = new Set(StoredEnabledProvidersSchema.parse(raw));
   return PROVIDER_ORDER.filter((provider) => known.has(provider));
 };

@@ -12,6 +12,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IpcMainInvokeEvent, ipcMain } from "electron";
+import type { ProviderEndpointMap } from "~/features/providers/store/apiStore";
 const {
   fetchAvailableModelsMock,
   fetchModelsForProvidersMock,
@@ -97,7 +98,7 @@ vi.mock("~/features/providers/store/apiStore", () => ({
   getDefaultModelId: vi.fn(),
   getProfileSetting: getProfileSettingMock,
   getProviderEndpoint: () => undefined,
-  sanitizeProviderEndpoints: (raw: unknown) =>
+  sanitizeProviderEndpoints: (raw: ProviderEndpointMap | undefined) =>
     raw && typeof raw === "object" ? raw : {},
   resetCurrentProfileSettings: vi.fn(),
   updateProfileSetting: updateProfileSettingMock,
