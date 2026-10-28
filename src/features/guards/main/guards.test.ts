@@ -45,7 +45,6 @@ const getHandler = (channel: string): Handler => {
 };
 
 const validSettings = {
-  clipboardMaxAgeSeconds: 5,
   maxSelectionChars: 20_000,
   deniedBundleIds: ["com.1password.1password"],
 };
@@ -80,20 +79,35 @@ describe("registerSelectionGuardHandlers", () => {
       expect(result).toEqual({ success: true });
     });
 
+    // The removed stale-clipboard guard's key may still ride along from an
+    // upgraded store. It is not a reason to refuse the write: the store's own
+    // normalizer drops it before persisting.
+    it("accepts a payload still carrying a legacy clipboardMaxAgeSeconds", async () => {
+      const payload = { ...validSettings, clipboardMaxAgeSeconds: 5 };
+
+      const result = await getHandler("set-selection-guards")(
+        ipcEvent,
+        payload,
+      );
+
+      expect(guardStoreMocks.setSelectionGuardSettings).toHaveBeenCalledWith(
+        payload,
+      );
+      expect(result).toEqual({ success: true });
+    });
+
     it.each([
       undefined,
       null,
       "a string",
       42,
       [],
-      { ...validSettings, clipboardMaxAgeSeconds: "5" }, // string, not number
-      { ...validSettings, clipboardMaxAgeSeconds: Number.NaN },
+      { ...validSettings, maxSelectionChars: Number.NaN },
       { ...validSettings, maxSelectionChars: "20000" }, // string, not number
       { ...validSettings, deniedBundleIds: "com.1password.1password" }, // not an array
       { ...validSettings, deniedBundleIds: [1, 2] }, // array of numbers, not strings
-      { maxSelectionChars: 20_000, deniedBundleIds: [] }, // missing clipboardMaxAgeSeconds
-      { clipboardMaxAgeSeconds: 5, deniedBundleIds: [] }, // missing maxSelectionChars
-      { clipboardMaxAgeSeconds: 5, maxSelectionChars: 20_000 }, // missing deniedBundleIds
+      { deniedBundleIds: [] }, // missing maxSelectionChars
+      { maxSelectionChars: 20_000 }, // missing deniedBundleIds
     ])(
       "rejects a malformed payload without ever calling guardStore (case %#): %j",
       async (payload) => {
@@ -115,11 +129,9 @@ describe("registerSelectionGuardHandlers", () => {
     // f1: a value the normalizer would silently coerce to 0 (negative, or a
     // sub-1 fraction) must be REFUSED, not accepted-and-defused. Before the
     // fix, `Number.isFinite` alone let these through, `guardStore` persisted
-    // `0`, the age/size rail went silently off, and the handler still
+    // `0`, the size rail went silently off, and the handler still
     // reported `{ success: true }`.
     it.each([
-      { ...validSettings, clipboardMaxAgeSeconds: -1 },
-      { ...validSettings, clipboardMaxAgeSeconds: 0.5 },
       { ...validSettings, maxSelectionChars: -20_000 },
       { ...validSettings, maxSelectionChars: 0.9 },
     ])(
@@ -139,10 +151,7 @@ describe("registerSelectionGuardHandlers", () => {
 
     // The other half of f1: an explicit `0` is the documented way to
     // deliberately disable a guard and must still be accepted.
-    it.each([
-      { ...validSettings, clipboardMaxAgeSeconds: 0 },
-      { ...validSettings, maxSelectionChars: 0 },
-    ])(
+    it.each([{ ...validSettings, maxSelectionChars: 0 }])(
       "still accepts an explicit 0 as a deliberate disable (case %#): %j",
       async (payload) => {
         const result = await getHandler("set-selection-guards")(
@@ -337,7 +346,6 @@ describe("set-selection-guards — payload edge inputs", () => {
 
   it("accepts -0, a huge integer, extra keys and non-canonical entries", async () => {
     const payload = {
-      clipboardMaxAgeSeconds: -0,
       maxSelectionChars: 1e20,
       deniedBundleIds: ["  COM.Example.App "],
       extra: 1,
@@ -346,6 +354,9 @@ describe("set-selection-guards — payload edge inputs", () => {
     expect(guardStoreMocks.setSelectionGuardSettings).toHaveBeenCalledWith(
       payload,
     );
+    expect(await write({ ...validSettings, maxSelectionChars: -0 })).toEqual({
+      success: true,
+    });
   });
 
   it("accepts null-prototype and inherited-field payloads", async () => {
@@ -354,15 +365,14 @@ describe("set-selection-guards — payload edge inputs", () => {
     ).toEqual({ success: true });
     expect(
       await write(
-        Object.assign(Object.create({ clipboardMaxAgeSeconds: 3 }), {
-          maxSelectionChars: 4,
+        Object.assign(Object.create({ maxSelectionChars: 3 }), {
           deniedBundleIds: [],
         }),
       ),
     ).toEqual({ success: true });
     expect(
       guardStoreMocks.setSelectionGuardSettings.mock.calls[1][0]
-        .clipboardMaxAgeSeconds,
+        .maxSelectionChars,
     ).toBe(3);
   });
 
@@ -376,7 +386,7 @@ describe("set-selection-guards — payload edge inputs", () => {
 
   it.each([
     ["a boxed number", { ...validSettings, maxSelectionChars: new Number(1) }],
-    ["a fraction", { ...validSettings, clipboardMaxAgeSeconds: 0.5 }],
+    ["a fraction", { ...validSettings, maxSelectionChars: 0.5 }],
     ["a boxed entry", { ...validSettings, deniedBundleIds: [new String("a")] }],
     [
       "an entry over the RAW length bound",

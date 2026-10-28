@@ -15,7 +15,6 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
   DEFAULT_DENIED_BUNDLE_IDS,
   DEFAULT_MAX_SELECTION_CHARS,
 } from "~/features/guards/shared/guardSettings";
@@ -53,7 +52,6 @@ const deferred = <T>(): Deferred<T> => {
 };
 
 const defaultGuardSettings = (): SelectionGuardSettings => ({
-  clipboardMaxAgeSeconds: 5,
   maxSelectionChars: 20_000,
   deniedBundleIds: ["com.1password.1password"],
 });
@@ -117,16 +115,14 @@ describe("SettingSecurity", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the four sections in order once settings resolve", async () => {
+  it("renders the three sections in order once settings resolve", async () => {
     await render();
 
     const text = container.textContent ?? "";
-    const order = [
-      "Blocked apps",
-      "Stale clipboard",
-      "Large selections",
-      "Secret guard",
-    ].map((title) => text.indexOf(title));
+    expect(text).not.toContain("Stale clipboard");
+    const order = ["Blocked apps", "Large selections", "Secret guard"].map(
+      (title) => text.indexOf(title),
+    );
 
     expect(order.every((index) => index >= 0)).toBe(true);
     expect(order).toEqual([...order].sort((a, b) => a - b));
@@ -140,7 +136,7 @@ describe("SettingSecurity", () => {
         "input:not([type=checkbox])",
       ),
     ];
-    expect(fields.length).toBeGreaterThanOrEqual(3);
+    expect(fields.length).toBeGreaterThanOrEqual(2);
     for (const field of fields) {
       expect(field.className).toContain("bg-secondary");
       expect(field.className).toContain("p-2");
@@ -160,9 +156,6 @@ describe("SettingSecurity", () => {
     expect(container.textContent).toContain("It cannot un-send.");
     expect(container.textContent).toContain(
       "The selection is still copied and restored — it just never reaches a provider.",
-    );
-    expect(container.textContent).toContain(
-      "It stores only a fingerprint and a timestamp — never the text.",
     );
   });
 
@@ -187,19 +180,6 @@ describe("SettingSecurity", () => {
     ).resolves.not.toThrow();
     expect(container.textContent).toContain(
       "Could not load security settings.",
-    );
-  });
-
-  it("shows the disabled hint, not the running description, when clipboard age is 0", async () => {
-    await render({
-      getSelectionGuards: vi.fn().mockResolvedValue({
-        ...defaultGuardSettings(),
-        clipboardMaxAgeSeconds: 0,
-      }),
-    });
-
-    expect(container.textContent).toContain(
-      "0 disables this guard and stops the background check entirely.",
     );
   });
 
@@ -327,7 +307,6 @@ describe("SettingSecurity", () => {
   it("restores both stores to their defaults", async () => {
     await render({
       getSelectionGuards: vi.fn().mockResolvedValue({
-        clipboardMaxAgeSeconds: 0,
         maxSelectionChars: 0,
         deniedBundleIds: [],
       }),
@@ -347,7 +326,6 @@ describe("SettingSecurity", () => {
     await waitForUi();
 
     expect(api.setSelectionGuards).toHaveBeenCalledWith({
-      clipboardMaxAgeSeconds: 5,
       maxSelectionChars: 20_000,
       deniedBundleIds: [
         "com.1password.1password",
@@ -395,7 +373,7 @@ describe("SettingSecurity", () => {
 
     expect(container.textContent).not.toContain("Saved.");
     expect(container.textContent).toContain(
-      "the blocked apps, clipboard age and selection size settings failed to save and were left unchanged",
+      "the blocked apps and selection size settings failed to save and were left unchanged",
     );
   });
 
@@ -920,7 +898,6 @@ describe("SettingSecurity", () => {
 
     expect(setSelectionGuards).toHaveBeenCalledTimes(2);
     expect(setSelectionGuards.mock.calls[1]?.[0]).toEqual({
-      clipboardMaxAgeSeconds: DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
       maxSelectionChars: DEFAULT_MAX_SELECTION_CHARS,
       deniedBundleIds: [...DEFAULT_DENIED_BUNDLE_IDS],
     });
@@ -1218,14 +1195,14 @@ describe("SettingSecurity", () => {
 
   it("survives a language switch — no resolved string frozen into state", async () => {
     await render();
-    expect(container.textContent).toContain("Stale clipboard");
+    expect(container.textContent).toContain("Large selections");
 
     await act(async () => {
       localeListener?.("ja");
     });
     await waitForUi();
 
-    expect(container.textContent).toContain("古いクリップボード");
+    expect(container.textContent).toContain("長い選択範囲");
   });
 
   it("keeps a later partial-restore failure on screen once an earlier flash's untracked timer would have fired", async () => {

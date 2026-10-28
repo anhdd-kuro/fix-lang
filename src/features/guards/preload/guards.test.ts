@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_APP_BUNDLE_PATHS } from "~/features/guards/shared/appBundleIds";
 import {
-  DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
   DEFAULT_DENIED_BUNDLE_IDS,
   DEFAULT_MAX_SELECTION_CHARS,
   MAX_BUNDLE_ID_LENGTH,
@@ -37,13 +36,11 @@ vi.mock("electron", () => ({
 }));
 
 const validSettings = {
-  clipboardMaxAgeSeconds: 5,
   maxSelectionChars: 20_000,
   deniedBundleIds: ["com.1password.1password"],
 };
 
 const normalizedDefaults = {
-  clipboardMaxAgeSeconds: DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
   maxSelectionChars: DEFAULT_MAX_SELECTION_CHARS,
   deniedBundleIds: [...DEFAULT_DENIED_BUNDLE_IDS],
 };
@@ -54,13 +51,12 @@ const malformedSettingsPayloads = [
   "a string",
   42,
   [],
-  { ...validSettings, clipboardMaxAgeSeconds: "5" },
+  { ...validSettings, maxSelectionChars: Number.NaN },
   { ...validSettings, maxSelectionChars: "20000" },
   { ...validSettings, deniedBundleIds: "com.1password.1password" },
   { ...validSettings, deniedBundleIds: [1, 2] },
-  { maxSelectionChars: 20_000, deniedBundleIds: [] },
-  { clipboardMaxAgeSeconds: 5, deniedBundleIds: [] },
-  { clipboardMaxAgeSeconds: 5, maxSelectionChars: 20_000 },
+  { deniedBundleIds: [] },
+  { maxSelectionChars: 20_000 },
 ];
 
 describe("selectionGuardsFeature preload boundary", () => {
@@ -149,8 +145,6 @@ describe("selectionGuardsFeature preload boundary", () => {
     // here too, since preload is the boundary a buggy renderer actually hits
     // first.
     it.each([
-      { ...validSettings, clipboardMaxAgeSeconds: -1 },
-      { ...validSettings, clipboardMaxAgeSeconds: 0.5 },
       { ...validSettings, maxSelectionChars: -20_000 },
       { ...validSettings, maxSelectionChars: 0.9 },
     ])(
@@ -165,10 +159,7 @@ describe("selectionGuardsFeature preload boundary", () => {
 
     // The other half of f1: an explicit 0 is a deliberate disable and must
     // still be accepted through to the main process.
-    it.each([
-      { ...validSettings, clipboardMaxAgeSeconds: 0 },
-      { ...validSettings, maxSelectionChars: 0 },
-    ])(
+    it.each([{ ...validSettings, maxSelectionChars: 0 }])(
       "still accepts an explicit 0 as a deliberate disable (case %#): %j",
       async (payload) => {
         electronMocks.invoke.mockResolvedValue({ success: true });

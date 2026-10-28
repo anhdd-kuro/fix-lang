@@ -73,14 +73,10 @@ vi.mock("~/features/correction/store/outputModeStore", () => ({
 vi.mock("~/features/guards/store/guardStore", () => ({
   guardStore: {
     getSelectionGuardSettings: vi.fn(() => ({
-      clipboardMaxAgeSeconds: 5,
       maxSelectionChars: 20_000,
       deniedBundleIds: [],
     })),
   },
-}));
-vi.mock("../clipboard/clipboardChangeTracker", () => ({
-  clipboardAge: vi.fn(() => null),
 }));
 vi.mock("../../utils", () => ({
   getHighlightedTextWithActiveApp: vi
@@ -800,7 +796,6 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
     // `Once`, so this file's default allow-everything settings are back for
     // the tests below: `vi.clearAllMocks()` clears calls, not implementations.
     (guardStore.getSelectionGuardSettings as Mock).mockReturnValueOnce({
-      clipboardMaxAgeSeconds: 5,
       maxSelectionChars: 20_000,
       deniedBundleIds: ["com.1password.1password"],
     });
@@ -837,7 +832,6 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
       changed: true,
     });
     (guardStore.getSelectionGuardSettings as Mock).mockReturnValueOnce({
-      clipboardMaxAgeSeconds: 5,
       maxSelectionChars: 20_000,
       deniedBundleIds: [],
     });

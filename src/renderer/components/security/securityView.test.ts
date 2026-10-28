@@ -24,7 +24,6 @@ import type { ActiveApp } from "~/main/accessibility/activeApp";
 const guardSettings = (
   overrides: Partial<SelectionGuardSettings> = {},
 ): SelectionGuardSettings => ({
-  clipboardMaxAgeSeconds: 5,
   maxSelectionChars: 20_000,
   deniedBundleIds: ["com.1password.1password"],
   ...overrides,
@@ -39,7 +38,6 @@ describe("resolveSecurityView", () => {
     );
 
     for (const descriptor of [
-      view.clipboardAge.hint,
       view.selectionSize.hint,
       view.deniedApps.listHint,
       view.deniedApps.recentHint,
@@ -51,32 +49,6 @@ describe("resolveSecurityView", () => {
         expect(typeof descriptor.message.key).toBe("string");
       }
     }
-  });
-
-  it("shows the running description while the clipboard-age guard is enabled", () => {
-    const view = resolveSecurityView(
-      guardSettings({ clipboardMaxAgeSeconds: 5 }),
-      DEFAULT_SECRET_GUARD_SETTINGS,
-      [],
-    );
-    expect(view.clipboardAge.enabled).toBe(true);
-    expect(view.clipboardAge.hint).toEqual({
-      kind: "plain",
-      message: { key: "security.clipboardAge.description" },
-    });
-  });
-
-  it("shows the disabled hint when clipboardMaxAgeSeconds is 0", () => {
-    const view = resolveSecurityView(
-      guardSettings({ clipboardMaxAgeSeconds: 0 }),
-      DEFAULT_SECRET_GUARD_SETTINGS,
-      [],
-    );
-    expect(view.clipboardAge.enabled).toBe(false);
-    expect(view.clipboardAge.hint).toEqual({
-      kind: "plain",
-      message: { key: "security.clipboardAge.disabledHint" },
-    });
   });
 
   it("shows the running description while the size guard is enabled", () => {

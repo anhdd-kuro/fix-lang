@@ -8,13 +8,13 @@
  *    two and proving neither is ever called.
  * 2. The same selection-guard block wired into `correction.ts`
  *    (`~/main/keybindings/correction-selection-guards.test.ts`), minus the
- *    latency calls PromptGen has no timer for: a stale clipboard, a denied
- *    frontmost app, or an oversized selection must be stopped before
+ *    latency calls PromptGen has no timer for: a denied frontmost app or an
+ *    oversized selection must be stopped before
  *    `generatePrompt` runs.
  *
  * `evaluateSelectionGuards` (`~/features/guards/shared/selectionGuards`) is
  * kept REAL and pure — only its electron-touching neighbours (`guardStore`,
- * `clipboardChangeTracker`, `confirmSelectionGuard`) are mocked, same as the
+ * `confirmSelectionGuard`) are mocked, same as the
  * correction test file.
  */
 import { globalShortcut } from "electron";
@@ -55,9 +55,6 @@ vi.mock("~/features/secretGuard/store/secretGuardStore", () => ({
 }));
 vi.mock("~/main/notifications/secretGuardDialog", () => ({
   confirmSecretSend: vi.fn(),
-}));
-vi.mock("../clipboard/clipboardChangeTracker", () => ({
-  clipboardAge: vi.fn(),
 }));
 vi.mock("../notifications/confirmSelectionGuard", () => ({
   confirmSelectionGuard: vi.fn(),
@@ -107,7 +104,6 @@ import {
 import { generatePrompt } from "../ai.request";
 import { registerPromptGenShortcut } from "./promptGen";
 import { handleError, resetHotkeyThrottleForTests } from "./utils";
-import * as clipboardChangeTracker from "../clipboard/clipboardChangeTracker";
 import { logger } from "../logging/logService";
 import { confirmSelectionGuard } from "../notifications/confirmSelectionGuard";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
@@ -120,12 +116,10 @@ const PROMPT_GEN_HOTKEY = "Control+Shift+G";
 
 const defaultGuardSettings = (
   overrides: Partial<{
-    clipboardMaxAgeSeconds: number;
     maxSelectionChars: number;
     deniedBundleIds: string[];
   }> = {},
 ) => ({
-  clipboardMaxAgeSeconds: 5,
   maxSelectionChars: 20_000,
   deniedBundleIds: ["com.1password.1password"],
   ...overrides,
@@ -208,7 +202,6 @@ beforeEach(() => {
   (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
     defaultGuardSettings(),
   );
-  (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue(null);
   setSecretGuardMode("confirm");
   (confirmSecretSend as Mock).mockResolvedValue(true);
   (generatePrompt as Mock).mockResolvedValue({
@@ -258,80 +251,6 @@ describe("promptGen selection guards — allow", () => {
     expect(syncHistory).toHaveBeenCalledTimes(1);
     expect(handleError).not.toHaveBeenCalled();
     expect(hideOverlaySpinner).toHaveBeenCalledTimes(1); // only the final success hide
-  });
-});
-
-describe("promptGen selection guards — confirm: stale-clipboard", () => {
-  it("asks before generatePrompt, and dispatches nothing when declined", async () => {
-    mockSelection({
-      text: "a password copied 40 minutes ago",
-      activeApp: null,
-      changed: false,
-    });
-    (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
-      defaultGuardSettings({ clipboardMaxAgeSeconds: 5 }),
-    );
-    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({
-      ms: 600_000,
-      origin: "change",
-    });
-    (confirmSelectionGuard as Mock).mockResolvedValue(false);
-
-    const handler = registerPromptGenHandler();
-    await handler();
-
-    expect(confirmSelectionGuard).toHaveBeenCalledWith({
-      kind: "confirm",
-      reason: "stale-clipboard",
-      ageMs: 600_000,
-      limitMs: 5_000,
-    });
-    expect(generatePrompt).not.toHaveBeenCalled();
-    expect(showPromptGenWindow).not.toHaveBeenCalled();
-    expect(syncHistory).not.toHaveBeenCalled();
-    expect(hideOverlaySpinner).toHaveBeenCalledTimes(1);
-    expect(showOverlaySpinner).toHaveBeenCalledTimes(1); // only the initial combined-read callback
-
-    expect(logger.info).toHaveBeenCalledWith(
-      "promptGen.hotkey",
-      "PromptGen declined at a selection-guard confirm",
-      {
-        guardEvent: "declined",
-        guardReason: "stale-clipboard",
-        selectionAgeMs: 600_000,
-        ageLimitMs: 5_000,
-      },
-    );
-
-    // Cancel is a decision, not an error.
-    expect(handleError).not.toHaveBeenCalled();
-  });
-
-  it("asks about a baseline-origin age even when the number is well under the limit", async () => {
-    mockSelection({
-      text: "a password copied before launch",
-      activeApp: null,
-      changed: false,
-    });
-    (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
-      defaultGuardSettings({ clipboardMaxAgeSeconds: 5 }),
-    );
-    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({
-      ms: 12,
-      origin: "baseline",
-    });
-    (confirmSelectionGuard as Mock).mockResolvedValue(false);
-
-    const handler = registerPromptGenHandler();
-    await handler();
-
-    expect(confirmSelectionGuard).toHaveBeenCalledWith({
-      kind: "confirm",
-      reason: "unknown-clipboard-age",
-      ageMs: 12,
-      limitMs: 5_000,
-    });
-    expect(generatePrompt).not.toHaveBeenCalled();
   });
 });
 
@@ -441,7 +360,7 @@ describe("promptGen selection guards — confirm: Send", () => {
 });
 
 describe("promptGen selection guards — precedence", () => {
-  it("blocks as denied-app even when the same selection is also stale and oversized", async () => {
+  it("blocks as denied-app even when the same selection is also oversized", async () => {
     const bigText = "x".repeat(30_000);
     mockSelection({
       text: bigText,
@@ -449,15 +368,8 @@ describe("promptGen selection guards — precedence", () => {
       changed: false,
     });
     (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
-      defaultGuardSettings({
-        clipboardMaxAgeSeconds: 5,
-        maxSelectionChars: 20_000,
-      }),
+      defaultGuardSettings({ maxSelectionChars: 20_000 }),
     );
-    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({
-      ms: 600_000,
-      origin: "change",
-    });
 
     const handler = registerPromptGenHandler();
     await handler();

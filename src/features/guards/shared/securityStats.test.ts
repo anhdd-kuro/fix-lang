@@ -67,23 +67,32 @@ describe("summarizeSecurityStats", () => {
     const stats = summarizeSecurityStats([
       selectionGuard("blocked", "denied-app"),
       selectionGuard("declined", "large-selection"),
-      selectionGuard("declined", "stale-clipboard"),
-      selectionGuard("declined", "stale-clipboard"),
-      selectionGuard("declined", "unknown-clipboard-age"),
       selectionGuard("context-dropped", "denied-app"),
     ]);
 
     expect(stats.blockedByApp).toBe(1);
     expect(stats.declinedLargeSelection).toBe(1);
-    expect(stats.declinedStaleClipboard).toBe(2);
-    expect(stats.declinedUnknownClipboardAge).toBe(1);
     expect(stats.askContextDropped).toBe(1);
-    expect(stats.eventCount).toBe(6);
+    expect(stats.eventCount).toBe(3);
   });
 
   /**
-   * A fourth confirm reason added to `selectionGuards.ts` must read as a missing
-   * metric, not as extra stale-clipboard declines.
+   * The stale-clipboard guard was removed, but its declines still sit in older
+   * log archives. They must be dropped like any unknown reason — no crash, and
+   * not folded into the size bucket.
+   */
+  it("drops declines from the retired stale-clipboard guard in old logs", () => {
+    const stats = summarizeSecurityStats([
+      selectionGuard("declined", "stale-clipboard"),
+      selectionGuard("declined", "unknown-clipboard-age"),
+    ]);
+
+    expect(stats).toEqual(EMPTY_SECURITY_STATS);
+  });
+
+  /**
+   * A new confirm reason added to `selectionGuards.ts` must read as a missing
+   * metric, not as extra size declines.
    */
   it("drops a decline whose reason it does not recognise instead of guessing", () => {
     const stats = summarizeSecurityStats([

@@ -1,21 +1,22 @@
 /**
  * @file guardSettings.ts
  * @description Selection-guard settings shape and its normalizer. Backs the
- * stale-clipboard age guard, the selection size cap, and the frontmost-app
- * deny-list — electron-free, shared by main, preload, and renderer.
+ * selection size cap and the frontmost-app deny-list — electron-free, shared
+ * by main, preload, and renderer.
+ *
+ * A legacy `clipboardMaxAgeSeconds` (the removed stale-clipboard guard) may
+ * still sit in an upgraded user's store; the normalizer builds a fresh object
+ * from the known fields only, so it is dropped on read and never written back.
  */
 import { z } from "zod";
 
 export type SelectionGuardSettings = {
-  /** Seconds. `0` disables the age guard AND the background clipboard poll. */
-  clipboardMaxAgeSeconds: number;
   /** Characters. `0` disables the confirm-before-send prompt. */
   maxSelectionChars: number;
   /** Lowercased, trimmed, deduped bundle ids. */
   deniedBundleIds: string[];
 };
 
-export const DEFAULT_CLIPBOARD_MAX_AGE_SECONDS = 5;
 export const DEFAULT_MAX_SELECTION_CHARS = 20_000;
 
 export const DEFAULT_DENIED_BUNDLE_IDS = [
@@ -127,14 +128,10 @@ const StoredDeniedBundleIdsSchema = z
  */
 const StoredSelectionGuardSettingsSchema = z
   .object({
-    clipboardMaxAgeSeconds: storedNonNegativeIntOr(
-      DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
-    ),
     maxSelectionChars: storedNonNegativeIntOr(DEFAULT_MAX_SELECTION_CHARS),
     deniedBundleIds: StoredDeniedBundleIdsSchema,
   })
   .catch(() => ({
-    clipboardMaxAgeSeconds: DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
     maxSelectionChars: DEFAULT_MAX_SELECTION_CHARS,
     deniedBundleIds: [...DEFAULT_DENIED_BUNDLE_IDS],
   }));
@@ -192,7 +189,6 @@ const DeniedBundleIdsPayloadSchema = z.custom<string[]>(
  * (the store's normalizer drops them).
  */
 export const SelectionGuardSettingsPayloadSchema = z.looseObject({
-  clipboardMaxAgeSeconds: NonNegativeIntegerSettingSchema,
   maxSelectionChars: NonNegativeIntegerSettingSchema,
   deniedBundleIds: DeniedBundleIdsPayloadSchema,
 });

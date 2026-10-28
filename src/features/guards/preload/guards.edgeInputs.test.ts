@@ -14,7 +14,6 @@ import {
   MAX_APP_BUNDLE_PATHS,
 } from "~/features/guards/shared/appBundleIds";
 import {
-  DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
   DEFAULT_DENIED_BUNDLE_IDS,
   DEFAULT_MAX_SELECTION_CHARS,
   MAX_BUNDLE_ID_LENGTH,
@@ -34,13 +33,11 @@ vi.mock("electron", () => ({
 }));
 
 const valid = {
-  clipboardMaxAgeSeconds: 5,
   maxSelectionChars: 20_000,
   deniedBundleIds: ["com.1password.1password"],
 };
 
 const defaults = {
-  clipboardMaxAgeSeconds: DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
   maxSelectionChars: DEFAULT_MAX_SELECTION_CHARS,
   deniedBundleIds: [...DEFAULT_DENIED_BUNDLE_IDS],
 };
@@ -69,13 +66,10 @@ describe("getSelectionGuards — reply edge inputs", () => {
   });
 
   it("accepts -0 and a huge integer as non-negative integers", async () => {
-    const result = await replyOf({
-      ...valid,
-      clipboardMaxAgeSeconds: -0,
-      maxSelectionChars: 1e20,
-    });
-    expect(Object.is(result.clipboardMaxAgeSeconds, -0)).toBe(true);
-    expect(result.maxSelectionChars).toBe(1e20);
+    const negativeZero = await replyOf({ ...valid, maxSelectionChars: -0 });
+    expect(Object.is(negativeZero.maxSelectionChars, -0)).toBe(true);
+    const huge = await replyOf({ ...valid, maxSelectionChars: 1e20 });
+    expect(huge.maxSelectionChars).toBe(1e20);
   });
 
   it.each([
@@ -86,9 +80,6 @@ describe("getSelectionGuards — reply edge inputs", () => {
     ["a boxed number", new Number(5)],
     ["a numeric string", "5"],
   ])("rejects %s as a number field", async (_label, junk) => {
-    expect(await replyOf({ ...valid, clipboardMaxAgeSeconds: junk })).toEqual(
-      defaults,
-    );
     expect(await replyOf({ ...valid, maxSelectionChars: junk })).toEqual(
       defaults,
     );
@@ -105,12 +96,10 @@ describe("getSelectionGuards — reply edge inputs", () => {
     const nullProto = Object.assign(Object.create(null), valid);
     expect(await replyOf(nullProto)).toEqual(valid);
 
-    const inherited = Object.assign(
-      Object.create({ clipboardMaxAgeSeconds: 7 }),
-      { maxSelectionChars: 9, deniedBundleIds: [] },
-    );
+    const inherited = Object.assign(Object.create({ maxSelectionChars: 9 }), {
+      deniedBundleIds: [],
+    });
     const result = await replyOf(inherited);
-    expect(result.clipboardMaxAgeSeconds).toBe(7);
     expect(result.maxSelectionChars).toBe(9);
     expect(result.deniedBundleIds).toEqual([]);
   });
@@ -181,7 +170,7 @@ describe("setSelectionGuards — outgoing edge inputs", () => {
   });
 
   it("forwards an accepted payload as the same object", async () => {
-    const payload = { ...valid, clipboardMaxAgeSeconds: 1e20, extra: 1 };
+    const payload = { ...valid, maxSelectionChars: 1e20, extra: 1 };
     await selectionGuardsFeature.setSelectionGuards(payload);
     expect(electronMocks.invoke).toHaveBeenCalledTimes(1);
     expect(electronMocks.invoke.mock.calls[0][1]).toBe(payload);

@@ -8,7 +8,6 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
   DEFAULT_DENIED_BUNDLE_IDS,
   DEFAULT_MAX_SELECTION_CHARS,
   MAX_DENIED_BUNDLE_IDS,
@@ -16,7 +15,6 @@ import {
 } from "./guardSettings";
 
 const DEFAULTS = {
-  clipboardMaxAgeSeconds: DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
   maxSelectionChars: DEFAULT_MAX_SELECTION_CHARS,
   deniedBundleIds: [...DEFAULT_DENIED_BUNDLE_IDS],
 };
@@ -47,7 +45,6 @@ describe("normalizeSelectionGuardSettings — numeric edge values", () => {
   ])("%s falls back to the default", (_label, junk) => {
     expect(
       normalizeSelectionGuardSettings({
-        clipboardMaxAgeSeconds: junk,
         maxSelectionChars: junk,
       }),
     ).toEqual(DEFAULTS);
@@ -55,31 +52,31 @@ describe("normalizeSelectionGuardSettings — numeric edge values", () => {
 
   it("-0 normalizes to +0, and a huge number survives", () => {
     const normalized = normalizeSelectionGuardSettings({
-      clipboardMaxAgeSeconds: -0,
-      maxSelectionChars: 1e20,
+      maxSelectionChars: -0,
     });
-    expect(Object.is(normalized.clipboardMaxAgeSeconds, 0)).toBe(true);
-    expect(normalized.maxSelectionChars).toBe(1e20);
+    expect(Object.is(normalized.maxSelectionChars, 0)).toBe(true);
+    expect(
+      normalizeSelectionGuardSettings({ maxSelectionChars: 1e20 })
+        .maxSelectionChars,
+    ).toBe(1e20);
   });
 
   it("a tiny negative fraction clamps to 0, not to the default", () => {
     expect(
-      normalizeSelectionGuardSettings({ clipboardMaxAgeSeconds: -0.5 })
-        .clipboardMaxAgeSeconds,
+      normalizeSelectionGuardSettings({ maxSelectionChars: -0.5 })
+        .maxSelectionChars,
     ).toBe(0);
   });
 });
 
 describe("normalizeSelectionGuardSettings — object shapes", () => {
   it("reads inherited and null-prototype fields", () => {
-    const inherited = Object.assign(
-      Object.create({ clipboardMaxAgeSeconds: 7 }),
-      { maxSelectionChars: 9 },
-    );
+    const inherited = Object.assign(Object.create({ maxSelectionChars: 7 }), {
+      deniedBundleIds: [],
+    });
     expect(normalizeSelectionGuardSettings(inherited)).toEqual({
-      ...DEFAULTS,
-      clipboardMaxAgeSeconds: 7,
-      maxSelectionChars: 9,
+      maxSelectionChars: 7,
+      deniedBundleIds: [],
     });
 
     const nullProto = Object.assign(Object.create(null), {
@@ -91,7 +88,7 @@ describe("normalizeSelectionGuardSettings — object shapes", () => {
     });
   });
 
-  it("drops extra keys and emits the three fields in a fixed order", () => {
+  it("drops extra keys, a legacy clipboardMaxAgeSeconds included, and emits the two fields in a fixed order", () => {
     const normalized = normalizeSelectionGuardSettings({
       extra: 1,
       deniedBundleIds: [],
@@ -99,7 +96,6 @@ describe("normalizeSelectionGuardSettings — object shapes", () => {
       clipboardMaxAgeSeconds: 2,
     });
     expect(Object.keys(normalized)).toEqual([
-      "clipboardMaxAgeSeconds",
       "maxSelectionChars",
       "deniedBundleIds",
     ]);

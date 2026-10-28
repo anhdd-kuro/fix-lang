@@ -51,8 +51,6 @@ describe("resolveSecurityStatsView", () => {
     expect(view.selectionCards.map((card) => card.id)).toEqual([
       "blockedByApp",
       "declinedLargeSelection",
-      "declinedStaleClipboard",
-      "declinedUnknownClipboardAge",
       "askContextDropped",
     ]);
     expect(
@@ -71,10 +69,8 @@ describe("resolveSecurityStatsView", () => {
         restoreFailures: 3,
         blockedByApp: 5,
         declinedLargeSelection: 6,
-        declinedStaleClipboard: 7,
-        declinedUnknownClipboardAge: 8,
         askContextDropped: 9,
-        eventCount: 45,
+        eventCount: 30,
       }),
     );
 
@@ -92,8 +88,6 @@ describe("resolveSecurityStatsView", () => {
       restoreFailures: 3,
       blockedByApp: 5,
       declinedLargeSelection: 6,
-      declinedStaleClipboard: 7,
-      declinedUnknownClipboardAge: 8,
       askContextDropped: 9,
     });
     expect(view.hasActivity).toBe(true);

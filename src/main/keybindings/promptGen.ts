@@ -11,7 +11,6 @@ import { getHighlightedTextWithActiveApp } from "../../utils";
 import { generatePrompt } from "../ai.request";
 import { runSecretGate } from "./secretGate";
 import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
-import * as clipboardChangeTracker from "../clipboard/clipboardChangeTracker";
 import { logger } from "../logging/logService";
 import { confirmSelectionGuard } from "../notifications/confirmSelectionGuard";
 import { LocalizedError } from "../notifications/error";
@@ -36,13 +35,10 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
         // spinner: the frontmost-app read must precede any FixLang window
         // becoming visible, since afterwards it would report FixLang and
         // yield null.
-        const {
-          text: selectedText,
-          activeApp,
-          changed,
-        } = await getHighlightedTextWithActiveApp(() => {
-          showOverlaySpinner();
-        });
+        const { text: selectedText, activeApp } =
+          await getHighlightedTextWithActiveApp(() => {
+            showOverlaySpinner();
+          });
 
         if (!selectedText || !selectedText.trim()) {
           // Safe even though the spinner may not have been shown yet (e.g. the
@@ -72,9 +68,7 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
         // restored, it just never reaches a provider.
         const verdict = evaluateSelectionGuards({
           text: selectedText,
-          changed,
           activeApp,
-          age: clipboardChangeTracker.clipboardAge(),
           settings: guardStore.getSelectionGuardSettings(),
         });
 
