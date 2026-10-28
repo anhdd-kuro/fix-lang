@@ -107,10 +107,9 @@ const lookup = (
   candidates: readonly string[],
 ): string | undefined => {
   for (const candidate of candidates) {
-    // why: candidates are built from runtime string concatenation
-    // (`${key}_${category}`), so they cannot be narrowed to the literal
-    // `TranslationKey` union at compile time. The lookup stays safe because
-    // it only ever yields `string | undefined`, never executes untrusted code.
+    // SAFETY: candidates are `key` or `${key}_${category}` built at runtime,
+    // so they cannot be narrowed to the literal `TranslationKey` union; a
+    // candidate the catalog lacks reads `undefined`, which the loop skips.
     const value = catalog[candidate as TranslationKey];
     if (value !== undefined) {
       return value;

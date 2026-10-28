@@ -87,8 +87,8 @@ export const reasoningEffortToStepIndex = (
   // A retired effort reaching here unsanitized would land on index -1 → None,
   // showing the slider at its weakest step for a preset stored at its strongest.
   const resolved = sanitizeReasoningEffort(raw) ?? raw;
-  const index = REASONING_EFFORT_SLIDER_STEPS.indexOf(
-    resolved as ReasoningEffortSliderStep,
+  const index = REASONING_EFFORT_SLIDER_STEPS.findIndex(
+    (step) => step === resolved,
   );
   return index >= 0 ? index : DEFAULT_REASONING_STEP_INDEX;
 };

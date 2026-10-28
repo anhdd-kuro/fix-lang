@@ -7,12 +7,15 @@
  * `undefined` — unsupported input degrades to `DEFAULT_LOCALE`.
  */
 
+import { z } from "zod";
+import { schemaGuard } from "~/features/core/shared/schemaGuard";
 import { DEFAULT_LOCALE, LOCALE_CODES, type Locale } from "./registry";
 
-/** Narrow an unknown value to a supported locale code. */
-export const isLocale = (value: unknown): value is Locale =>
-  typeof value === "string" &&
-  (LOCALE_CODES as readonly string[]).includes(value);
+/** Exactly one of {@link LOCALE_CODES}; a boxed string is not one. */
+export const LocaleSchema = z.enum(LOCALE_CODES);
+
+/** Narrow a value of any type to a supported locale code. */
+export const isLocale = schemaGuard(LocaleSchema);
 
 /**
  * Normalizes a raw locale tag to a supported locale.
@@ -20,11 +23,12 @@ export const isLocale = (value: unknown): value is Locale =>
  * Handles case (`"JA"`), region subtags (`"ja-JP"`, `"en_US"`), and garbage
  * (`""`, `null`, numbers) by falling back to {@link DEFAULT_LOCALE}.
  */
-export const normalizeLocale = (raw: unknown): Locale => {
-  if (typeof raw !== "string") {
+export const normalizeLocale = <Raw>(raw: Raw): Locale => {
+  const tag = z.string().safeParse(raw);
+  if (!tag.success) {
     return DEFAULT_LOCALE;
   }
 
-  const base = raw.trim().toLowerCase().split(/[-_]/)[0];
+  const base = tag.data.trim().toLowerCase().split(/[-_]/)[0];
   return isLocale(base) ? base : DEFAULT_LOCALE;
 };

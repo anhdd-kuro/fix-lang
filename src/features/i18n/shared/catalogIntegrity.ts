@@ -89,7 +89,7 @@ export const pluralCategoriesForLocale = (
 ): ReadonlySet<CldrPluralCategory> =>
   new Set(
     new Intl.PluralRules(LOCALE_META[locale].intlTag).resolvedOptions()
-      .pluralCategories as CldrPluralCategory[],
+      .pluralCategories,
   );
 
 const pluralSuffixOf = (key: string): CldrPluralCategory | undefined =>
@@ -98,12 +98,13 @@ const pluralSuffixOf = (key: string): CldrPluralCategory | undefined =>
 /**
  * Parses a namespace file's raw text into a `Catalog`.
  *
- * why: the catalog files are flat dotted-key → string maps by construction
- * (enforced by the per-namespace parity tests and `checkNoEmptyOr...` below);
- * asserting that known shape here keeps every pure check in this module
- * working with `Catalog` instead of threading `unknown` through all of them.
+ * Asserted rather than validated so a malformed file still reaches the
+ * checks below and is REPORTED as a violation instead of crashing the run.
  */
 export const parseCatalog = (rawText: string): Catalog =>
+  // SAFETY: these are the same namespace files `locales/index.ts` imports,
+  // where `CATALOGS satisfies Record<Locale, Partial<Record<TranslationKey,
+  // string>>>` type-checks every value as a string under a flat dotted key.
   JSON.parse(rawText) as Catalog;
 
 /**
