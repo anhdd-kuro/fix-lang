@@ -14,6 +14,7 @@ import path from "node:path";
 import { app, BrowserWindow, ipcMain, screen } from "electron";
 import { attachThemeSync } from "./attachThemeSync";
 import { clampToWorkArea } from "./cursorPlacement";
+import { applyExternalNavigationGuard } from "./externalNavigationGuard";
 import { buildAskResultWindowTitle } from "./windowTitles";
 import type { AskResultPayload } from "~/features/ask/shared/ask";
 
@@ -103,6 +104,7 @@ const createAskResultWindow = (): BrowserWindow => {
 
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   attachThemeSync(win);
+  applyExternalNavigationGuard(win);
 
   // Electron's default behavior re-titles the native window from the loaded
   // document's <title> tag (a static, English-only fallback in index.html)

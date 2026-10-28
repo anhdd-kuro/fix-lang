@@ -1,6 +1,7 @@
 import path from "node:path";
 import { app, BrowserWindow, ipcMain, screen } from "electron";
 import { attachThemeSync } from "./attachThemeSync";
+import { applyExternalNavigationGuard } from "./externalNavigationGuard";
 import { buildCorrectionResultWindowTitle } from "./windowTitles";
 import type { CorrectionResultPayload } from "~/features/correction/shared/correctionResult";
 
@@ -58,6 +59,7 @@ const createCorrectionResultWindow = (): BrowserWindow => {
 
   resultWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   attachThemeSync(resultWindow);
+  applyExternalNavigationGuard(resultWindow);
 
   // Electron's default behavior re-titles the native window from the loaded
   // document's <title> tag (a static, English-only fallback in index.html)

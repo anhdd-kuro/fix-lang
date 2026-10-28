@@ -37,7 +37,12 @@ class BrowserWindowMock {
   hide = vi.fn();
   show = vi.fn();
   loadFile = vi.fn();
-  webContents = { send: vi.fn() };
+  webContents = {
+    send: vi.fn(),
+    on: vi.fn(),
+    setWindowOpenHandler: vi.fn(),
+    getURL: vi.fn(() => ""),
+  };
 }
 
 let lastWindow: BrowserWindowMock | null = null;

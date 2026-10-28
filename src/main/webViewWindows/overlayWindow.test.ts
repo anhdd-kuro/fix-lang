@@ -55,6 +55,8 @@ class BrowserWindowMock {
     on: vi.fn(),
     executeJavaScript: vi.fn().mockResolvedValue(undefined),
     isDestroyed: vi.fn(() => false),
+    setWindowOpenHandler: vi.fn(),
+    getURL: vi.fn(() => ""),
   };
 }
 

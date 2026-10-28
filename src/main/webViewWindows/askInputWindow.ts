@@ -18,6 +18,7 @@ import {
 } from "~/features/autocomplete/main/service";
 import { attachThemeSync } from "./attachThemeSync";
 import { clampToWorkArea } from "./cursorPlacement";
+import { applyExternalNavigationGuard } from "./externalNavigationGuard";
 import { buildAskInputWindowTitle } from "./windowTitles";
 import type { AskInputPayload } from "~/features/ask/shared/ask";
 
@@ -130,6 +131,7 @@ const createAskInputWindow = (): BrowserWindow => {
 
   inputWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   attachThemeSync(inputWindow);
+  applyExternalNavigationGuard(inputWindow);
 
   // Electron's default behavior re-titles the native window from the loaded
   // document's <title> tag (a static, English-only fallback in index.html)

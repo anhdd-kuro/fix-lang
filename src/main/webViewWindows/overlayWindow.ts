@@ -5,6 +5,7 @@ import {
   buildComboProgressStyle,
   type ComboProgressView,
 } from "./comboProgressView";
+import { applyExternalNavigationGuard } from "./externalNavigationGuard";
 import spinnerOverlayHtml from "./overlay.html?asset";
 import { applyStandaloneTypography } from "./syncStandaloneTypography";
 import type { ThemeId } from "~/features/theme/store/themeIds";
@@ -94,6 +95,7 @@ export const createOverlayWindow = (): BrowserWindow => {
   });
   // Prevent overlay from appearing in task switchers
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  applyExternalNavigationGuard(overlayWindow);
   // Enable click-through so overlay never blocks mouse events (production)
   overlayWindow.setIgnoreMouseEvents(true, { forward: true });
   void overlayWindow.loadFile(spinnerOverlayHtml);

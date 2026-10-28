@@ -27,11 +27,13 @@
  *   provider to. `SettingUpdates.tsx` suppresses `img` in release notes for
  *   the same reason.
  * - `a` routes through the `openExternalLink` bridge instead of carrying
- *   `target="_blank"`. Neither Ask window installs a `setWindowOpenHandler`,
- *   so `_blank` would get Electron's default window-open behaviour: an
- *   unmanaged app-owned BrowserWindow, outside the result-window cap and
- *   lifecycle, rendering a remote page with a preload attached. The bridge
- *   opens the system browser and validates http/https in main.
+ *   `target="_blank"`: the bridge opens the system browser, where the true
+ *   destination is visible in an address bar, and validates http/https in
+ *   main. A `_blank` (or a middle click, which fires `auxclick` and never
+ *   reaches this handler) is caught one level down by every window's
+ *   `setWindowOpenHandler` — see
+ *   `~/main/webViewWindows/externalNavigationGuard.ts`, which denies the
+ *   window and hands the URL to the same policy.
  */
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
