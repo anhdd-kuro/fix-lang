@@ -1,6 +1,12 @@
 import { ipcRenderer } from "electron";
+import { z } from "zod";
+import {
+  everyItemSchema,
+  schemaGuard,
+} from "~/features/core/shared/schemaGuard";
 import {
   isLogEntry,
+  LogEntrySchema,
   LOG_QUERY_PAGE_SIZE,
   normalizeLogLevels,
 } from "~/features/logs/shared/logging";
@@ -18,18 +24,13 @@ export type ExportLogsResult =
 const normalizeLimit = (limit: number): number =>
   Number.isFinite(limit) ? Math.max(0, Math.min(500, Math.floor(limit))) : 500;
 
-const isLogQueryResult = (value: unknown): value is LogQueryResult => {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return false;
-  }
-  const record = value as Record<string, unknown>;
-  return (
-    Array.isArray(record.entries) &&
-    record.entries.every((entry) => isLogEntry(entry)) &&
-    (record.nextCursor === null || typeof record.nextCursor === "string") &&
-    typeof record.hasMore === "boolean"
-  );
-};
+const isLogQueryResult = schemaGuard<LogQueryResult>(
+  z.object({
+    entries: everyItemSchema(LogEntrySchema),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+  }),
+);
 
 const createLogsFeature = () => ({
   getRecentLogs: async (limit = 500): Promise<LogEntry[]> => {
@@ -68,9 +69,9 @@ const createLogsFeature = () => ({
   exportLogs: (): Promise<ExportLogsResult> =>
     ipcRenderer.invoke("logs:export"),
   onLogAppend: (callback: (entry: LogEntry) => void): (() => void) => {
-    const listener = (
-      _event: Electron.IpcRendererEvent,
-      payload: unknown,
+    const listener: Parameters<typeof ipcRenderer.on>[1] = (
+      _event,
+      payload,
     ): void => {
       if (isLogEntry(payload)) {
         callback(payload);

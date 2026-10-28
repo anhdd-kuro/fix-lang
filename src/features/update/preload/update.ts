@@ -62,7 +62,7 @@ export const updateFeature = {
   onUpdateStateChanged: (
     callback: (state: UpdateState) => void,
   ): (() => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, state: unknown) => {
+    const listener: Parameters<typeof ipcRenderer.on>[1] = (_event, state) => {
       if (isUpdateState(state)) {
         callback(state);
       }

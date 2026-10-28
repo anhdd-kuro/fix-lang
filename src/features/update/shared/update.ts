@@ -1,4 +1,9 @@
-import { isMessage, type Message } from "~/features/i18n/shared/message";
+import { z } from "zod";
+import {
+  NonArrayObjectSchema,
+  schemaGuard,
+} from "~/features/core/shared/schemaGuard";
+import { MessageSchema, type Message } from "~/features/i18n/shared/message";
 
 /** Renderer-safe state for the app-update flow. */
 export type UpdatePhase =
@@ -48,7 +53,7 @@ export type UpdateActionResult =
 export type OpenUpdateReleaseResult = UpdateActionResult;
 export type InstallUpdateResult = UpdateActionResult;
 
-const UPDATE_STATE_KEYS = new Set<keyof UpdateState>([
+const UPDATE_STATE_KEYS = new Set<string>([
   "phase",
   "currentVersion",
   "availableVersion",
@@ -59,7 +64,7 @@ const UPDATE_STATE_KEYS = new Set<keyof UpdateState>([
   "totalBytes",
 ]);
 
-const PHASES = new Set<UpdatePhase>([
+const UpdatePhaseSchema = z.enum([
   "unsupported",
   "idle",
   "checking",
@@ -71,68 +76,66 @@ const PHASES = new Set<UpdatePhase>([
   "error",
 ]);
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const isNonArrayObject = schemaGuard(NonArrayObjectSchema);
 
 /** Byte counts cross the bridge as plain non-negative safe integers. */
-const isOptionalByteCount = (value: unknown): boolean =>
-  value === undefined ||
-  (typeof value === "number" && Number.isSafeInteger(value) && value >= 0);
+const ByteCountSchema = z
+  .number()
+  .refine((count) => Number.isSafeInteger(count) && count >= 0);
 
-/** Validates the small, serializable snapshot crossing the preload boundary. */
-export const isUpdateState = (value: unknown): value is UpdateState => {
-  if (
-    !isRecord(value) ||
-    Object.keys(value).some(
-      (key) => !UPDATE_STATE_KEYS.has(key as keyof UpdateState),
-    ) ||
-    typeof value.phase !== "string" ||
-    !PHASES.has(value.phase as UpdatePhase) ||
-    typeof value.currentVersion !== "string"
-  ) {
-    return false;
-  }
-  if (
-    (value.availableVersion !== undefined &&
-      typeof value.availableVersion !== "string") ||
-    (value.releaseNotes !== undefined &&
-      typeof value.releaseNotes !== "string") ||
-    (value.message !== undefined && !isMessage(value.message)) ||
-    (value.canInstall !== undefined && typeof value.canInstall !== "boolean") ||
-    !isOptionalByteCount(value.downloadedBytes) ||
-    !isOptionalByteCount(value.totalBytes)
-  ) {
-    return false;
-  }
-  return true;
-};
+const UpdateStateFieldsSchema = z.object({
+  phase: UpdatePhaseSchema,
+  currentVersion: z.string(),
+  availableVersion: z.string().optional(),
+  releaseNotes: z.string().optional(),
+  message: MessageSchema.optional(),
+  canInstall: z.boolean().optional(),
+  downloadedBytes: ByteCountSchema.optional(),
+  totalBytes: ByteCountSchema.optional(),
+});
 
-/** Validates the fixed result shape shared by the update IPC actions. */
-export const isUpdateActionResult = (
-  value: unknown,
-): value is UpdateActionResult => {
-  if (!isRecord(value)) {
-    return false;
-  }
+/** The small, serializable snapshot crossing the preload boundary. */
+const UpdateStateSchema = z.custom<UpdateState>(
+  (value) =>
+    isNonArrayObject(value) &&
+    Object.keys(value).every((key) => UPDATE_STATE_KEYS.has(key)) &&
+    UpdateStateFieldsSchema.safeParse(value).success,
+);
+
+const SucceededActionSchema = z.object({ success: z.literal(true) });
+
+const FailedActionSchema = z.object({
+  success: z.literal(false),
+  error: MessageSchema,
+});
+
+/** The fixed result shape shared by the update IPC actions. */
+const UpdateActionResultSchema = z.custom<UpdateActionResult>((value) => {
+  if (!isNonArrayObject(value)) return false;
   const keys = Object.keys(value);
-  if (value.success === true) {
+  if (SucceededActionSchema.safeParse(value).success) {
     return keys.length === 1 && keys[0] === "success";
   }
   return (
-    value.success === false &&
     keys.length === 2 &&
     keys.includes("success") &&
     keys.includes("error") &&
-    isMessage(value.error)
+    FailedActionSchema.safeParse(value).success
   );
-};
+});
+
+/** Validates the small, serializable snapshot crossing the preload boundary. */
+export const isUpdateState = schemaGuard(UpdateStateSchema);
+
+/** Validates the fixed result shape shared by the update IPC actions. */
+export const isUpdateActionResult = schemaGuard(UpdateActionResultSchema);
 
 /** Validates the fixed result shape for the releases-page IPC action. */
-export const isOpenUpdateReleaseResult = (
-  value: unknown,
-): value is OpenUpdateReleaseResult => isUpdateActionResult(value);
+export const isOpenUpdateReleaseResult = schemaGuard<OpenUpdateReleaseResult>(
+  UpdateActionResultSchema,
+);
 
 /** Validates the fixed result shape for the Homebrew install IPC action. */
-export const isInstallUpdateResult = (
-  value: unknown,
-): value is InstallUpdateResult => isUpdateActionResult(value);
+export const isInstallUpdateResult = schemaGuard<InstallUpdateResult>(
+  UpdateActionResultSchema,
+);

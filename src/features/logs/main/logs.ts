@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { app, BrowserWindow, clipboard, dialog, ipcMain } from "electron";
+import { z } from "zod";
 import {
   LOG_QUERY_PAGE_SIZE,
   normalizeLogLevels,
@@ -11,42 +12,48 @@ import type { LogQueryRequest } from "~/features/logs/shared/logging";
 
 const MAX_RECENT_LOGS = 500;
 
-const normalizeLimit = (value: unknown): number => {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return MAX_RECENT_LOGS;
-  }
-  return Math.max(0, Math.min(MAX_RECENT_LOGS, Math.floor(value)));
-};
+// `z.number()` admits finite numbers only, so NaN and ±Infinity take the
+// fallback exactly as the old `Number.isFinite` gate sent them there.
+const RecentLogsLimitSchema = z
+  .number()
+  .transform((limit) =>
+    Math.max(0, Math.min(MAX_RECENT_LOGS, Math.floor(limit))),
+  )
+  .catch(MAX_RECENT_LOGS);
 
-const normalizeQueryRequest = (value: unknown): LogQueryRequest => {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return { limit: LOG_QUERY_PAGE_SIZE };
-  }
-  const record = value as Record<string, unknown>;
-  const request: LogQueryRequest = {
-    limit:
-      typeof record.limit === "number" && Number.isFinite(record.limit)
-        ? Math.max(1, Math.min(500, Math.floor(record.limit)))
-        : LOG_QUERY_PAGE_SIZE,
-  };
-  if (
-    typeof record.beforeTimestamp === "string" &&
-    record.beforeTimestamp.length > 0
-  ) {
-    request.beforeTimestamp = record.beforeTimestamp;
-  }
-  const levels = normalizeLogLevels(record.levels);
-  if (levels.length > 0) {
-    request.levels = levels;
-  }
-  if (typeof record.search === "string") {
-    request.search = record.search;
-  }
-  return request;
-};
+/**
+ * Each field degrades on its own: a bad one is dropped (or defaulted) without
+ * costing the others. Only a payload that is not an object at all fails as a
+ * whole.
+ */
+const LogQueryFieldsSchema = z.object({
+  limit: z
+    .number()
+    .transform((limit) => Math.max(1, Math.min(500, Math.floor(limit))))
+    .catch(LOG_QUERY_PAGE_SIZE),
+  beforeTimestamp: z.string().min(1).optional().catch(undefined),
+  levels: z.unknown().optional().transform(normalizeLogLevels),
+  search: z.string().optional().catch(undefined),
+});
 
-const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
+const LogQueryRequestSchema = LogQueryFieldsSchema.transform(
+  (fields): LogQueryRequest => {
+    const request: LogQueryRequest = { limit: fields.limit };
+    if (fields.beforeTimestamp !== undefined) {
+      request.beforeTimestamp = fields.beforeTimestamp;
+    }
+    if (fields.levels.length > 0) {
+      request.levels = fields.levels;
+    }
+    if (fields.search !== undefined) {
+      request.search = fields.search;
+    }
+    return request;
+  },
+).catch(() => ({ limit: LOG_QUERY_PAGE_SIZE }));
+
+const errorMessage = (cause: unknown): string =>
+  cause instanceof Error ? cause.message : String(cause);
 
 /** Registers validated renderer access to redacted structured logs. */
 export const registerLogHandlers = (): void => {
@@ -55,14 +62,14 @@ export const registerLogHandlers = (): void => {
 
   ipcMain.handle(
     "logs:get-recent",
-    async (_event: Electron.IpcMainInvokeEvent, limit: unknown) =>
-      logService.getRecent(normalizeLimit(limit)),
+    async (_event: Electron.IpcMainInvokeEvent, limit) =>
+      logService.getRecent(RecentLogsLimitSchema.parse(limit)),
   );
 
   ipcMain.handle(
     "logs:query",
-    async (_event: Electron.IpcMainInvokeEvent, request: unknown) =>
-      logService.query(normalizeQueryRequest(request)),
+    async (_event: Electron.IpcMainInvokeEvent, request) =>
+      logService.query(LogQueryRequestSchema.parse(request)),
   );
 
   ipcMain.handle("logs:clear", async () => {

@@ -2,6 +2,8 @@
  * @file typography.ts
  * @description Shared appearance typography ids, defaults, and CSS values.
  */
+import { z } from "zod";
+import { schemaGuard, schemaParser } from "~/features/core/shared/schemaGuard";
 
 export const FONT_SIZE_IDS = Object.freeze([
   "sm",
@@ -60,53 +62,70 @@ export const FONT_FAMILY_STACKS: Readonly<
 const CUSTOM_FONT_SIZE_PATTERN = /^\d+(\.\d+)?(px|rem|em|%)$/;
 const CUSTOM_FONT_FAMILY_MAX_LENGTH = 500;
 
-export const isFontSizeId = (value: unknown): value is FontSizeId =>
-  typeof value === "string" &&
-  (FONT_SIZE_IDS as readonly string[]).includes(value);
+export const FontSizeIdSchema = z.enum(FONT_SIZE_IDS);
 
-export const isFontFamilyId = (value: unknown): value is FontFamilyId =>
-  typeof value === "string" &&
-  (FONT_FAMILY_IDS as readonly string[]).includes(value);
+export const FontFamilyIdSchema = z.enum(FONT_FAMILY_IDS);
 
-export const isValidCustomFontSize = (value: unknown): value is string => {
-  if (typeof value !== "string") return false;
-  const trimmed = value.trim();
-  return CUSTOM_FONT_SIZE_PATTERN.test(trimmed);
-};
+/** Validated on its trimmed form; the guard still hands back the original. */
+export const CustomFontSizeSchema = z
+  .string()
+  .refine((value) => CUSTOM_FONT_SIZE_PATTERN.test(value.trim()));
 
-export const isValidCustomFontFamily = (value: unknown): value is string => {
-  if (typeof value !== "string") return false;
+export const CustomFontFamilySchema = z.string().refine((value) => {
   const trimmed = value.trim();
   return trimmed.length > 0 && trimmed.length <= CUSTOM_FONT_FAMILY_MAX_LENGTH;
-};
+});
 
-export const normalizeCustomFontSize = (value: unknown): string =>
-  isValidCustomFontSize(value) ? value.trim() : DEFAULT_CUSTOM_FONT_SIZE;
+const trimmed = (value: string): string => value.trim();
 
-export const normalizeCustomFontFamily = (value: unknown): string =>
-  isValidCustomFontFamily(value) ? value.trim() : DEFAULT_CUSTOM_FONT_FAMILY;
+const NormalizedFontSizeIdSchema = FontSizeIdSchema.catch(DEFAULT_FONT_SIZE);
 
-export const normalizeFontSizeId = (value: unknown): FontSizeId =>
-  isFontSizeId(value) ? value : DEFAULT_FONT_SIZE;
+const NormalizedFontFamilyIdSchema =
+  FontFamilyIdSchema.catch(DEFAULT_FONT_FAMILY);
 
-export const normalizeFontFamilyId = (value: unknown): FontFamilyId =>
-  isFontFamilyId(value) ? value : DEFAULT_FONT_FAMILY;
+const NormalizedCustomFontSizeSchema = CustomFontSizeSchema.transform(
+  trimmed,
+).catch(DEFAULT_CUSTOM_FONT_SIZE);
 
-export const normalizeAppearanceTypography = (
-  raw: unknown,
-): AppearanceTypography => {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return DEFAULT_APPEARANCE_TYPOGRAPHY;
-  }
+const NormalizedCustomFontFamilySchema = CustomFontFamilySchema.transform(
+  trimmed,
+).catch(DEFAULT_CUSTOM_FONT_FAMILY);
 
-  const record = raw as Record<string, unknown>;
-  return {
-    fontSize: normalizeFontSizeId(record.fontSize),
-    fontFamily: normalizeFontFamilyId(record.fontFamily),
-    customFontSize: normalizeCustomFontSize(record.customFontSize),
-    customFontFamily: normalizeCustomFontFamily(record.customFontFamily),
-  };
-};
+export const isFontSizeId = schemaGuard(FontSizeIdSchema);
+
+export const isFontFamilyId = schemaGuard(FontFamilyIdSchema);
+
+export const isValidCustomFontSize = schemaGuard(CustomFontSizeSchema);
+
+export const isValidCustomFontFamily = schemaGuard(CustomFontFamilySchema);
+
+export const normalizeCustomFontSize = schemaParser(
+  NormalizedCustomFontSizeSchema,
+);
+
+export const normalizeCustomFontFamily = schemaParser(
+  NormalizedCustomFontFamilySchema,
+);
+
+export const normalizeFontSizeId = schemaParser(NormalizedFontSizeIdSchema);
+
+export const normalizeFontFamilyId = schemaParser(NormalizedFontFamilyIdSchema);
+
+/**
+ * A falsy, non-object, function or array value yields the shared frozen
+ * default itself; any other object is read field by field, each bad field
+ * falling back on its own.
+ */
+export const normalizeAppearanceTypography = schemaParser<AppearanceTypography>(
+  z
+    .object({
+      fontSize: NormalizedFontSizeIdSchema,
+      fontFamily: NormalizedFontFamilyIdSchema,
+      customFontSize: NormalizedCustomFontSizeSchema,
+      customFontFamily: NormalizedCustomFontFamilySchema,
+    })
+    .catch(DEFAULT_APPEARANCE_TYPOGRAPHY),
+);
 
 export const resolveFontSizeCss = (typography: AppearanceTypography): string =>
   typography.fontSize === "custom"

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   appendToRing,
   formatLogEntries,
+  isLogEntry,
+  isLogLevel,
   logDayKey,
   logEntryMatchesLevels,
   normalizeLogLevels,
@@ -165,5 +167,66 @@ describe("serializeLogJsonLine / parseLogJsonLine", () => {
   it("returns null for invalid JSONL", () => {
     expect(parseLogJsonLine("not-json")).toBeNull();
     expect(parseLogJsonLine("")).toBeNull();
+  });
+});
+
+// Pins what the guards accepted when they were hand-written `typeof` checks,
+// so a schema rewrite cannot quietly widen or narrow the IPC/JSONL boundary.
+describe("isLogEntry / isLogLevel boundary edges", () => {
+  const entryWith = <Fields extends object>(fields: Fields) => ({
+    ...makeEntry("edge"),
+    ...fields,
+  });
+
+  it("accepts any JS number in context, including NaN and Infinity", () => {
+    expect(
+      isLogEntry(entryWith({ context: { n: Number.NaN, i: Infinity } })),
+    ).toBe(true);
+  });
+
+  it("skips holes in a sparse context array", () => {
+    const sparse: string[] = [];
+    sparse[2] = "x";
+    expect(isLogEntry(entryWith({ context: { list: sparse } }))).toBe(true);
+  });
+
+  it("accepts null-prototype and exotic objects as context records", () => {
+    const bare = Object.assign(Object.create(null), { a: "b" });
+    expect(isLogEntry(entryWith({ context: bare }))).toBe(true);
+    expect(isLogEntry(entryWith({ context: { when: new Date(0) } }))).toBe(
+      true,
+    );
+  });
+
+  it("rejects array, undefined-valued and function-valued contexts", () => {
+    expect(isLogEntry(entryWith({ context: ["a"] }))).toBe(false);
+    expect(isLogEntry(entryWith({ context: { a: undefined } }))).toBe(false);
+    expect(isLogEntry(entryWith({ context: { a: () => "x" } }))).toBe(false);
+  });
+
+  it("reads inherited fields and ignores extra keys", () => {
+    expect(isLogEntry(Object.create(makeEntry("proto")))).toBe(true);
+    expect(isLogEntry(entryWith({ extra: 1 }))).toBe(true);
+  });
+
+  it("rejects boxed strings, unknown levels and non-objects", () => {
+    expect(isLogEntry(entryWith({ id: new String("x") }))).toBe(false);
+    expect(isLogEntry(entryWith({ level: "trace" }))).toBe(false);
+    expect(isLogEntry([makeEntry("in-array")])).toBe(false);
+    expect(isLogEntry(null)).toBe(false);
+    expect(isLogLevel("Debug")).toBe(false);
+    expect(isLogLevel(new String("info"))).toBe(false);
+  });
+});
+
+describe("redactLogContext object walk", () => {
+  it("redacts inside a null-prototype record the same as a plain one", () => {
+    const bare = Object.assign(Object.create(null), {
+      token: "abc",
+      note: "key sk-abcdefghijklmnop",
+    });
+    expect(redactLogContext({ nested: bare })).toEqual({
+      nested: { token: "[REDACTED]", note: "key [REDACTED]" },
+    });
   });
 });

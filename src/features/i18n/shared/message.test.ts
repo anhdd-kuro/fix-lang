@@ -8,6 +8,8 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  isLabel,
+  isMessage,
   messageLabel,
   msg,
   resolveLabel,
@@ -105,5 +107,30 @@ describe("resolveLabel", () => {
       t,
     );
     expect(result).toBe('models.table.showMore:{"count":7}');
+  });
+});
+
+describe("isMessage / isLabel boundary edges", () => {
+  it("refuses a stray key instead of ignoring it", () => {
+    expect(isMessage({ key: "k", extra: 1 })).toBe(false);
+    expect(isLabel({ kind: "text", text: "t", extra: 1 })).toBe(false);
+  });
+
+  it("refuses boxed strings and empty keys", () => {
+    expect(isMessage({ key: new String("k") })).toBe(false);
+    expect(isMessage({ key: "" })).toBe(false);
+    expect(isLabel({ kind: "text", text: new String("t") })).toBe(false);
+  });
+
+  it("accepts number params of every kind, including NaN", () => {
+    expect(
+      isMessage({ key: "k", params: { n: Number.NaN, i: Infinity } }),
+    ).toBe(true);
+    expect(isMessage({ key: "k", params: { n: null } })).toBe(false);
+  });
+
+  it("checks a message label's descriptor, not just its keys", () => {
+    expect(isLabel({ kind: "message", message: { key: "k" } })).toBe(true);
+    expect(isLabel({ kind: "message", message: { key: "" } })).toBe(false);
   });
 });

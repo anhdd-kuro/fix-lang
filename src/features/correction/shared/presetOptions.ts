@@ -31,6 +31,11 @@
  * and the store's deliberately EMPTY `extraOptions` schema node without
  * needing per-type handling.
  */
+import { z } from "zod";
+import {
+  NonArrayObjectSchema,
+  schemaGuard,
+} from "~/features/core/shared/schemaGuard";
 import {
   DEFAULT_CAVEMAN_FULL_DIRECTIVE,
   DEFAULT_CAVEMAN_LITE_DIRECTIVE,
@@ -154,16 +159,17 @@ const PRESET_OPTION_DEFINITIONS: ReadonlyMap<
 // reaching past the `readonly` type would poison the answer for all of them.
 const NO_OPTIONS: readonly PresetPromptOptionDefinition[] = Object.freeze([]);
 
-/** Total over `unknown`: any id that declared nothing answers `[]`. */
-export const presetOptionDefinitions = (
-  presetId: unknown,
-): readonly PresetPromptOptionDefinition[] =>
-  typeof presetId === "string"
-    ? (PRESET_OPTION_DEFINITIONS.get(presetId) ?? NO_OPTIONS)
+/** Total over any input: an id that declared nothing, or no string id, answers `[]`. */
+export const presetOptionDefinitions = <PresetId>(
+  presetId: PresetId,
+): readonly PresetPromptOptionDefinition[] => {
+  const id = z.string().safeParse(presetId);
+  return id.success
+    ? (PRESET_OPTION_DEFINITIONS.get(id.data) ?? NO_OPTIONS)
     : NO_OPTIONS;
+};
 
-const isPlainRecord = (raw: unknown): raw is Record<string, unknown> =>
-  typeof raw === "object" && raw !== null && !Array.isArray(raw);
+const isNonArrayObject = schemaGuard(NonArrayObjectSchema);
 
 /**
  * Own DATA properties only. An inherited value is not something the user
@@ -202,12 +208,12 @@ const ownChoiceValue = (
  * Returns `undefined`, never `{}`, when nothing survives, so a preset with no
  * options emits no `extraOptions` key at all after normalization.
  */
-export const sanitizePresetOptions = (
-  presetId: unknown,
-  raw: unknown,
+export const sanitizePresetOptions = <PresetId, Stored>(
+  presetId: PresetId,
+  raw: Stored,
 ): Record<string, string> | undefined => {
   const definitions = presetOptionDefinitions(presetId);
-  if (definitions.length === 0 || !isPlainRecord(raw)) return undefined;
+  if (definitions.length === 0 || !isNonArrayObject(raw)) return undefined;
 
   const sanitized: Record<string, string> = {};
   for (const definition of definitions) {

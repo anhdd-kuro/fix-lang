@@ -111,3 +111,36 @@ describe("install-result preload boundary", () => {
     ).toBe(false);
   });
 });
+
+describe("update-state byte counts and message params", () => {
+  const withBytes = (downloadedBytes: number) => ({
+    phase: "downloading",
+    currentVersion: "0.2.0",
+    downloadedBytes,
+  });
+
+  it("accepts non-negative safe integers only, -0 included", () => {
+    expect(isUpdateState(withBytes(0))).toBe(true);
+    expect(isUpdateState(withBytes(-0))).toBe(true);
+    expect(isUpdateState(withBytes(Number.MAX_SAFE_INTEGER))).toBe(true);
+    for (const bad of [-1, 1.5, Number.NaN, Infinity, 2 ** 53]) {
+      expect(isUpdateState(withBytes(bad))).toBe(false);
+    }
+  });
+
+  it("accepts any JS number as a message param, NaN included", () => {
+    expect(
+      isUpdateState({
+        phase: "error",
+        currentVersion: "0.2.0",
+        message: { key: "k", params: { n: Number.NaN, s: "x" } },
+      }),
+    ).toBe(true);
+  });
+
+  it("reads inherited fields but counts only own keys", () => {
+    const inherited = Object.create({ phase: "idle", currentVersion: "1" });
+    expect(isUpdateState(inherited)).toBe(true);
+    expect(isInstallUpdateResult(Object.create({ success: true }))).toBe(false);
+  });
+});

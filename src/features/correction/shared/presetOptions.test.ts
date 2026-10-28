@@ -443,7 +443,7 @@ describe("sanitizePresetOptions — total over unknown", () => {
     expect(sanitizePresetOptions(DEFAULT_CAVEMAN_PRESET_ID, polluted)).toEqual({
       [CAVEMAN_MODE_OPTION_KEY]: "lite",
     });
-    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect("polluted" in {}).toBe(false);
   });
 
   it("returns a fresh object rather than the caller's stored one", () => {

@@ -18,16 +18,16 @@ import type { Locale } from "~/features/i18n/shared/registry";
 // Shared mutable backing store for the mock, reset in beforeEach so each test
 // starts from a clean "nothing persisted yet" state.
 const { storeData } = vi.hoisted(() => ({
-  storeData: {} as Record<string, unknown>,
+  storeData: new Map<string, string>(),
 }));
 
 vi.mock("electron-store", () => {
   class MockStore {
-    get(key: string, defaultValue?: unknown) {
-      return key in storeData ? storeData[key] : defaultValue;
+    get(key: string, defaultValue?: string) {
+      return storeData.has(key) ? storeData.get(key) : defaultValue;
     }
-    set(key: string, value: unknown) {
-      storeData[key] = value;
+    set(key: string, value: string) {
+      storeData.set(key, value);
     }
     store = {};
     onDidChange = vi.fn();
@@ -38,9 +38,7 @@ vi.mock("electron-store", () => {
 
 describe("localeStore", () => {
   beforeEach(() => {
-    for (const key of Object.keys(storeData)) {
-      Reflect.deleteProperty(storeData, key);
-    }
+    storeData.clear();
   });
 
   describe("getLocale", () => {
