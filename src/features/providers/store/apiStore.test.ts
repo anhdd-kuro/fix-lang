@@ -1604,6 +1604,12 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
 });
 
 describe("migrateStoredProfilesForModelRefs", () => {
+  /** Pre-model-ref profile shape, which still carried a top-level `provider`. */
+  type LegacyProfile = Profile & { provider: string };
+  const setLegacyProfiles = (profiles: LegacyProfile[]): void => {
+    apiStore.set("profiles", profiles);
+  };
+
   beforeEach(() => {
     apiStore.set("profiles", []);
     apiStore.set("currentProfileId", "");
@@ -1611,7 +1617,7 @@ describe("migrateStoredProfilesForModelRefs", () => {
   });
 
   it("migrates raw legacy profiles and bumps configVersion to 1", () => {
-    apiStore.set("profiles", [
+    setLegacyProfiles([
       {
         id: "profile_1",
         name: "Legacy Profile",
@@ -1632,7 +1638,7 @@ describe("migrateStoredProfilesForModelRefs", () => {
 
   it("does not run when configVersion is already >= 1", () => {
     apiStore.set("configVersion", 1);
-    apiStore.set("profiles", [
+    setLegacyProfiles([
       {
         id: "profile_1",
         name: "Untouched Profile",
@@ -1653,7 +1659,7 @@ describe("migrateStoredProfilesForModelRefs", () => {
   });
 
   it("with configVersion forced back to 0 and already-migrated profiles on disk, replaying the driver rewrites nothing", () => {
-    apiStore.set("profiles", [
+    setLegacyProfiles([
       {
         id: "profile_1",
         name: "Legacy Profile",
@@ -1675,7 +1681,7 @@ describe("migrateStoredProfilesForModelRefs", () => {
   });
 
   it("initializeDefaultProfile runs the migration before ensuring a default profile exists", () => {
-    apiStore.set("profiles", [
+    setLegacyProfiles([
       {
         id: "profile_1",
         name: "Legacy Profile",

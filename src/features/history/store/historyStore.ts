@@ -155,8 +155,17 @@ export function removeHistoryEntry(
   getHistoryRepo().remove(featureId, entry);
 }
 
+/**
+ * Callers store a bare `HistoryEntry` (and `{}` to clear), not the
+ * `{ featureId, entry }` shape `LastActionHistory` declares. electron-store 11
+ * accepted that through a loose `set(string, unknown)` overload that v12
+ * dropped; the casts keep the stored shape unchanged.
+ */
+const storedLastActionHistory = (value: HistoryEntry | Record<string, never>): LastActionHistory =>
+  value as unknown as LastActionHistory;
+
 export function setLastActionHistory(entry: HistoryEntry): void {
-  getHistoryStore().set("lastActionHistory", entry);
+  getHistoryStore().set("lastActionHistory", storedLastActionHistory(entry));
 }
 
 export function getLastActionHistory(): LastActionHistory | null {
@@ -164,7 +173,7 @@ export function getLastActionHistory(): LastActionHistory | null {
 }
 
 export function clearLastActionHistory(): void {
-  getHistoryStore().set("lastActionHistory", {});
+  getHistoryStore().set("lastActionHistory", storedLastActionHistory({}));
 }
 
 /**
