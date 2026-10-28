@@ -247,7 +247,7 @@ describe("pending install reconciliation", () => {
     ).toBe("failed");
   });
 
-  it.each([undefined, -1, 1.5, "1000", Number.MAX_VALUE])(
+  it.each([undefined, -1, 1.5, "1000", Number.MAX_VALUE, 2 ** 53])(
     "reads an unusable startedAt as 0 rather than trusting it: %s",
     (startedAt) => {
       expect(

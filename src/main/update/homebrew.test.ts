@@ -179,6 +179,13 @@ describe("cask version parsing", () => {
     JSON.stringify({ casks: [] }),
     JSON.stringify({ casks: [{ token: "fixlang" }] }),
     JSON.stringify({ casks: [{ token: "fixlang", version: 3 }] }),
+    JSON.stringify({
+      casks: [{ token: "fixlang" }, { token: "fixlang", version: "0.3.5" }],
+    }),
+    JSON.stringify({
+      casks: [null, ["fixlang"], { token: "fixlang", version: ["0.3.5"] }],
+    }),
+    JSON.stringify({ casks: { token: "fixlang", version: "0.3.5" } }),
     JSON.stringify({ formulae: [] }),
   ])("returns null for unusable brew output", (stdout) => {
     expect(parseCaskVersion(stdout)).toBeNull();

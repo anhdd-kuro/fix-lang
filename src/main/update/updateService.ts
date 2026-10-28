@@ -1,4 +1,6 @@
+import { z } from "zod";
 import { msg, type Message } from "~/features/i18n/shared/message";
+import type { JsonValue } from "~/main/jsonValue";
 import {
   reconcilePendingInstall,
   UPGRADE_GRACE_MS,
@@ -155,18 +157,18 @@ const SAFE_ERROR_NAMES = new Set([
   "TypeError",
 ]);
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const VersionTextSchema = z.string();
 
-const parseStableVersion = (value: unknown): StableVersion | null => {
-  if (typeof value !== "string") return null;
-  const match = STABLE_VERSION_PATTERN.exec(value);
+const parseStableVersion = (value: string | null): StableVersion | null => {
+  const text = VersionTextSchema.safeParse(value);
+  if (!text.success) return null;
+  const match = STABLE_VERSION_PATTERN.exec(text.data);
   if (!match) return null;
 
   const [major, minor, patch] = match.slice(1).map(Number);
   if (![major, minor, patch].every(Number.isSafeInteger)) return null;
 
-  return Object.freeze({ raw: value, major, minor, patch });
+  return Object.freeze({ raw: text.data, major, minor, patch });
 };
 
 const compareVersions = (left: StableVersion, right: StableVersion): number => {
@@ -183,54 +185,64 @@ const normalizeReleaseNotes = (raw: string | undefined): string | undefined => {
     : undefined;
 };
 
+/** A fully uploaded asset with a positive, safe-integer byte size. */
+const UploadedAssetSchema = z.object({
+  name: z.string(),
+  state: z.literal("uploaded"),
+  size: z.number().int().positive(),
+});
+
 /** Size of the expected, fully uploaded DMG asset, or null when absent. */
 const expectedDmgSize = (
-  assets: unknown,
+  assets: JsonValue[],
   version: StableVersion,
 ): number | null => {
-  if (!Array.isArray(assets)) return null;
   const expectedName = `FixLang-${version.raw}-arm64.dmg`;
-
-  const asset = assets.find(
-    (candidate) =>
-      isRecord(candidate) &&
-      candidate.name === expectedName &&
-      candidate.state === "uploaded" &&
-      typeof candidate.size === "number" &&
-      Number.isSafeInteger(candidate.size) &&
-      candidate.size > 0,
-  );
-  return isRecord(asset) && typeof asset.size === "number" ? asset.size : null;
+  for (const candidate of assets) {
+    const asset = UploadedAssetSchema.safeParse(candidate);
+    if (asset.success && asset.data.name === expectedName) {
+      return asset.data.size;
+    }
+  }
+  return null;
 };
 
-const validateRelease = (value: unknown): ValidatedRelease | null => {
-  if (!isRecord(value) || value.draft !== false || value.prerelease !== false) {
-    return null;
-  }
-  if (typeof value.tag_name !== "string") return null;
+/**
+ * The release fields the check trusts. `html_url` is deliberately absent: the
+ * release page URL is built from the validated tag, never taken from the API.
+ */
+const GitHubReleaseSchema = z.object({
+  draft: z.literal(false),
+  prerelease: z.literal(false),
+  tag_name: z.string(),
+  // A non-array `assets` cannot hold the DMG, which rejects the release below.
+  assets: z.array(z.json()).catch([]),
+  // GitHub returns JSON null when a release has no notes.
+  body: z.string().nullish(),
+});
 
-  const tagMatch = /^v(.+)$/.exec(value.tag_name);
+const validateRelease = (value: JsonValue): ValidatedRelease | null => {
+  const release = GitHubReleaseSchema.safeParse(value);
+  if (!release.success) return null;
+
+  const tagMatch = /^v(.+)$/.exec(release.data.tag_name);
   const version = tagMatch ? parseStableVersion(tagMatch[1]) : null;
   const dmgSize =
-    version === null ? null : expectedDmgSize(value.assets, version);
+    version === null ? null : expectedDmgSize(release.data.assets, version);
   if (!version || dmgSize === null) return null;
-  // GitHub returns JSON null when a release has no notes.
-  if (value.body != null && typeof value.body !== "string") return null;
 
   return Object.freeze({
     version,
     dmgSize,
-    releaseNotes: normalizeReleaseNotes(
-      typeof value.body === "string" ? value.body : undefined,
-    ),
+    releaseNotes: normalizeReleaseNotes(release.data.body ?? undefined),
   });
 };
 
-const safeErrorName = (error: unknown): string => {
-  if (!(error instanceof Error) || !SAFE_ERROR_NAMES.has(error.name)) {
+const safeErrorName = (cause: unknown): string => {
+  if (!(cause instanceof Error) || !SAFE_ERROR_NAMES.has(cause.name)) {
     return "UnknownError";
   }
-  return error.name;
+  return cause.name;
 };
 
 const freezeState = (state: UpdateState): UpdateState =>
@@ -497,11 +509,11 @@ export const createUpdateService = (
     }
   };
 
-  const fail = (error: unknown): void => {
+  const fail = (cause: unknown): void => {
     checking = false;
     options.onLog?.(
       "warn",
-      `App update check failed (${safeErrorName(error)})`,
+      `App update check failed (${safeErrorName(cause)})`,
     );
     publish({
       phase: "error",

@@ -2,6 +2,8 @@ import { execFile, spawn } from "node:child_process";
 import { closeSync, mkdirSync, openSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
+import { z } from "zod";
+import { isJsonObject, type JsonValue } from "~/main/jsonValue";
 
 const execFileAsync = promisify(execFile);
 
@@ -108,28 +110,28 @@ export const caskVersionPath = (
     ? path.join(caskroomPath(brewBinary), version)
     : null;
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const CaskVersionSchema = z.string();
 
 /** Cask version from `brew info --json=v2`, or null for unusable output. */
 export const parseCaskVersion = (stdout: string): string | null => {
-  let parsed: unknown;
+  let parsed: JsonValue;
   try {
     parsed = JSON.parse(stdout);
   } catch {
     return null;
   }
-  if (!isRecord(parsed) || !Array.isArray(parsed.casks)) {
+  if (!isJsonObject(parsed) || !Array.isArray(parsed.casks)) {
     return null;
   }
 
   const cask = parsed.casks.find(
-    (entry) => isRecord(entry) && entry.token === CASK_TOKEN,
+    (entry) => isJsonObject(entry) && entry.token === CASK_TOKEN,
   );
-  if (!isRecord(cask) || typeof cask.version !== "string") {
+  if (!isJsonObject(cask)) {
     return null;
   }
-  return cask.version;
+  const version = CaskVersionSchema.safeParse(cask.version);
+  return version.success ? version.data : null;
 };
 
 const runBrewCommand: BrewRunner = async (brewBinary, args, timeoutMs) => {

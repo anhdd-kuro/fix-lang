@@ -239,6 +239,13 @@ describe("unsigned GitHub update service", () => {
       assets: [{ name: "FixLang-0.2.0-arm64.dmg", state: "uploaded", size: 0 }],
     }),
     stableRelease("v0.2.0", { body: 42 }),
+    stableRelease("v0.2.0", { draft: null }),
+    stableRelease("v0.2.0", { assets: "FixLang-0.2.0-arm64.dmg" }),
+    stableRelease("v0.2.0", {
+      assets: [
+        { name: "FixLang-0.2.0-arm64.dmg", state: "uploaded", size: 2 ** 53 },
+      ],
+    }),
     { message: "not a release" },
   ])("rejects malformed or non-stable release metadata", async (release) => {
     const { service } = createService({
