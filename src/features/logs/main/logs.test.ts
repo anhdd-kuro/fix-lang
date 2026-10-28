@@ -51,7 +51,8 @@ vi.mock("~/main/logging/logService", () => ({
 const tEn = createTranslator("en");
 const tJa = createTranslator("ja");
 
-type Handler = (event: unknown, raw?: unknown) => unknown;
+/** Only `logs:export` is driven here, and its reply is never inspected. */
+type Handler = (event: undefined) => Promise<void>;
 
 const getHandler = (channel: string): Handler => {
   const call = electronMocks.handle.mock.calls.find(

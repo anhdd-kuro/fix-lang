@@ -18,7 +18,7 @@
  *     working-looking control that does nothing. It needs its own consumer.
  *   - A FREE-FORM option ("max N words") has no enumerable choice list. It
  *     needs `PresetPromptOptionDefinition` to become a discriminated union,
- *     plus branches in `recognizedChoiceValue`, `withPresetOptions` and the
+ *     plus branches in `ownChoiceValue`, `withPresetOptions` and the
  *     Settings control.
  *
  * A boolean absorbs fine as a two-choice string; the two cases above do not.
@@ -179,19 +179,15 @@ const isPlainRecord = (raw: unknown): raw is Record<string, unknown> =>
  * object reaching this function would be a new call site, and that call site
  * is the thing to reconsider.
  */
-const ownDataValue = (raw: Record<string, unknown>, key: string): unknown => {
-  const descriptor = Object.getOwnPropertyDescriptor(raw, key);
-  return descriptor && "value" in descriptor ? descriptor.value : undefined;
-};
-
-const recognizedChoiceValue = (
+const ownChoiceValue = (
   definition: PresetPromptOptionDefinition,
-  candidate: unknown,
-): string | undefined =>
-  typeof candidate === "string" &&
-  definition.choices.some((choice) => choice.value === candidate)
-    ? candidate
-    : undefined;
+  descriptor: PropertyDescriptor | undefined,
+): string | undefined => {
+  if (!descriptor || !("value" in descriptor)) return undefined;
+  // Strict equality against a declared choice: only that exact string matches.
+  return definition.choices.find((choice) => choice.value === descriptor.value)
+    ?.value;
+};
 
 /**
  * Narrows a stored `extraOptions` blob to the keys the preset declares, each
@@ -215,9 +211,9 @@ export const sanitizePresetOptions = (
 
   const sanitized: Record<string, string> = {};
   for (const definition of definitions) {
-    const value = recognizedChoiceValue(
+    const value = ownChoiceValue(
       definition,
-      ownDataValue(raw, definition.key),
+      Object.getOwnPropertyDescriptor(raw, definition.key),
     );
     if (value !== undefined) sanitized[definition.key] = value;
   }
@@ -254,10 +250,13 @@ export const resolvePresetOptionValue = (
   if (!definition) return undefined;
 
   const stored = preset.extraOptions
-    ? ownDataValue(preset.extraOptions, optionKey)
+    ? ownChoiceValue(
+        definition,
+        Object.getOwnPropertyDescriptor(preset.extraOptions, optionKey),
+      )
     : undefined;
 
-  return recognizedChoiceValue(definition, stored) ?? definition.defaultValue;
+  return stored ?? definition.defaultValue;
 };
 
 /**

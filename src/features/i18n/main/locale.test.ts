@@ -48,7 +48,15 @@ vi.mock("~/main/webViewWindows", () => ({
   syncAskResultWindowLocale: webViewWindowsMocks.syncAskResultWindowLocale,
 }));
 
-type Handler = (event: unknown, raw: unknown) => unknown;
+/** A structured-clone value as it reaches a handler, before the handler parses it. */
+type IpcArg = string | number | boolean | null | undefined | IpcArgRecord;
+
+type IpcArgRecord = { readonly [key: string]: IpcArg };
+
+/** Union of the `get-locale` and `set-locale` reply envelopes. */
+type LocaleReply = { locale?: string; success?: boolean; error?: string };
+
+type Handler = (event: undefined, raw: IpcArg) => Promise<LocaleReply>;
 
 const buildWindow = (isDestroyed: boolean) => ({
   isDestroyed: () => isDestroyed,
