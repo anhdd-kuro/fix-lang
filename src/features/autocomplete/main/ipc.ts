@@ -214,6 +214,7 @@ export const registerAutocompleteHandlers = (): void => {
         // keystroke; the honest outcome of any failure on this path is no ghost
         // text. Logged rather than swallowed, so it is still findable.
         logger.warn("autocomplete", "Suggestion handler failed", {
+          // oxlint-disable-next-line anti-slop/no-runtime-typeof -- the JS type name of a non-Error throw IS the logged value; nothing is narrowed
           errorName: error instanceof Error ? error.name : typeof error,
         });
         return { requestId: request.requestId, suggestion: null };

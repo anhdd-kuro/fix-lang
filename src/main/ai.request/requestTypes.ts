@@ -160,7 +160,7 @@ const UsageFieldsSchema = objectLike({
   outputTokens: z.unknown().optional(),
 });
 
-export const usageCounts = (usage: unknown): UsageCounts => {
+export const usageCounts = <Input>(usage: Input): UsageCounts => {
   const fields = UsageFieldsSchema.safeParse(usage);
   if (!fields.success) {
     return { promptTokens: null, completionTokens: null };

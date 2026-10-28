@@ -800,6 +800,7 @@ type FailureDescription = { errorName: string; status?: number };
 const ErrorStatusSchema = z.object({ status: AnyNumberSchema });
 
 const describeFailure = (cause: unknown): FailureDescription => {
+  // oxlint-disable-next-line anti-slop/no-runtime-typeof -- the JS type name of a non-Error throw IS the logged value; nothing is narrowed
   if (!(cause instanceof Error)) return { errorName: typeof cause };
   const failure: FailureDescription = { errorName: cause.name };
   const status = ErrorStatusSchema.safeParse(cause);

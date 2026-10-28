@@ -214,8 +214,8 @@ const stripPrefixOverlap = (suggestion: string, prefix: string): string => {
  * to open with a space to continue after a word, but a trailing space would put
  * the caret past a gap the user never typed.
  */
-export const sanitizeSuggestion = (
-  raw: unknown,
+export const sanitizeSuggestion = <Input>(
+  raw: Input,
   prefix: string,
 ): string | null => {
   const text = z.string().safeParse(raw);

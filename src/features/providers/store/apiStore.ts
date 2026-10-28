@@ -814,8 +814,8 @@ const StoredPresetFieldsSchema = objectLike({
   extraOptions: z.unknown().optional(),
 });
 
-export const normalizeCorrectionSettings = (
-  value: unknown,
+export const normalizeCorrectionSettings = <Input>(
+  value: Input,
   legacyTranslate?: LegacyTranslateSettings,
   reservedAppAccelerators: readonly string[] = readReservedAppAccelerators(),
 ): CorrectionSettings => {

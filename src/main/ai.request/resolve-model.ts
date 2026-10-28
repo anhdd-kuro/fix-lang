@@ -18,8 +18,8 @@ const ServedModelBodySchema = objectLike({ model: z.string() });
  * @param fallback The requested model id to return when the body omits `model`.
  * @returns The served model id, or the fallback when unavailable.
  */
-export const extractResolvedModel = (
-  resBody: unknown,
+export const extractResolvedModel = <Input>(
+  resBody: Input,
   fallback: string,
 ): string => {
   const body = ServedModelBodySchema.safeParse(resBody);

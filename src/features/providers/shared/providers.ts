@@ -8,6 +8,7 @@
  * such a dependency breaks `bun run build`, not the tests.
  */
 import { z } from "zod";
+import { schemaGuard } from "~/features/core/shared/schemaGuard";
 
 export const PROVIDER_IDS = Object.freeze([
   "openai",
@@ -28,8 +29,7 @@ export const ProviderIdSchema = z.enum(PROVIDER_IDS);
 /**
  * Narrowing form of `ProviderIdSchema` for callers that hold a raw value.
  */
-export const isProviderId = (value: unknown): value is ProviderId =>
-  ProviderIdSchema.safeParse(value).success;
+export const isProviderId = schemaGuard(ProviderIdSchema);
 
 /** A tuple holding every member of `T` exactly once, so a new provider fails the build. */
 type Permutation<T extends string, Rest extends string = T> = [T] extends [
@@ -118,7 +118,9 @@ export const PROVIDER_SUPPORTS_PROVISIONING_KEY: Readonly<
  * Goes through `isProviderId` first so an inherited key like `"constructor"`
  * cannot read truthy off the lookup map's prototype.
  */
-export const supportsAdminKey = (value: unknown): value is ProviderId =>
+export const supportsAdminKey = <Input>(
+  value: Input,
+): value is Input & ProviderId =>
   isProviderId(value) && PROVIDER_SUPPORTS_PROVISIONING_KEY[value];
 
 /**
@@ -208,7 +210,7 @@ export const StoredEnabledProvidersSchema = z
   .array(ProviderIdSchema.nullable().catch(null))
   .catch([]);
 
-export const sanitizeEnabledProviders = (raw: unknown): ProviderId[] => {
+export const sanitizeEnabledProviders = <Input>(raw: Input): ProviderId[] => {
   const known = new Set(StoredEnabledProvidersSchema.parse(raw));
   return PROVIDER_ORDER.filter((provider) => known.has(provider));
 };

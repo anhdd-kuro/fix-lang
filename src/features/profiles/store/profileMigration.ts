@@ -171,7 +171,7 @@ const resolveEnabledProviders = (
  * `prefixModelRef`'s `isModelRef` short-circuit and `resolveEnabledProviders`'s
  * `needsMigration` gate.
  */
-export const migrateProfileForModelRefs = (profile: unknown): Profile => {
+export const migrateProfileForModelRefs = <Input>(profile: Input): Profile => {
   const raw = StoredRecordOrEmptySchema.parse(profile);
   const hasLegacyProviderField = isProviderId(raw.provider);
   const legacyProvider: ProviderId = isProviderId(raw.provider)

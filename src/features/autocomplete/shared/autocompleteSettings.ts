@@ -95,8 +95,8 @@ const StoredAutocompleteSettingsSchema = objectLike({
  * Junk also reads as `false`, for the same reason: only an explicit `true`
  * turns the feature on.
  */
-export const normalizeAutocompleteSettings = (
-  raw: unknown,
+export const normalizeAutocompleteSettings = <Input>(
+  raw: Input,
 ): AutocompleteSettings => {
   const value = StoredAutocompleteSettingsSchema.parse(raw);
   return {

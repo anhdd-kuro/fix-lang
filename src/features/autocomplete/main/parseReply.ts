@@ -93,8 +93,8 @@ const unwrapFence = (text: string): string => {
  * string is well formed, and decodes to one invisible byte), which is why
  * parsing happens first and sanitising second.
  */
-export const parseAutocompleteReply = (
-  raw: unknown,
+export const parseAutocompleteReply = <Input>(
+  raw: Input,
 ): AutocompleteReplyParse => {
   const text = z.string().safeParse(raw);
   if (!text.success) return REFUSED;

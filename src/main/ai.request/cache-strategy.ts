@@ -126,7 +126,7 @@ const CacheUsageFieldsSchema = objectLike({
   cache_creation_input_tokens: CacheCountSchema,
 }).catch({ cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
 
-export function extractCacheUsage(usage: unknown): CacheUsage {
+export function extractCacheUsage<Input>(usage: Input): CacheUsage {
   const fields = CacheUsageFieldsSchema.parse(usage);
   return {
     cachedTokens: fields.cache_read_input_tokens,
