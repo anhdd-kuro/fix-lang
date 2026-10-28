@@ -43,6 +43,29 @@ describe("parseCredits", () => {
     }
   });
 
+  it.each([
+    ["a numeric string", "12", 12],
+    ["a padded numeric string", " 12 ", 12],
+    ["a hex string", "0x10", 16],
+    ["an exponent string", "1e1", 10],
+    ["a blank string", " ", null],
+    ["the string Infinity", "Infinity", null],
+    ["a non-numeric string", "abc", null],
+    ["a boolean", true, null],
+    ["an array", [12], null],
+  ])("reads %s as a credit amount of %s", (_label, credits, expected) => {
+    const r = parseCredits({ data: { credits } });
+    expect(r.ok ? r.data.availableUsd : null).toBe(expected);
+  });
+
+  it("reads an array or a bare scalar as no credits object", () => {
+    expect(parseCredits({ data: [{ credits: 5 }] })).toEqual({
+      ok: false,
+      reason: "parse_error",
+    });
+    expect(parseCredits(7)).toEqual({ ok: false, reason: "parse_error" });
+  });
+
   it("garbage/non-object → parse_error, no throw", () => {
     expect(parseCredits(null)).toEqual({ ok: false, reason: "parse_error" });
     expect(parseCredits("nope")).toEqual({ ok: false, reason: "parse_error" });

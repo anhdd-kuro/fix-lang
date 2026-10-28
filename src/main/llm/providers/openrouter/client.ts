@@ -119,7 +119,7 @@ export const createOpenRouterClient = (
    */
   const call = async <T>(
     path: string,
-    parse: (json: unknown) => CardResult<T>,
+    parse: (json: JsonValue) => CardResult<T>,
   ): Promise<ClientCardResult<T>> => {
     const key = await getKey();
     if (!key) {

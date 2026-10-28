@@ -1,7 +1,7 @@
 /**
  * @file parsers.ts
  * @description PURE, defensive parsers for OpenRouter account-analytics
- * endpoints (#59). Each takes the ALREADY-parsed JSON (`unknown`) — fetch is
+ * endpoints (#59). Each takes the ALREADY-parsed JSON (`JsonValue`) — fetch is
  * done by the client, never here — and returns a typed view-model wrapped in a
  * `CardResult` so each card degrades independently. Parsers NEVER throw on
  * shape drift, missing fields, or garbage: malformed input yields
@@ -11,7 +11,9 @@
  * documented field names; real per-endpoint JSON should be captured against a
  * live account to lock the fixtures (see #59 plan HITL #1 — flagged for QA).
  */
+import { z } from "zod";
 import { utcDayKey, type UsageDailyPoint } from "~/features/usage/shared/usage";
+import { isJsonObject, type JsonValue } from "~/main/jsonValue";
 
 /** Independent per-card result so one failing endpoint doesn't sink the tab. */
 export type CardResult<T> =
@@ -22,27 +24,36 @@ export type CardResult<T> =
 export const LOW_BALANCE_THRESHOLD_USD = 5;
 
 // ---------------------------------------------------------------------------
-// Safe accessors — narrow `unknown` without throwing.
+// Safe accessors — narrow a JSON field without throwing.
 // ---------------------------------------------------------------------------
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === "object" && v !== null && !Array.isArray(v);
+/** `z.number()` refuses NaN and ±Infinity: only finite numbers pass. */
+const FiniteNumberSchema = z.number();
+const TextSchema = z.string();
 
-const asNumber = (v: unknown): number | null => {
-  if (typeof v === "number" && Number.isFinite(v)) {
-    return v;
+const asNumber = (v: JsonValue | undefined): number | null => {
+  const number = FiniteNumberSchema.safeParse(v);
+  if (number.success) {
+    return number.data;
   }
-  if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v))) {
-    return Number(v);
+  const text = TextSchema.safeParse(v);
+  if (
+    text.success &&
+    text.data.trim() !== "" &&
+    Number.isFinite(Number(text.data))
+  ) {
+    return Number(text.data);
   }
   return null;
 };
 
-const asString = (v: unknown): string | null =>
-  typeof v === "string" ? v : null;
+const asString = (v: JsonValue | undefined): string | null => {
+  const text = TextSchema.safeParse(v);
+  return text.success ? text.data : null;
+};
 
 /** Unwrap an optional `{ data: ... }` envelope (OpenRouter wraps most payloads). */
-const unwrapData = (json: unknown): unknown =>
-  isRecord(json) && "data" in json ? json.data : json;
+const unwrapData = (json: JsonValue): JsonValue | undefined =>
+  isJsonObject(json) && "data" in json ? json.data : json;
 
 // ---------------------------------------------------------------------------
 // Credits
@@ -59,9 +70,9 @@ export type Credits = {
  * Parse `/api/v1/credits`. Tolerant of either `{ total_credits, total_usage }`
  * (available = credits − usage) or a direct `limit_remaining`/`credits` field.
  */
-export const parseCredits = (json: unknown): CardResult<Credits> => {
+export const parseCredits = (json: JsonValue): CardResult<Credits> => {
   const data = unwrapData(json);
-  if (!isRecord(data)) {
+  if (!isJsonObject(data)) {
     return { ok: false, reason: "parse_error" };
   }
 
@@ -109,9 +120,9 @@ export type KeyUsage = {
  * `limit` (daily/weekly/monthly windows come from `/activity`; this card shows
  * the lifetime usage + limit the `/key` endpoint provides — #59 plan HITL #3).
  */
-export const parseKeyUsage = (json: unknown): CardResult<KeyUsage> => {
+export const parseKeyUsage = (json: JsonValue): CardResult<KeyUsage> => {
   const data = unwrapData(json);
-  if (!isRecord(data)) {
+  if (!isJsonObject(data)) {
     return { ok: false, reason: "parse_error" };
   }
 
@@ -165,7 +176,7 @@ export type Activity = {
  * completed UTC days relative to `now`. `now` injected for deterministic tests.
  */
 export const parseActivity = (
-  json: unknown,
+  json: JsonValue,
   range: "7d" | "30d",
   now: Date = new Date(),
 ): CardResult<Activity> => {
@@ -183,7 +194,7 @@ export const parseActivity = (
   const byModel = new Map<string, ActivityModelRow>();
   const byDay = new Map<string, UsageDailyPoint>();
   for (const raw of data) {
-    if (!isRecord(raw)) {
+    if (!isJsonObject(raw)) {
       continue; // skip garbage rows, never throw
     }
     const rawDate = asString(raw.date);
@@ -264,7 +275,7 @@ export type EnabledKeys = {
  * `{ data: [...] }` or a bare array.
  */
 export const parseProvisioningKeys = (
-  json: unknown,
+  json: JsonValue,
 ): CardResult<EnabledKeys> => {
   const data = unwrapData(json);
   if (!Array.isArray(data)) {
@@ -272,7 +283,7 @@ export const parseProvisioningKeys = (
   }
   const keys: ProvisioningKeyRow[] = [];
   for (const raw of data) {
-    if (!isRecord(raw)) {
+    if (!isJsonObject(raw)) {
       continue;
     }
     // A key is enabled unless explicitly disabled.
