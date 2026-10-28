@@ -288,7 +288,8 @@ bun run build          # production build
 bun run start          # preview production build
 bun run test           # Vitest once — use `bun run test`, NOT `bun test`
 bun run test:w         # Vitest watch
-bun run lint           # ESLint (cached)
+bun run lint           # oxlint (type-aware) + oxfmt --check
+bun run lint:fix       # apply oxlint fixes + oxfmt formatting
 bun run i18n:check     # catalog parity, plurals, sort order, JA coverage
 bun run check:bundle   # after `bun run build` — verify no runtime dep needs node_modules
 bun run themes:generate  # after editing theme .ts files

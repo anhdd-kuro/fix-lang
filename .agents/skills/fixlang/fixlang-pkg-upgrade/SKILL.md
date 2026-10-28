@@ -31,9 +31,7 @@ Pin versions in `package.json` (no `^` for app deps). Keep `bun.lock` in the sam
 
 ### TypeScript — stay on 6.x
 
-`typescript-eslint` peer: `typescript >=4.8.4 <6.1.0`.
-
-TS 7 breaks ESLint (`Cannot read properties of undefined (reading 'Cjs')`). **Do not bump to TypeScript 7** until typescript-eslint supports it. Leave `typescript` at latest 6.x even if `bun outdated` shows 7.
+ESLint is gone (oxlint + oxfmt now), so typescript-eslint no longer pins TS. What still does: `src/features/core/shared/bundleExternals.ts` (the `check:bundle` scanner) and three renderer tests (`ButtonSourceGuard`, `Card05ButtonConsumers`, `SettingGeneral`) import `typescript` for its JS compiler API (`ts.createSourceFile`, AST walk). TS 7 is the native Go port; verify that API still exists in the same form before bumping. oxlint-tsgolint ships its own TS build — not a blocker. Leave `typescript` at latest 6.x until checked.
 
 ### Electron 43+ — main/preload must be CommonJS
 

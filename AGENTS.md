@@ -105,20 +105,24 @@ fix-lang/
 - Runtime/build
   - Electron 43.2, electron-vite 5.0, Vite 8.1, bun
 - Frontend
-  - React 19.2, TypeScript 6.0 (stay on 6.x until typescript-eslint supports 7), Tailwind 4.3
+  - React 19.2, TypeScript 6.0 (stay on 6.x — see Boundaries), Tailwind 4.3, zod 4 (boundary parsing)
 - AI
   - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, @ai-sdk/anthropic 4.0.23 (pinned — see below), @ai-sdk/amazon-bedrock 5.0 + @aws-sdk/client-bedrock 3.x, ai 7.0, ollama 0.6 — each wired in its own `src/main/llm/providers/<id>/request.ts` and reached through the capability registry; LM Studio and Ollama both use a configurable local host/port (LM Studio via OpenAI-compatible `baseURL`; Ollama via its daemon URL), and Bedrock stores its AWS region in `providerEndpoints.bedrock.host` (`src/features/providers/shared/bedrockEndpoint.ts`, default `us-east-1`)
 - Persistence
   - node:sqlite (history) + electron-store 11 + JSONL logs under userData — no zustand
 - Testing
   - Vitest 4.1, jsdom
+- Lint/format
+  - oxlint 1.90 (type-aware via oxlint-tsgolint) + local `anti-slop` plugin + oxlint-tailwindcss; oxfmt 0.75 (Prettier-default style)
 
 ## Key Commands
 
 ```bash
 bun run dev             # hot reload (predev runs build)
 bun run test            # verify changes — use `bun run test`, not `bun test`
-bun run lint            # ESLint (cached)
+bun run lint            # oxlint --type-aware + oxfmt --check (what CI gates)
+bun run lint:fix        # oxlint --fix + oxfmt --write
+bun run test:rules      # anti-slop plugin's own RuleTester suites (node --test)
 bun run pack:mac        # dev-identity app → release/mac-arm64/FixLang Dev.app
 bun run pack:mac:prod   # production-identity app (pack:install builds this one)
 bun run check:bundle    # after `bun run build` — no runtime dep may need node_modules
@@ -129,6 +133,10 @@ bun run build:promptgen # feature-tag build (also dev:promptgen, pack:mac:prompt
 
 - **The packaged app ships no `node_modules`** (`build.files` excludes it) — every runtime dependency must be inlined by Vite into `out/`. Adding a dependency and importing it passes `dev`, `test`, and `lint` unchanged; only `bun run check:bundle` against a real `bun run build` catches a dependency Vite left external. The scanner lives in `src/features/core/shared/bundleExternals.ts` (AST walk via the TypeScript compiler API, not a regex); `scripts/check-bundle-externals.ts` is a CLI-only wrapper that runs under **bun**, whose TS parser differs from vitest's esbuild — which is why an integration test drives that exact file under bun. `ALLOWLIST` is empty on purpose: an entry hides a `MODULE_NOT_FOUND` for users instead of fixing it. Every packaging script (`pack`, `pack:mac`, `pack:mac:prod`, `release:mac`) runs the check. See [Bundle externals](.claude/skills/fixlang/fixlang-bundle-externals/SKILL.md).
 - **`@ai-sdk/anthropic` is pinned to `4.0.23`, and the pin is the bundle check, not taste** — from `4.0.24` it depends on `@ai-sdk/provider-utils` ≥ `5.0.15`, which bun installs as a NESTED copy (the other providers hold the hoisted `5.0.12`/`5.0.14`). That copy resolves `undici` through a runtime `createRequire` for its file-download path — a specifier Vite cannot inline and a `node_modules`-free `app.asar` cannot resolve. Same reason Anthropic's model list is a plain `keepAliveFetch` against `/v1/models` rather than `@anthropic-ai/sdk`, which carries the identical require. Re-run `bun run check:bundle` after any bump.
+- **Lint = oxlint + oxfmt, one command** — `.oxlintrc.json` ports every rule the old ESLint config applied, plus internal-agents' set: `correctness` errors, jsx-a11y, promise, `typescript/no-floating-promises` (type-aware), the vendored `anti-slop` plugin (`tools/oxlint/anti-slop/`, all rules error) and `oxlint-tailwindcss` (entry `src/renderer/main.css`). Unused disable directives are errors. Whole run ~1.6 s, no cache needed. oxlint loads the TS plugin through Node type stripping → lint needs Node ≥ 22.18 on PATH (CI sets up 24).
+- **anti-slop in tests is partial on purpose** — the `overrides` block turns off `no-module-mocking`, `no-runtime-typeof` and `require-safety-comment-for-type-assertion` for `*.test.ts(x)`. vi.mock is still the only seam ~440 suites have. Follow-up: give modules injectable seams, then drop the override one rule at a time.
+- **Boundary parsing is zod, and zod's defaults are not `typeof`'s** — `z.number()` rejects NaN/±Infinity (`AnyNumberSchema` doesn't), `z.object()` rejects arrays and strips unknown keys (`objectLike` keeps them). Helpers live in `src/features/core/shared/schemaGuard.ts`; parsers that callers hand raw values take a generic `<Input>` and zod-parse on line one. Keep the equivalence tests (`*.edgeInputs.test.ts`, `boundaryEquivalence.test.ts`) green when touching a parser.
+- **oxfmt mirrors Prettier defaults, not internal-agents' style** — semicolons, width 80, no import/package.json sorting. Generated theme files, `src/prompts/**` (prompt bytes ship to models) and the vendored plugin are ignored.
 - **`dependencies` vs `devDependencies` no longer signals what ships** — nothing resolves from `node_modules` at runtime, so the split is bookkeeping only; what ships is whatever Vite inlined into `out/`. Do not "fix" a runtime import by moving its package between the two sections.
 - **Feature tags are opt-in** — features listed in `src/features/core/shared/features.ts` are excluded unless the build carries their tag (`FIXLANG_FEATURES=promptgen` env, or `--promptgen` CLI). Flag-off builds emit no renderer bundle for the feature and skip its hotkey, IPC handlers, and settings tab. Read flags at runtime via `isPromptGenEnabled()`, never `__FEATURE_PROMPT_GEN__` directly (the define is absent under vitest). Plain `bun run build` (what the release workflow runs) ships PromptGen OFF.
 
@@ -269,11 +277,11 @@ new Notification({
 - Commit secrets, `.env`, `node_modules`, `out/`, `release/`, `coverage/`, or agent scratch space (`.scratch/`, `.claude/settings.local.json`)—all gitignored.
 - Reintroduce pnpm or bypass preload IPC validation.
 - Use `any` without why-comment.
-- Bump TypeScript to 7.x until ESLint support lands.
+- Bump TypeScript to 7.x while `src/features/core/shared/bundleExternals.ts` (`check:bundle`) and `ButtonSourceGuard.test.ts` / `Card05ButtonConsumers.test.ts` / `SettingGeneral.test.ts` walk ASTs through the `typescript` package's JS compiler API — TS 7 is the native port, so confirm that API still works before bumping. oxlint-tsgolint bundles its own TS and does not gate this.
 
 ## CI
 
-- **PR + push to `main`** — `.github/workflows/ci.yml` runs two independent jobs on `ubuntu-latest` (Bun 1.3.14; the test job also sets up Node 24 for `node:sqlite`): a `lint` job, and a `test` job fanned out over a 3-way `--shard` matrix with `fail-fast: false` so one shard's failure still reports the others. Concurrency cancels superseded runs. Release packaging stays in `release.yml` only.
+- **PR + push to `main`** — `.github/workflows/ci.yml` runs two independent jobs on `ubuntu-latest` (Bun 1.3.14; the test job also sets up Node 24 for `node:sqlite`): a `lint` job (Node 24 for oxlint's JS plugins; runs `lint` then `test:rules`), and a `test` job fanned out over a 3-way `--shard` matrix with `fail-fast: false` so one shard's failure still reports the others. Concurrency cancels superseded runs. Release packaging stays in `release.yml` only.
 - **Vitest runs as two projects, and the split is the whole reason CI is fast** — `node` (everything outside `src/renderer/`) and `renderer` (`src/renderer/**`, `jsdom`). jsdom costs roughly 0.75 s of environment setup **per test file**, so running all 188 files under it spent ~143 s of cumulative environment time for the 33 files that actually need a DOM; the split cut a full local run from 24.7 s to 13.4 s with no change to what is tested. A new test outside `src/renderer/` that reaches for `document`/`window` will fail under the `node` project — move it under `src/renderer/`, or give that one file a `// @vitest-environment jsdom` docblock, rather than widening the `renderer` project's globs.
 - **Coverage is off by default** (`coverage.enabled: false`); run `bun run test:coverage` for a report. Nothing gates on it, and a sharded run only ever sees its own third of the files, so a coverage number collected in CI would be a lie.
 
