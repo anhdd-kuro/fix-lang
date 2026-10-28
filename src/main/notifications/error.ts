@@ -1,4 +1,8 @@
-import { app, Notification } from "electron";
+import {
+  app,
+  Notification,
+  type NotificationConstructorOptions,
+} from "electron";
 import { mainT } from "~/main/i18n";
 import { showErrorPopup } from "~/main/webViewWindows/errorPopupWindow";
 import type { TKey, TranslateParams } from "~/features/i18n/shared/translate";
@@ -162,11 +166,14 @@ export const showNotificationWithFallback = (options: {
       return;
     }
 
-    const notification = new Notification({
+    const notificationOptions: NotificationConstructorOptions = {
       title: options.title,
       body: options.body,
-      ...(options.urgency === undefined ? {} : { urgency: options.urgency }),
-    });
+    };
+    if (options.urgency !== undefined) {
+      notificationOptions.urgency = options.urgency;
+    }
+    const notification = new Notification(notificationOptions);
     notification.on("failed", (_event, notificationError: string) => {
       console.error("Desktop notification failed:", notificationError);
       showFallback();

@@ -23,6 +23,7 @@ import {
   usageRangeStartUnix,
   type UsageRange,
 } from "~/features/usage/shared/usage";
+import type { LogContext } from "~/features/logs/shared/logging";
 import { logger } from "~/main/logging/logService";
 import {
   nextAfterCursor,
@@ -77,14 +78,14 @@ const logAdminRequest = (
   outcome: { ok: boolean; status?: number; reason?: string },
 ): void => {
   const foreign = findKeyFamilyMismatch("openai", "provisioning", key) !== null;
-  const context = {
+  const context: LogContext = {
     endpoint: path,
     [KEY_FAMILY_LOG_FIELD]: describeKeyFamily(key),
-    ...(outcome.status !== undefined ? { status: outcome.status } : {}),
-    ...(outcome.reason !== undefined ? { reason: outcome.reason } : {}),
-    // Only ever true for a key stored before the write-time shape guard existed.
-    ...(foreign ? { storedKeyBelongsToAnotherSlot: true } : {}),
   };
+  if (outcome.status !== undefined) context.status = outcome.status;
+  if (outcome.reason !== undefined) context.reason = outcome.reason;
+  // Only ever true for a key stored before the write-time shape guard existed.
+  if (foreign) context.storedKeyBelongsToAnotherSlot = true;
 
   if (outcome.ok) {
     logger.debug(LOG_SCOPE, "OpenAI admin request succeeded", context);
@@ -217,10 +218,11 @@ export const createOpenAIUsageClient = (
       page = nextPageCursor(json);
       if (page === null) {
         const result = parse({ object: "page", data: buckets });
-        logAdminRequest(path, key, {
-          ok: result.ok,
-          ...(result.ok ? {} : { reason: result.reason }),
-        });
+        logAdminRequest(
+          path,
+          key,
+          result.ok ? { ok: true } : { ok: false, reason: result.reason },
+        );
         return result;
       }
     }

@@ -18,6 +18,7 @@ import {
   KEY_FAMILY_LOG_FIELD,
 } from "~/features/providers/shared/providerKeyFamilies";
 import { getProvisioningKey } from "~/features/providers/store/provisioningKeyStore";
+import type { LogContext } from "~/features/logs/shared/logging";
 import { logger } from "~/main/logging/logService";
 import {
   parseActivity,
@@ -73,14 +74,14 @@ const logAdminRequest = (
   const keyFamily = describeKeyFamily(key);
   const foreign =
     findKeyFamilyMismatch("openrouter", "provisioning", key) !== null;
-  const context = {
+  const context: LogContext = {
     endpoint: path,
     [KEY_FAMILY_LOG_FIELD]: keyFamily,
-    ...(outcome.status !== undefined ? { status: outcome.status } : {}),
-    ...(outcome.reason !== undefined ? { reason: outcome.reason } : {}),
-    // Only ever true for a key stored before the write-time shape guard existed.
-    ...(foreign ? { storedKeyBelongsToAnotherProvider: true } : {}),
   };
+  if (outcome.status !== undefined) context.status = outcome.status;
+  if (outcome.reason !== undefined) context.reason = outcome.reason;
+  // Only ever true for a key stored before the write-time shape guard existed.
+  if (foreign) context.storedKeyBelongsToAnotherProvider = true;
 
   if (outcome.ok) {
     logger.debug(LOG_SCOPE, "OpenRouter account request succeeded", context);
@@ -149,11 +150,13 @@ export const createOpenRouterClient = (
       }
       const json = await response.json();
       const parsed = parse(json);
-      logAdminRequest(path, key, {
-        ok: parsed.ok,
-        status: response.status,
-        ...(parsed.ok ? {} : { reason: parsed.reason }),
-      });
+      logAdminRequest(
+        path,
+        key,
+        parsed.ok
+          ? { ok: true, status: response.status }
+          : { ok: false, status: response.status, reason: parsed.reason },
+      );
       return parsed;
     } catch {
       // Network error / abort / bad JSON — degrade without leaking anything.

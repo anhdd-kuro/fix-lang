@@ -1065,7 +1065,7 @@ describe("restarting into an installed update", () => {
           appPath: INSTALLED_APP_PATH,
         },
         installedVersions: ["0.2.0"],
-        ...(onLog ? { onLog } : {}),
+        onLog,
       });
 
     it("never reports the stray version as the installed update", () => {

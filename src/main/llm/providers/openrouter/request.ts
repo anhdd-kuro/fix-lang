@@ -9,7 +9,6 @@
  */
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
-import { reasoningForAiSdk } from "~/features/correction/shared/reasoningEffort";
 import { getApiKey } from "~/features/providers/store/apiKeyStore";
 import {
   apiStore,
@@ -23,8 +22,13 @@ import {
 import {
   usageCounts,
   type AIRequestOptions,
+  type AIRequestResponse,
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
+import {
+  aiSdkCallSettings,
+  aiSdkSystemOption,
+} from "~/main/llm/providers/aiSdkCallSettings";
 import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
 import { notifyRequestError } from "~/main/notifications/error";
 
@@ -82,16 +86,17 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       cacheProvider,
     );
 
-    const reasoning = reasoningForAiSdk(options.reasoning);
+    // OpenRouter carries `stop` in the model's `extraBody` above, so it is not
+    // forwarded again as AI SDK `stopSequences`.
     const genResponse = await generateText({
       model: modelOpenRouter,
-      ...(systemPrompt ? { system: systemPrompt } : {}),
+      ...aiSdkSystemOption(systemPrompt),
       messages: conversationMessages as never,
-      ...(reasoning !== undefined ? { reasoning } : {}),
-      ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
-      ...(options.maxOutputTokens !== undefined
-        ? { maxOutputTokens: options.maxOutputTokens }
-        : {}),
+      ...aiSdkCallSettings({
+        reasoning: options.reasoning,
+        abortSignal: options.abortSignal,
+        maxOutputTokens: options.maxOutputTokens,
+      }),
     });
     const { usage, text, reasoningText } = genResponse;
     const normalizedUsage = usageCounts(usage);
@@ -148,20 +153,21 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     );
 
     // Return the processed content and token information
-    return {
+    const result: AIRequestResponse = {
       content: processedContent,
       prompts: processedContent, // For compatibility with existing code
       promptTokens,
       completionTokens,
       model: options.model as string,
-      provider: "openrouter" as const,
+      provider: "openrouter",
       resolvedModel,
       cachedTokens,
       cacheWriteTokens,
-      ...(typeof reasoningText === "string" && reasoningText.length > 0
-        ? { reasoningTexts: [reasoningText] }
-        : {}),
     };
+    if (typeof reasoningText === "string" && reasoningText.length > 0) {
+      result.reasoningTexts = [reasoningText];
+    }
+    return result;
   } catch (error) {
     console.error("makeOpenRouterAIRequest error:", error);
     notifyRequestError(

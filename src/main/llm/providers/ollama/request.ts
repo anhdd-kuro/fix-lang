@@ -9,6 +9,7 @@ import { getProviderEndpoint } from "~/features/providers/store/apiStore";
 import { getLocalModels } from "~/main/llm/models/discover";
 import { notifyRequestError } from "~/main/notifications/error";
 import { createOllamaClient } from "./client";
+import type { Options } from "ollama";
 import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
 
 /**
@@ -108,17 +109,16 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
     // caller therefore cannot tell the two apart, and `isAbortError`
     // (`~/main/notifications/error`) keeps both silent.
     options.abortSignal?.throwIfAborted();
+    const chatOptions: Partial<Options> = { top_p: options.top_p || 0.9 };
+    if (options.maxOutputTokens !== undefined) {
+      chatOptions.num_predict = options.maxOutputTokens;
+    }
+    if (options.stop) chatOptions.stop = options.stop;
     const response = await client
       .chat({
         messages: serializedMessages,
         model: modelId,
-        options: {
-          top_p: options.top_p || 0.9,
-          ...(options.maxOutputTokens !== undefined
-            ? { num_predict: options.maxOutputTokens }
-            : {}),
-          ...(options.stop ? { stop: options.stop } : {}),
-        },
+        options: chatOptions,
       })
       .finally(() => {
         options.abortSignal?.removeEventListener("abort", abortClient);

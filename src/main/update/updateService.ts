@@ -270,11 +270,15 @@ export const createUpdateService = (
   const withCanInstall = (next: Omit<UpdateState, "canInstall">): UpdateState =>
     freezeState({ ...next, canInstall });
 
-  let state = withCanInstall({
-    phase: supported ? "idle" : "unsupported",
-    currentVersion,
-    ...(supported ? {} : { message: msg("settings.updates.unsupported") }),
-  });
+  let state = withCanInstall(
+    supported
+      ? { phase: "idle", currentVersion }
+      : {
+          phase: "unsupported",
+          currentVersion,
+          message: msg("settings.updates.unsupported"),
+        },
+  );
 
   const publish = (next: Omit<UpdateState, "canInstall">): void => {
     state = withCanInstall(next);
@@ -579,18 +583,18 @@ export const createUpdateService = (
             ? null
             : `${RELEASES_URL}/tag/v${pendingRelease.version.raw}`;
         availableDmgSize = null;
-        publish({
-          phase: "up-to-date",
-          currentVersion,
-          // Notes are safe to show here: unlike the size, they describe the
-          // release the message names, not some other version.
-          ...(pendingRelease === null
-            ? {}
+        publish(
+          pendingRelease === null
+            ? { phase: "up-to-date", currentVersion }
             : {
+                phase: "up-to-date",
+                currentVersion,
+                // Notes are safe to show here: unlike the size, they describe
+                // the release the message names, not some other version.
                 message: tapPendingMessage(pendingRelease.version.raw),
                 releaseNotes: pendingRelease.releaseNotes,
-              }),
-        });
+              },
+        );
       } catch (error) {
         releaseUrl = null;
         availableDmgSize = null;

@@ -9,7 +9,6 @@
  */
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
-import { reasoningForAiSdk } from "~/features/correction/shared/reasoningEffort";
 import { getCurrentProfileId } from "~/features/providers/store/apiStore";
 import { getProfileSecret } from "~/features/providers/store/profileSecretStore";
 import {
@@ -17,8 +16,13 @@ import {
   toConversation,
   usageCounts,
   type AIRequestOptions,
+  type AIRequestResponse,
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
+import {
+  aiSdkCallSettings,
+  aiSdkSystemOption,
+} from "~/main/llm/providers/aiSdkCallSettings";
 import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
 import { notifyRequestError } from "~/main/notifications/error";
 
@@ -48,18 +52,10 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
     const request = () =>
       generateText({
         model: openai.chat(modelId),
-        ...(conversation.system ? { system: conversation.system } : {}),
+        ...aiSdkSystemOption(conversation.system),
         messages: conversation.messages,
         topP: options.top_p,
-        ...(() => {
-          const reasoning = reasoningForAiSdk(options.reasoning);
-          return reasoning !== undefined ? { reasoning } : {};
-        })(),
-        ...(options.stop ? { stopSequences: options.stop } : {}),
-        ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
-        ...(options.maxOutputTokens !== undefined
-          ? { maxOutputTokens: options.maxOutputTokens }
-          : {}),
+        ...aiSdkCallSettings(options),
       });
     const responses = await Promise.all(
       Array.from({ length: Math.max(1, options.n ?? 1) }, request),
@@ -72,16 +68,17 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
       .filter(
         (text): text is string => typeof text === "string" && text.length > 0,
       );
-    return {
+    const result: AIRequestResponse = {
       content: responses.map((response) => response.text),
       prompts: responses.map((response) => response.text),
       promptTokens: sumTokenField(counts, "promptTokens"),
       completionTokens: sumTokenField(counts, "completionTokens"),
       model: modelId,
-      provider: "openai" as const,
+      provider: "openai",
       resolvedModel: extractResolvedModel(firstBody, modelId),
-      ...(reasoningTexts.length > 0 ? { reasoningTexts } : {}),
     };
+    if (reasoningTexts.length > 0) result.reasoningTexts = reasoningTexts;
+    return result;
   } catch (error) {
     console.error("makeOpenAIAIRequest error:", error);
     notifyRequestError(options, error, "Failed to get a response from OpenAI.");

@@ -13,6 +13,7 @@ import {
   abortAutocomplete,
   forgetAskSession,
   rememberAskSession,
+  type AutocompleteAskSession,
 } from "~/features/autocomplete/main/service";
 import { attachThemeSync } from "./attachThemeSync";
 import { clampToWorkArea } from "./cursorPlacement";
@@ -189,17 +190,15 @@ const syncAskAutocompleteSession = (
     forgetAskSession(sessionId);
     return;
   }
-  rememberAskSession(sessionId, {
-    ...(payload.context.length > 0
-      ? {
-          context: {
-            text: payload.context,
-            source: payload.contextSource ?? "selection",
-          },
-        }
-      : {}),
-    ...(environment.length > 0 ? { environment } : {}),
-  });
+  const session: AutocompleteAskSession = {};
+  if (payload.context.length > 0) {
+    session.context = {
+      text: payload.context,
+      source: payload.contextSource ?? "selection",
+    };
+  }
+  if (environment.length > 0) session.environment = environment;
+  rememberAskSession(sessionId, session);
 };
 
 /**

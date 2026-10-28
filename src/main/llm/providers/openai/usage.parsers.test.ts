@@ -13,17 +13,28 @@ import {
 const DAY_1 = Date.UTC(2026, 6, 1) / 1000;
 const DAY_2 = Date.UTC(2026, 6, 2) / 1000;
 
+/** One raw `/organization/costs` result row as the API serializes it. */
+type CostResultFixture = {
+  object: string;
+  amount: { value: number; currency: string };
+  line_item?: string | null;
+  project_id?: string | null;
+};
+
 const costBucket = (
   startTime: number,
   results: { amount: number; line_item?: string | null }[],
 ) => ({
   object: "bucket",
   start_time: startTime,
-  results: results.map(({ amount, line_item }) => ({
-    object: "organization.costs.result",
-    amount: { value: amount, currency: "usd" },
-    ...(line_item === undefined ? {} : { line_item }),
-  })),
+  results: results.map(({ amount, line_item }) => {
+    const result: CostResultFixture = {
+      object: "organization.costs.result",
+      amount: { value: amount, currency: "usd" },
+    };
+    if (line_item !== undefined) result.line_item = line_item;
+    return result;
+  }),
 });
 
 const usageBucket = (
@@ -224,11 +235,14 @@ const projectBucket = (
 ) => ({
   object: "bucket",
   start_time: startTime,
-  results: results.map(({ amount, project_id }) => ({
-    object: "organization.costs.result",
-    amount: { value: amount, currency: "usd" },
-    ...(project_id === undefined ? {} : { project_id }),
-  })),
+  results: results.map(({ amount, project_id }) => {
+    const result: CostResultFixture = {
+      object: "organization.costs.result",
+      amount: { value: amount, currency: "usd" },
+    };
+    if (project_id !== undefined) result.project_id = project_id;
+    return result;
+  }),
 });
 
 describe("parseProjectCosts", () => {
