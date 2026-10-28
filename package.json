@@ -91,7 +91,7 @@
     "electron-store": "11.0.2",
     "fuse.js": "7.5.0",
     "ollama": "0.6.4",
-    "openai": "6.49.0",
+    "openai": "7.45.1",
     "react": "19.3.1",
     "react-chartjs-2": "5.3.1",
     "react-dom": "19.3.1",
