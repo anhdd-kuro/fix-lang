@@ -1761,7 +1761,11 @@ export const getProfileSetting = <K extends keyof SettingsStore>(
   settingType: K,
 ): SettingsStore[K] => {
   const settings = getCurrentProfileSettings();
-  const read = SETTING_READERS[settingType];
+  // Own keys only: an inherited name such as "constructor" must read as stored,
+  // exactly as the setting-by-setting comparison this table replaced did.
+  const read = Object.hasOwn(SETTING_READERS, settingType)
+    ? SETTING_READERS[settingType]
+    : undefined;
   return read ? read(settings) : settings[settingType];
 };
 
@@ -1820,7 +1824,10 @@ export const updateProfileSetting = <K extends keyof SettingsStore>(
   value: SettingsStore[K],
 ): ProfileWriteResult => {
   try {
-    const write = SETTING_WRITERS[settingType];
+    // Own keys only, for the same reason as `getProfileSetting`.
+    const write = Object.hasOwn(SETTING_WRITERS, settingType)
+      ? SETTING_WRITERS[settingType]
+      : undefined;
     const normalizedValue = write ? write(value) : value;
 
     const currentProfileId = apiStore.get("currentProfileId", "");
