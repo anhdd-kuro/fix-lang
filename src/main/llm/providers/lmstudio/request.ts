@@ -65,7 +65,7 @@ export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {
 
     const reasoningTexts = responses
       .map((response) => response.reasoningText)
-      .filter((text): text is string => text !== undefined && text.length > 0);
+      .filter((text): text is string => text != null && text.length > 0);
     const result: AIRequestResponse = {
       content: responses.map((response) => response.text),
       prompts: responses.map((response) => response.text),

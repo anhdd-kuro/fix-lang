@@ -169,7 +169,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       cachedTokens,
       cacheWriteTokens,
     };
-    if (reasoningText !== undefined && reasoningText.length > 0) {
+    if (reasoningText != null && reasoningText.length > 0) {
       result.reasoningTexts = [reasoningText];
     }
     return result;

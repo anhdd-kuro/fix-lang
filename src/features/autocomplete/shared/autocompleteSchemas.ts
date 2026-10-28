@@ -7,14 +7,11 @@
  * inputs included — `boundaryEquivalence.test.ts` beside each consumer pins
  * them. Two defaults of the schema library differ from a `typeof` check and
  * are corrected here rather than at every call site: `z.number()` rejects NaN
- * and ±Infinity (see {@link AnyNumberSchema}), and `z.object()` rejects every
- * array (see {@link objectLike}).
+ * and ±Infinity (see `AnyNumberSchema` in core/shared/schemaGuard), and `z.object()` rejects every
+ * array (see `objectLike`, same module as `AnyNumberSchema`).
  */
 import { z } from "zod";
-import {
-  objectLike,
-  AnyNumberSchema,
-} from "~/features/core/shared/schemaGuard";
+import { objectLike } from "~/features/core/shared/schemaGuard";
 import { AUTOCOMPLETE_RENDERER_SKIP_REASONS } from "./autocompleteDiagnostics";
 
 /**

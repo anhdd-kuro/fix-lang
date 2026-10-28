@@ -84,7 +84,6 @@ import {
 } from "~/prompts/correction";
 import type {
   CorrectionPreset,
-  CorrectionSettings,
   Model,
   Profile,
   SettingsStore,

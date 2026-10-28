@@ -70,7 +70,7 @@ describe("scanBundleSource", () => {
     expect(details('import("left-pad");')).toEqual(["left-pad"]);
   });
 
-  // ---- M2: require-like call sourcesByFile beyond a literal `require` identifier ----
+  // ---- M2: require-like call forms beyond a literal `require` identifier ----
 
   it("flags an immediately-invoked createRequire() result", () => {
     expect(details('createRequire(import.meta.url)("left-pad");')).toEqual([

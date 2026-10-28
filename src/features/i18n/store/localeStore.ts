@@ -28,7 +28,7 @@ const store = new Store<LocaleStoreSchema>({
  * Returns the effective locale.
  *
  * Normalizes whatever is persisted — `null` (never chosen) or garbage left
- * behind by a manual edit / older build — down to {@link DEFAULT_LOCALE}.
+ * behind by a manual edit / older build — down to `DEFAULT_LOCALE`.
  */
 export const getLocale = (): Locale =>
   normalizeLocale(store.get("locale", null));
