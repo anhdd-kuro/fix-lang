@@ -48,7 +48,7 @@ const PLIST_BUDDY_MAX_BUFFER = 64 * 1024;
  * make. Kept separate from `looksLikeAppBundlePath` (shared, pure) so the
  * renderer can pre-filter a drop without pretending to know the filesystem.
  */
-export const isExistingAppBundlePath = (value: unknown): value is string =>
+export const isExistingAppBundlePath = (value: string): boolean =>
   looksLikeAppBundlePath(value) && existsSync(value);
 
 /**
@@ -84,7 +84,7 @@ export const readAppBundleId = async (
  * deny-list, whereas "nothing was added, here is why" is.
  */
 export const resolveAppBundleIds = async (
-  paths: unknown,
+  paths: readonly string[],
 ): Promise<AppBundleIdsResult> => {
   if (
     !Array.isArray(paths) ||

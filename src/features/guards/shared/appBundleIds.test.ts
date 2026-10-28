@@ -13,7 +13,7 @@ import { messageLabel, textLabel } from "~/features/i18n/shared/message";
 import {
   MAX_APP_BUNDLE_PATH_LENGTH,
   looksLikeAppBundlePath,
-  isAppBundleIdsResult,
+  AppBundleIdsResultSchema,
 } from "./appBundleIds";
 
 describe("looksLikeAppBundlePath", () => {
@@ -46,7 +46,10 @@ describe("looksLikeAppBundlePath", () => {
     ["a NUL byte", "/Applications/Slack\u0000.app"],
     ["a newline", "/Applications/Sla\nck.app"],
   ])("rejects %s", (_label, value) => {
-    expect(looksLikeAppBundlePath(value)).toBe(false);
+    // Junk the parameter type cannot express, arriving through a JSON
+    // boundary the way it does from another process.
+    const crossedBoundary: string = JSON.parse(JSON.stringify({ value })).value;
+    expect(looksLikeAppBundlePath(crossedBoundary)).toBe(false);
   });
 
   it("rejects a path longer than macOS could ever name", () => {
@@ -56,22 +59,30 @@ describe("looksLikeAppBundlePath", () => {
   });
 });
 
-describe("isAppBundleIdsResult", () => {
+describe("AppBundleIdsResultSchema", () => {
   it("accepts a success carrying ids", () => {
     expect(
-      isAppBundleIdsResult({ success: true, bundleIds: ["com.foo.bar"] }),
+      AppBundleIdsResultSchema.safeParse({
+        success: true,
+        bundleIds: ["com.foo.bar"],
+      }).success,
     ).toBe(true);
   });
 
   it("accepts a cancelled dialog — success with no ids", () => {
-    expect(isAppBundleIdsResult({ success: true, bundleIds: [] })).toBe(true);
+    expect(
+      AppBundleIdsResultSchema.safeParse({ success: true, bundleIds: [] })
+        .success,
+    ).toBe(true);
   });
 
   it.each([
     ["a text label", textLabel("boom")],
     ["a message label", messageLabel("security.deniedApps.dropError")],
   ])("accepts a failure carrying %s", (_label, error) => {
-    expect(isAppBundleIdsResult({ success: false, error })).toBe(true);
+    expect(
+      AppBundleIdsResultSchema.safeParse({ success: false, error }).success,
+    ).toBe(true);
   });
 
   it.each([
@@ -88,6 +99,6 @@ describe("isAppBundleIdsResult", () => {
     ["a failure whose error is not a Label", { success: false, error: "boom" }],
     ["a non-boolean success", { success: "true", bundleIds: [] }],
   ])("rejects %s", (_label, value) => {
-    expect(isAppBundleIdsResult(value)).toBe(false);
+    expect(AppBundleIdsResultSchema.safeParse(value).success).toBe(false);
   });
 });

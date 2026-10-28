@@ -4,6 +4,7 @@
  * stale-clipboard age guard, the selection size cap, and the frontmost-app
  * deny-list — electron-free, shared by main, preload, and renderer.
  */
+import { z } from "zod";
 
 export type SelectionGuardSettings = {
   /** Seconds. `0` disables the age guard AND the background clipboard poll. */
@@ -48,12 +49,14 @@ const CONTROL_CHARACTERS_PATTERN = /[\x00-\x1f\x7f-\x9f]/;
  * else (`NaN`, `Infinity`, a string, `null`, an object, …) falls back to
  * `fallback` rather than `0` — junk input must never silently disable a
  * safety rail. An explicit `0` still passes through unchanged, since that is
- * the documented way to disable a guard on purpose.
+ * the documented way to disable a guard on purpose. (`z.number()` accepts
+ * exactly the finite numbers.)
  */
-const normalizeNonNegativeInt = (raw: unknown, fallback: number): number => {
-  if (typeof raw !== "number" || !Number.isFinite(raw)) return fallback;
-  return Math.max(0, Math.floor(raw));
-};
+const storedNonNegativeIntOr = (fallback: number) =>
+  z
+    .number()
+    .transform((value) => Math.max(0, Math.floor(value)))
+    .catch(fallback);
 
 /**
  * The one canonicalisation rule for a bundle id, exported so any consumer
@@ -62,9 +65,12 @@ const normalizeNonNegativeInt = (raw: unknown, fallback: number): number => {
  * Rejects non-strings, empty-after-trim, over-length, and control-character
  * entries outright rather than coercing them.
  */
-export const normalizeBundleId = (raw: unknown): string | null => {
-  if (typeof raw !== "string") return null;
-  const trimmed = raw.trim().toLowerCase();
+export const normalizeBundleId = (raw: string | null): string | null => {
+  // Re-checked at runtime, not trusted from the type: callers pass values
+  // that crossed IPC, and a non-string must read as "no id", never throw.
+  const parsed = z.string().safeParse(raw);
+  if (!parsed.success) return null;
+  const trimmed = parsed.data.trim().toLowerCase();
   if (trimmed.length === 0 || trimmed.length > MAX_BUNDLE_ID_LENGTH)
     return null;
   if (CONTROL_CHARACTERS_PATTERN.test(trimmed)) return null;
@@ -88,19 +94,13 @@ export const isBundleIdDenied = (
   );
 };
 
-/**
- * A non-array `raw` (missing field, legacy shape, junk) seeds the defaults.
- * An array is taken as-is, including `[]`: the seed values live only in the
- * store's `defaults`, so re-adding them here would resurrect a bundle id the
- * user deliberately unblocked on every normalize.
- */
-const normalizeDeniedBundleIds = (raw: unknown): string[] => {
-  if (!Array.isArray(raw)) return [...DEFAULT_DENIED_BUNDLE_IDS];
-
+/** Drops invalid (`null`) and duplicate ids, keeping at most the cap. */
+const uniqueCappedBundleIds = (
+  bundleIds: readonly (string | null)[],
+): string[] => {
   const seen = new Set<string>();
   const result: string[] = [];
-  for (const entry of raw) {
-    const bundleId = normalizeBundleId(entry);
+  for (const bundleId of bundleIds) {
     if (bundleId === null || seen.has(bundleId)) continue;
     seen.add(bundleId);
     result.push(bundleId);
@@ -109,21 +109,90 @@ const normalizeDeniedBundleIds = (raw: unknown): string[] => {
   return result;
 };
 
-export const normalizeSelectionGuardSettings = (
-  raw: unknown,
-): SelectionGuardSettings => {
-  const value = (raw ?? {}) as Partial<
-    Record<keyof SelectionGuardSettings, unknown>
-  >;
-  return {
-    clipboardMaxAgeSeconds: normalizeNonNegativeInt(
-      value.clipboardMaxAgeSeconds,
+/**
+ * A non-array value (missing field, legacy shape, junk) seeds the defaults.
+ * An array is taken as-is, including `[]`: the seed values live only in the
+ * store's `defaults`, so re-adding them here would resurrect a bundle id the
+ * user deliberately unblocked on every normalize. Within an array, anything
+ * that is not a valid bundle-id string (holes included) is skipped.
+ */
+const StoredDeniedBundleIdsSchema = z
+  .array(z.string().transform(normalizeBundleId).catch(null))
+  .transform(uniqueCappedBundleIds)
+  .catch(() => [...DEFAULT_DENIED_BUNDLE_IDS]);
+
+/**
+ * Stored JSON → {@link SelectionGuardSettings}, field by field, each junk
+ * field on its own DEFAULT. A non-object reads as nothing stored.
+ */
+const StoredSelectionGuardSettingsSchema = z
+  .object({
+    clipboardMaxAgeSeconds: storedNonNegativeIntOr(
       DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
     ),
-    maxSelectionChars: normalizeNonNegativeInt(
-      value.maxSelectionChars,
-      DEFAULT_MAX_SELECTION_CHARS,
+    maxSelectionChars: storedNonNegativeIntOr(DEFAULT_MAX_SELECTION_CHARS),
+    deniedBundleIds: StoredDeniedBundleIdsSchema,
+  })
+  .catch(() => ({
+    clipboardMaxAgeSeconds: DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
+    maxSelectionChars: DEFAULT_MAX_SELECTION_CHARS,
+    deniedBundleIds: [...DEFAULT_DENIED_BUNDLE_IDS],
+  }));
+
+/** Coerces stored JSON into {@link SelectionGuardSettings}; never throws. */
+export const normalizeSelectionGuardSettings =
+  StoredSelectionGuardSettingsSchema.parse;
+
+/**
+ * A number must be a non-negative INTEGER, not merely finite. Every finite
+ * value that fails this (a negative number, a fractional one) is exactly the
+ * class the stored-settings normalizer silently floors/clamps to `0` — which
+ * would otherwise turn a rail off with no signal that the write was anything
+ * but accepted. An integer `x >= 0` is guaranteed to survive that normalizer
+ * unchanged (`Math.max(0, Math.floor(x)) === x`). An explicit `0` passes — it
+ * is the documented, deliberate way to disable a guard. `Number.isInteger`
+ * rather than `.int()`: the latter also caps at the safe-integer range.
+ */
+const NonNegativeIntegerSettingSchema = z
+  .number()
+  .refine((value) => Number.isInteger(value) && value >= 0);
+
+/**
+ * The raw `.length` bound runs BEFORE `normalizeBundleId` (which trims and
+ * lowercases) and aborts the parse, so a huge string is rejected without the
+ * allocation that string would otherwise cost — without `abort`, zod would
+ * still run the refine after the bound failed.
+ */
+const DeniedBundleIdPayloadEntrySchema = z
+  .string()
+  .max(MAX_BUNDLE_ID_LENGTH, { abort: true })
+  .refine((entry) => normalizeBundleId(entry) !== null);
+
+/**
+ * Valid only if every entry would survive `normalizeBundleId` as a real entry
+ * and the list is no longer than the store will ever persist. Built on
+ * `Array#every`, which skips holes, rather than on `z.array`, which would read
+ * them as `undefined` and refuse; the array itself is the parse result.
+ */
+const DeniedBundleIdsPayloadSchema = z.custom<string[]>(
+  (value) =>
+    Array.isArray(value) &&
+    value.length <= MAX_DENIED_BUNDLE_IDS &&
+    value.every(
+      (entry) => DeniedBundleIdPayloadEntrySchema.safeParse(entry).success,
     ),
-    deniedBundleIds: normalizeDeniedBundleIds(value.deniedBundleIds),
-  };
-};
+);
+
+/**
+ * What `set-selection-guards` accepts in main and what the preload bridge
+ * accepts in both directions — each side validates independently against
+ * this one rule. A malformed payload is REJECTED field by field rather than
+ * coerced into defaults: coercing would let a buggy renderer silently disable
+ * a safety rail instead of failing the write loudly. Extra keys are tolerated
+ * (the store's normalizer drops them).
+ */
+export const SelectionGuardSettingsPayloadSchema = z.looseObject({
+  clipboardMaxAgeSeconds: NonNegativeIntegerSettingSchema,
+  maxSelectionChars: NonNegativeIntegerSettingSchema,
+  deniedBundleIds: DeniedBundleIdsPayloadSchema,
+});

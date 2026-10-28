@@ -23,16 +23,16 @@
  * nothing. Every count is a count of times a guard acted, and dividing one by a
  * transform count from history compares different populations.
  */
+import { z } from "zod";
 import type { LogEntry } from "~/features/logs/shared/logging";
 
 /** Matches the dashboard's shared analytics range pills (`AnalyticsRange`). */
-export type SecurityStatsRange = "all" | "30d" | "7d";
+export const SecurityStatsRangeSchema = z.enum(["all", "30d", "7d"]);
 
-export const SECURITY_STATS_RANGES: readonly SecurityStatsRange[] = [
-  "all",
-  "30d",
-  "7d",
-];
+export type SecurityStatsRange = z.infer<typeof SecurityStatsRangeSchema>;
+
+export const SECURITY_STATS_RANGES: readonly SecurityStatsRange[] =
+  SecurityStatsRangeSchema.options;
 
 const RANGE_DAYS = {
   "30d": 30,
@@ -40,12 +40,6 @@ const RANGE_DAYS = {
 } satisfies Record<Exclude<SecurityStatsRange, "all">, number>;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-export const isSecurityStatsRange = (
-  value: unknown,
-): value is SecurityStatsRange =>
-  typeof value === "string" &&
-  SECURITY_STATS_RANGES.includes(value as SecurityStatsRange);
 
 /**
  * Written to the `guardEvent` context key. `context-dropped` is Ask's outcome
@@ -99,23 +93,28 @@ export const EMPTY_SECURITY_STATS: SecurityStats = Object.freeze({
   eventCount: 0,
 });
 
+const ContextStringSchema = z.string();
+
+/** `z.number()` accepts exactly the finite numbers. */
+const ContextNumberSchema = z.number();
+
 const contextString = (entry: LogEntry, key: string): string | null => {
-  const value = entry.context?.[key];
-  return typeof value === "string" ? value : null;
+  const value = ContextStringSchema.safeParse(entry.context?.[key]);
+  return value.success ? value.data : null;
 };
 
 const contextCount = (entry: LogEntry, key: string): number => {
-  const value = entry.context?.[key];
-  return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? Math.floor(value)
-    : 0;
+  const value = ContextNumberSchema.safeParse(entry.context?.[key]);
+  return value.success && value.data > 0 ? Math.floor(value.data) : 0;
 };
 
 const contextRuleIds = (entry: LogEntry): string[] => {
   const value = entry.context?.ruleIds;
-  return Array.isArray(value)
-    ? value.filter((id): id is string => typeof id === "string")
-    : [];
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((id) => {
+    const ruleId = ContextStringSchema.safeParse(id);
+    return ruleId.success ? [ruleId.data] : [];
+  });
 };
 
 /**
@@ -282,39 +281,45 @@ export const entryInRange = (entry: LogEntry, cutoff: Date | null): boolean => {
   return Number.isFinite(at) && at >= cutoff.getTime();
 };
 
-const isNonNegativeInteger = (value: unknown): value is number =>
-  typeof value === "number" && Number.isInteger(value) && value >= 0;
+/** Any size: `Number.isInteger`, not `.int()`, which caps at the safe range. */
+const CountSchema = z
+  .number()
+  .refine((value) => Number.isInteger(value) && value >= 0);
 
-const isRuleCounts = (value: unknown): value is Record<string, number> =>
-  typeof value === "object" &&
-  value !== null &&
-  !Array.isArray(value) &&
-  Object.values(value).every(isNonNegativeInteger);
+/** Any non-array, non-function object (a Date included) — not only a plain one. */
+const ObjectRecordSchema = z.looseObject({});
 
-const COUNT_KEYS: readonly (keyof SecurityStats)[] = [
-  "blockedByApp",
-  "declinedLargeSelection",
-  "declinedStaleClipboard",
-  "declinedUnknownClipboardAge",
-  "askContextDropped",
-  "secretConfirmed",
-  "secretDeclined",
-  "secretMasked",
-  "maskedValues",
-  "maskedPlaceholders",
-  "restoreFailures",
-  "legacyEvents",
-  "eventCount",
-];
+/**
+ * Every own enumerable value a count. Checked against the record's
+ * `Object.values` rather than with `z.record`, which refuses non-plain objects
+ * and inspects symbol and non-enumerable keys too; the object itself is the
+ * parse result.
+ */
+const RuleCountsSchema = z.custom<Record<string, number>>((value) => {
+  const record = ObjectRecordSchema.safeParse(value);
+  return (
+    record.success &&
+    Object.values(record.data).every(
+      (count) => CountSchema.safeParse(count).success,
+    )
+  );
+});
 
 /** Validated independently on both sides of the IPC boundary. */
-export const isSecurityStats = (value: unknown): value is SecurityStats => {
-  if (typeof value !== "object" || value === null || Array.isArray(value))
-    return false;
-  const record = value as Record<string, unknown>;
-  return (
-    COUNT_KEYS.every((key) => isNonNegativeInteger(record[key])) &&
-    isRuleCounts(record.ruleCounts) &&
-    (record.lastEventAt === null || typeof record.lastEventAt === "string")
-  );
-};
+export const SecurityStatsSchema = z.looseObject({
+  blockedByApp: CountSchema,
+  declinedLargeSelection: CountSchema,
+  declinedStaleClipboard: CountSchema,
+  declinedUnknownClipboardAge: CountSchema,
+  askContextDropped: CountSchema,
+  secretConfirmed: CountSchema,
+  secretDeclined: CountSchema,
+  secretMasked: CountSchema,
+  maskedValues: CountSchema,
+  maskedPlaceholders: CountSchema,
+  restoreFailures: CountSchema,
+  legacyEvents: CountSchema,
+  ruleCounts: RuleCountsSchema,
+  lastEventAt: z.string().nullable(),
+  eventCount: CountSchema,
+});

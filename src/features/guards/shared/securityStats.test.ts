@@ -11,8 +11,8 @@ import {
   EMPTY_SECURITY_STATS,
   entryInRange,
   isSecurityEvent,
-  isSecurityStats,
-  isSecurityStatsRange,
+  SecurityStatsRangeSchema,
+  SecurityStatsSchema,
   SECRET_GATE_SCOPE,
   SECRET_MASK_SCOPE,
   securityStatsCutoff,
@@ -321,27 +321,41 @@ describe("range windowing", () => {
 
 describe("IPC payload guards", () => {
   it("accepts a real roll-up and rejects malformed ones", () => {
-    expect(isSecurityStats(EMPTY_SECURITY_STATS)).toBe(true);
-    expect(isSecurityStats({ ...EMPTY_SECURITY_STATS, blockedByApp: -1 })).toBe(
-      false,
+    expect(SecurityStatsSchema.safeParse(EMPTY_SECURITY_STATS).success).toBe(
+      true,
     );
     expect(
-      isSecurityStats({ ...EMPTY_SECURITY_STATS, blockedByApp: 1.5 }),
+      SecurityStatsSchema.safeParse({
+        ...EMPTY_SECURITY_STATS,
+        blockedByApp: -1,
+      }).success,
     ).toBe(false);
     expect(
-      isSecurityStats({ ...EMPTY_SECURITY_STATS, ruleCounts: { jwt: "3" } }),
+      SecurityStatsSchema.safeParse({
+        ...EMPTY_SECURITY_STATS,
+        blockedByApp: 1.5,
+      }).success,
     ).toBe(false);
-    expect(isSecurityStats({ ...EMPTY_SECURITY_STATS, lastEventAt: 17 })).toBe(
-      false,
-    );
-    expect(isSecurityStats(null)).toBe(false);
-    expect(isSecurityStats([])).toBe(false);
+    expect(
+      SecurityStatsSchema.safeParse({
+        ...EMPTY_SECURITY_STATS,
+        ruleCounts: { jwt: "3" },
+      }).success,
+    ).toBe(false);
+    expect(
+      SecurityStatsSchema.safeParse({
+        ...EMPTY_SECURITY_STATS,
+        lastEventAt: 17,
+      }).success,
+    ).toBe(false);
+    expect(SecurityStatsSchema.safeParse(null).success).toBe(false);
+    expect(SecurityStatsSchema.safeParse([]).success).toBe(false);
   });
 
   it("accepts only the three range tokens", () => {
-    expect(isSecurityStatsRange("all")).toBe(true);
-    expect(isSecurityStatsRange("7d")).toBe(true);
-    expect(isSecurityStatsRange("90d")).toBe(false);
-    expect(isSecurityStatsRange(7)).toBe(false);
+    expect(SecurityStatsRangeSchema.safeParse("all").success).toBe(true);
+    expect(SecurityStatsRangeSchema.safeParse("7d").success).toBe(true);
+    expect(SecurityStatsRangeSchema.safeParse("90d").success).toBe(false);
+    expect(SecurityStatsRangeSchema.safeParse(7).success).toBe(false);
   });
 });

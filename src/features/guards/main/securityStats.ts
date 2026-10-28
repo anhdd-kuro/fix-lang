@@ -17,7 +17,7 @@ import {
   dayFolderInRange,
   entryInRange,
   isSecurityEvent,
-  isSecurityStatsRange,
+  SecurityStatsRangeSchema,
   securityStatsCutoff,
   summarizeSecurityStats,
 } from "~/features/guards/shared/securityStats";
@@ -58,12 +58,13 @@ export const registerSecurityStatsHandlers = (): void => {
     "get-security-stats",
     async (
       _event: Electron.IpcMainInvokeEvent,
-      range: unknown,
+      range,
     ): Promise<SecurityStats> => {
-      if (!isSecurityStatsRange(range)) {
+      const parsedRange = SecurityStatsRangeSchema.safeParse(range);
+      if (!parsedRange.success) {
         throw new Error("Malformed security stats range");
       }
-      return collectSecurityStats(range);
+      return collectSecurityStats(parsedRange.data);
     },
   );
 };

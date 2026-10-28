@@ -11,6 +11,7 @@
  * `~/Applications`.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ExecFileOptions } from "node:child_process";
 
 const { execFileMock, existsSyncMock } = vi.hoisted(() => ({
   execFileMock: vi.fn(),
@@ -40,7 +41,7 @@ const plistBuddyPrints = (stdout: string): void => {
     (
       _file: string,
       _args: readonly string[],
-      _options: unknown,
+      _options: ExecFileOptions,
       callback: (
         error: Error | null,
         result: { stdout: string; stderr: string },
@@ -56,7 +57,7 @@ const plistBuddyFails = (): void => {
     (
       _file: string,
       _args: readonly string[],
-      _options: unknown,
+      _options: ExecFileOptions,
       callback: (error: Error | null) => void,
     ) => {
       callback(
@@ -150,15 +151,19 @@ describe("resolveAppBundleIds", () => {
     });
   });
 
+  // Payloads as JSON: junk the parameter type cannot express arrives through
+  // the IPC boundary exactly like this, untyped.
   it.each([
-    ["a non-array payload", "/Applications/Slack.app"],
-    ["null", null],
-    ["a non-string entry", [42]],
-    ["a relative path", ["Applications/Slack.app"]],
-    ["a non-.app path", ["/etc/passwd"]],
-    ["a path that does not exist", ["/Applications/Ghost.app"]],
-  ])("rejects %s without spawning anything", async (_label, payload) => {
-    await expect(resolveAppBundleIds(payload)).resolves.toMatchObject({
+    ["a non-array payload", '"/Applications/Slack.app"'],
+    ["null", "null"],
+    ["a non-string entry", "[42]"],
+    ["a relative path", '["Applications/Slack.app"]'],
+    ["a non-.app path", '["/etc/passwd"]'],
+    ["a path that does not exist", '["/Applications/Ghost.app"]'],
+  ])("rejects %s without spawning anything", async (_label, payloadJson) => {
+    await expect(
+      resolveAppBundleIds(JSON.parse(payloadJson)),
+    ).resolves.toMatchObject({
       success: false,
     });
     expect(execFileMock).not.toHaveBeenCalled();
@@ -194,7 +199,8 @@ describe("resolveAppBundleIds", () => {
   });
 
   it.each([
-    ["a boxed path", [new String(SLACK)]],
+    // `Object(string)` is a boxed String at runtime.
+    ["a boxed path", [Object(SLACK)]],
     ["an upper-case suffix that does not exist", ["/Applications/SLACK.APP"]],
   ])("rejects %s without spawning anything", async (_label, payload) => {
     await expect(resolveAppBundleIds(payload)).resolves.toMatchObject({
