@@ -1,0 +1,1263 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Bedrock region parsers > resolveBedrockRegion 1`] = `
+[
+  [
+    "undefined",
+    "us-east-1",
+  ],
+  [
+    "null",
+    "us-east-1",
+  ],
+  [
+    "true",
+    "us-east-1",
+  ],
+  [
+    "0",
+    "us-east-1",
+  ],
+  [
+    "-0",
+    "us-east-1",
+  ],
+  [
+    "NaN",
+    "us-east-1",
+  ],
+  [
+    "Infinity",
+    "us-east-1",
+  ],
+  [
+    "empty string",
+    "us-east-1",
+  ],
+  [
+    "boxed string",
+    "us-east-1",
+  ],
+  [
+    "array",
+    "us-east-1",
+  ],
+  [
+    "function",
+    "us-east-1",
+  ],
+  [
+    "plain object",
+    "us-east-1",
+  ],
+  [
+    "valid",
+    "us-east-1",
+  ],
+  [
+    "padded mixed case",
+    "eu-west-1",
+  ],
+  [
+    "two-digit suffix",
+    "us-east-1",
+  ],
+  [
+    "no suffix",
+    "us-east-1",
+  ],
+  [
+    "33 chars",
+    "us-east-1",
+  ],
+  [
+    "boxed region",
+    "us-east-1",
+  ],
+  [
+    "endpoint object",
+    "ap-northeast-1",
+  ],
+  [
+    "endpoint with port",
+    "ap-northeast-1",
+  ],
+  [
+    "padded endpoint host",
+    "ap-northeast-1",
+  ],
+  [
+    "invalid endpoint host",
+    "us-east-1",
+  ],
+  [
+    "non-string endpoint host",
+    "us-east-1",
+  ],
+  [
+    "undefined endpoint host",
+    "us-east-1",
+  ],
+  [
+    "no host key",
+    "us-east-1",
+  ],
+  [
+    "array with region",
+    "us-east-1",
+  ],
+  [
+    "array with host field",
+    "us-west-2",
+  ],
+  [
+    "inherited host",
+    "us-west-2",
+  ],
+  [
+    "class instance",
+    "eu-central-1",
+  ],
+]
+`;
+
+exports[`Bedrock region parsers > sanitizeBedrockRegion 1`] = `
+[
+  [
+    "undefined",
+    null,
+  ],
+  [
+    "null",
+    null,
+  ],
+  [
+    "true",
+    null,
+  ],
+  [
+    "0",
+    null,
+  ],
+  [
+    "-0",
+    null,
+  ],
+  [
+    "NaN",
+    null,
+  ],
+  [
+    "Infinity",
+    null,
+  ],
+  [
+    "empty string",
+    null,
+  ],
+  [
+    "boxed string",
+    null,
+  ],
+  [
+    "array",
+    null,
+  ],
+  [
+    "function",
+    null,
+  ],
+  [
+    "plain object",
+    null,
+  ],
+  [
+    "valid",
+    "us-east-1",
+  ],
+  [
+    "padded mixed case",
+    "eu-west-1",
+  ],
+  [
+    "two-digit suffix",
+    null,
+  ],
+  [
+    "no suffix",
+    null,
+  ],
+  [
+    "33 chars",
+    null,
+  ],
+  [
+    "boxed region",
+    null,
+  ],
+]
+`;
+
+exports[`LM Studio / Ollama endpoint parsers > resolveLmStudioEndpoint 1`] = `
+[
+  [
+    "undefined",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "null",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "true",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "0",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "-0",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "NaN",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "Infinity",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "empty string",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "boxed string",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "array",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "function",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "plain object",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "valid",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "string port",
+    {
+      "host": "localhost",
+      "port": 8080,
+    },
+  ],
+  [
+    "padded host",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "extra keys",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "missing host",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "missing port",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "scheme host",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "NaN port",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+  [
+    "class instance",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "inherited fields",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "null prototype",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "array with fields",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "function with fields",
+    {
+      "host": "127.0.0.1",
+      "port": 1234,
+    },
+  ],
+]
+`;
+
+exports[`LM Studio / Ollama endpoint parsers > resolveOllamaEndpoint 1`] = `
+[
+  [
+    "undefined",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "null",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "true",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "0",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "-0",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "NaN",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "Infinity",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "empty string",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "boxed string",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "array",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "function",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "plain object",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "valid",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "string port",
+    {
+      "host": "localhost",
+      "port": 8080,
+    },
+  ],
+  [
+    "padded host",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "extra keys",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "missing host",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "missing port",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "scheme host",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "NaN port",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+  [
+    "class instance",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "inherited fields",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "null prototype",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "array with fields",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "function with fields",
+    {
+      "host": "127.0.0.1",
+      "port": 11434,
+    },
+  ],
+]
+`;
+
+exports[`LM Studio / Ollama endpoint parsers > sanitizeLmStudioHost 1`] = `
+[
+  [
+    "undefined",
+    null,
+  ],
+  [
+    "null",
+    null,
+  ],
+  [
+    "true",
+    null,
+  ],
+  [
+    "0",
+    null,
+  ],
+  [
+    "-0",
+    null,
+  ],
+  [
+    "NaN",
+    null,
+  ],
+  [
+    "Infinity",
+    null,
+  ],
+  [
+    "empty string",
+    null,
+  ],
+  [
+    "boxed string",
+    null,
+  ],
+  [
+    "array",
+    null,
+  ],
+  [
+    "function",
+    null,
+  ],
+  [
+    "plain object",
+    null,
+  ],
+  [
+    "localhost",
+    "localhost",
+  ],
+  [
+    "padded",
+    "my-host.local",
+  ],
+  [
+    "whitespace only",
+    null,
+  ],
+  [
+    "253 chars",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  ],
+  [
+    "254 chars",
+    null,
+  ],
+  [
+    "253 chars padded",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  ],
+  [
+    "http",
+    null,
+  ],
+  [
+    "HTTPS",
+    null,
+  ],
+  [
+    "https host",
+    "https.example",
+  ],
+  [
+    "with port",
+    null,
+  ],
+  [
+    "with path",
+    null,
+  ],
+  [
+    "with query",
+    null,
+  ],
+  [
+    "with hash",
+    null,
+  ],
+  [
+    "with userinfo",
+    null,
+  ],
+  [
+    "inner space",
+    null,
+  ],
+  [
+    "tab",
+    "h",
+  ],
+  [
+    "ipv6 literal",
+    null,
+  ],
+]
+`;
+
+exports[`LM Studio / Ollama endpoint parsers > sanitizeLmStudioPort 1`] = `
+[
+  [
+    "undefined",
+    null,
+  ],
+  [
+    "null",
+    null,
+  ],
+  [
+    "true",
+    null,
+  ],
+  [
+    "0",
+    null,
+  ],
+  [
+    "-0",
+    null,
+  ],
+  [
+    "NaN",
+    null,
+  ],
+  [
+    "Infinity",
+    null,
+  ],
+  [
+    "empty string",
+    null,
+  ],
+  [
+    "boxed string",
+    null,
+  ],
+  [
+    "array",
+    null,
+  ],
+  [
+    "function",
+    null,
+  ],
+  [
+    "plain object",
+    null,
+  ],
+  [
+    "1",
+    1,
+  ],
+  [
+    "1234",
+    1234,
+  ],
+  [
+    "65535",
+    65535,
+  ],
+  [
+    "65536",
+    null,
+  ],
+  [
+    "-1",
+    null,
+  ],
+  [
+    "12.5",
+    null,
+  ],
+  [
+    "2^53",
+    null,
+  ],
+  [
+    "string 8080",
+    8080,
+  ],
+  [
+    "padded string",
+    8080,
+  ],
+  [
+    "blank string",
+    null,
+  ],
+  [
+    "hex string",
+    16,
+  ],
+  [
+    "exponent string",
+    1000,
+  ],
+  [
+    "decimal string",
+    12,
+  ],
+  [
+    "fraction string",
+    null,
+  ],
+  [
+    "word",
+    null,
+  ],
+  [
+    "string 0",
+    null,
+  ],
+  [
+    "string 65536",
+    null,
+  ],
+  [
+    "boxed number",
+    null,
+  ],
+  [
+    "array of number",
+    null,
+  ],
+]
+`;
+
+exports[`LM Studio / Ollama endpoint parsers > sanitizeProviderEndpoint 1`] = `
+[
+  [
+    "undefined",
+    null,
+  ],
+  [
+    "null",
+    null,
+  ],
+  [
+    "true",
+    null,
+  ],
+  [
+    "0",
+    null,
+  ],
+  [
+    "-0",
+    null,
+  ],
+  [
+    "NaN",
+    null,
+  ],
+  [
+    "Infinity",
+    null,
+  ],
+  [
+    "empty string",
+    null,
+  ],
+  [
+    "boxed string",
+    null,
+  ],
+  [
+    "array",
+    null,
+  ],
+  [
+    "function",
+    null,
+  ],
+  [
+    "plain object",
+    null,
+  ],
+  [
+    "valid",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "string port",
+    {
+      "host": "localhost",
+      "port": 8080,
+    },
+  ],
+  [
+    "padded host",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "extra keys",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "missing host",
+    null,
+  ],
+  [
+    "missing port",
+    null,
+  ],
+  [
+    "scheme host",
+    null,
+  ],
+  [
+    "NaN port",
+    null,
+  ],
+  [
+    "class instance",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "inherited fields",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "null prototype",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "array with fields",
+    {
+      "host": "localhost",
+      "port": 1234,
+    },
+  ],
+  [
+    "function with fields",
+    null,
+  ],
+]
+`;
+
+exports[`OpenAI project id parser > sanitizeOpenAIProjectId 1`] = `
+[
+  [
+    "undefined",
+    undefined,
+  ],
+  [
+    "null",
+    undefined,
+  ],
+  [
+    "true",
+    undefined,
+  ],
+  [
+    "0",
+    undefined,
+  ],
+  [
+    "-0",
+    undefined,
+  ],
+  [
+    "NaN",
+    undefined,
+  ],
+  [
+    "Infinity",
+    undefined,
+  ],
+  [
+    "empty string",
+    undefined,
+  ],
+  [
+    "boxed string",
+    undefined,
+  ],
+  [
+    "array",
+    undefined,
+  ],
+  [
+    "function",
+    undefined,
+  ],
+  [
+    "plain object",
+    undefined,
+  ],
+  [
+    "valid",
+    "proj_abc123",
+  ],
+  [
+    "padded",
+    "proj_abc123",
+  ],
+  [
+    "whitespace only",
+    undefined,
+  ],
+  [
+    "prefix only",
+    undefined,
+  ],
+  [
+    "org id",
+    undefined,
+  ],
+  [
+    "inner space",
+    undefined,
+  ],
+  [
+    "boxed",
+    undefined,
+  ],
+  [
+    "121-char token",
+    undefined,
+  ],
+]
+`;
+
+exports[`provider id guards > isProviderId 1`] = `
+[
+  [
+    "undefined",
+    false,
+  ],
+  [
+    "null",
+    false,
+  ],
+  [
+    "true",
+    false,
+  ],
+  [
+    "0",
+    false,
+  ],
+  [
+    "-0",
+    false,
+  ],
+  [
+    "NaN",
+    false,
+  ],
+  [
+    "Infinity",
+    false,
+  ],
+  [
+    "empty string",
+    false,
+  ],
+  [
+    "boxed string",
+    false,
+  ],
+  [
+    "array",
+    false,
+  ],
+  [
+    "function",
+    false,
+  ],
+  [
+    "plain object",
+    false,
+  ],
+  [
+    "openai",
+    true,
+  ],
+  [
+    "ollama",
+    true,
+  ],
+  [
+    "OPENAI",
+    false,
+  ],
+  [
+    "constructor",
+    false,
+  ],
+  [
+    "toString",
+    false,
+  ],
+  [
+    "__proto__",
+    false,
+  ],
+  [
+    " openai",
+    false,
+  ],
+]
+`;
+
+exports[`provider id guards > sanitizeEnabledProviders 1`] = `
+[
+  [
+    "undefined",
+    [],
+  ],
+  [
+    "null",
+    [],
+  ],
+  [
+    "true",
+    [],
+  ],
+  [
+    "0",
+    [],
+  ],
+  [
+    "-0",
+    [],
+  ],
+  [
+    "NaN",
+    [],
+  ],
+  [
+    "Infinity",
+    [],
+  ],
+  [
+    "empty string",
+    [],
+  ],
+  [
+    "boxed string",
+    [],
+  ],
+  [
+    "array",
+    [
+      "openai",
+    ],
+  ],
+  [
+    "function",
+    [],
+  ],
+  [
+    "plain object",
+    [],
+  ],
+  [
+    "dedupes and orders",
+    [
+      "openai",
+      "ollama",
+    ],
+  ],
+  [
+    "boxed entries",
+    [
+      "anthropic",
+    ],
+  ],
+  [
+    "array-like object",
+    [],
+  ],
+  [
+    "prototype names",
+    [
+      "lmstudio",
+    ],
+  ],
+]
+`;
+
+exports[`provider id guards > supportsAdminKey 1`] = `
+[
+  [
+    "undefined",
+    false,
+  ],
+  [
+    "null",
+    false,
+  ],
+  [
+    "true",
+    false,
+  ],
+  [
+    "0",
+    false,
+  ],
+  [
+    "-0",
+    false,
+  ],
+  [
+    "NaN",
+    false,
+  ],
+  [
+    "Infinity",
+    false,
+  ],
+  [
+    "empty string",
+    false,
+  ],
+  [
+    "boxed string",
+    false,
+  ],
+  [
+    "array",
+    false,
+  ],
+  [
+    "function",
+    false,
+  ],
+  [
+    "plain object",
+    false,
+  ],
+  [
+    "openai",
+    true,
+  ],
+  [
+    "ollama",
+    false,
+  ],
+  [
+    "OPENAI",
+    false,
+  ],
+  [
+    "constructor",
+    false,
+  ],
+  [
+    "toString",
+    false,
+  ],
+  [
+    "__proto__",
+    false,
+  ],
+  [
+    " openai",
+    false,
+  ],
+]
+`;

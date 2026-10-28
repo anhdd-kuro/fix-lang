@@ -299,3 +299,98 @@ describe("valid calls reach the right channel and resync open windows", () => {
     expect(result.errors).toEqual({ ollama: "ECONNREFUSED" });
   });
 });
+
+/**
+ * Edge payloads reach the connect parser from IPC with no static type at all;
+ * this models that, so a narrowed parameter type cannot hide a runtime case.
+ */
+const viaBoundary = <Value>(value: Value): never => value as never;
+
+const connectPayloadEdgeCases: [string, unknown][] = [
+  ["undefined", undefined],
+  ["null", null],
+  ["0", 0],
+  ["string", "openai"],
+  ["function", () => ({ provider: "openai" })],
+  ["boxed string", new String("openai")],
+  ["empty array", []],
+  [
+    "array carrying fields",
+    Object.assign([], { provider: "openai", apiKey: "k" }),
+  ],
+  ["inherited fields", Object.create({ provider: "openai", apiKey: "k" })],
+  [
+    "null prototype",
+    Object.assign(Object.create(null), { provider: "anthropic", apiKey: "k" }),
+  ],
+  [
+    "class instance",
+    new (class {
+      provider = "openrouter";
+      provisioningKey = "p";
+    })(),
+  ],
+  ["bare provider", { provider: "openai" }],
+  ["constructor provider", { provider: "constructor" }],
+  ["boxed provider", { provider: new String("openai") }],
+  [
+    "every string field",
+    {
+      provider: "bedrock",
+      apiKey: "AKIA",
+      secretKey: "s",
+      provisioningKey: "p",
+      region: "us-east-1",
+      projectId: "",
+      host: "127.0.0.1",
+      port: 1234,
+      modelId: "dropped",
+    },
+  ],
+  [
+    "explicit undefined fields",
+    { provider: "openai", apiKey: undefined, port: undefined, host: undefined },
+  ],
+  ["null apiKey", { provider: "openai", apiKey: null }],
+  ["numeric secretKey", { provider: "bedrock", secretKey: 5 }],
+  ["numeric region", { provider: "bedrock", region: 5 }],
+  ["numeric projectId", { provider: "openai", projectId: 5 }],
+  ["boxed apiKey", { provider: "openai", apiKey: new String("k") }],
+  ["padded host", { provider: "lmstudio", host: "  localhost  " }],
+  ["blank host", { provider: "lmstudio", host: "   " }],
+  ["scheme host", { provider: "lmstudio", host: "http://x" }],
+  ["numeric host", { provider: "lmstudio", host: 5 }],
+  ["null host", { provider: "lmstudio", host: null }],
+  ["string port", { provider: "ollama", port: "11435" }],
+  ["padded string port", { provider: "ollama", port: " 11435 " }],
+  ["blank string port", { provider: "ollama", port: " " }],
+  ["fractional port", { provider: "ollama", port: 12.5 }],
+  ["NaN port", { provider: "ollama", port: Number.NaN }],
+  ["zero port", { provider: "ollama", port: 0 }],
+  ["out-of-range port", { provider: "ollama", port: 70000 }],
+  ["boolean port", { provider: "ollama", port: true }],
+  ["null port", { provider: "ollama", port: null }],
+  ["hex string port", { provider: "ollama", port: "0x10" }],
+];
+
+describe("isProviderConnectInput — pinned edge-case outputs", () => {
+  it("matches the recorded verdict for every edge payload", () => {
+    expect(
+      connectPayloadEdgeCases.map(([label, input]) => [
+        label,
+        isProviderConnectInput(viaBoundary(input)),
+      ]),
+    ).toMatchSnapshot();
+  });
+
+  it("refuses a non-string model id or key without crossing the boundary", async () => {
+    const nonStrings = [5, null, undefined, new String("m"), ["m"], {}];
+    for (const value of nonStrings) {
+      const selected = await apiFeature.setSelectedModel(viaBoundary(value));
+      expect(selected.success).toBe(false);
+      const stored = await apiFeature.setApiKey(viaBoundary(value));
+      expect(stored.success).toBe(false);
+    }
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+});

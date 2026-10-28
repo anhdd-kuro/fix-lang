@@ -136,3 +136,90 @@ describe("parseProviderConnect", () => {
     }
   });
 });
+
+/**
+ * Edge payloads reach the connect parser from IPC with no static type at all;
+ * this models that, so a narrowed parameter type cannot hide a runtime case.
+ */
+const viaBoundary = <Value>(value: Value): never => value as never;
+
+const connectPayloadEdgeCases: [string, unknown][] = [
+  ["undefined", undefined],
+  ["null", null],
+  ["0", 0],
+  ["string", "openai"],
+  ["function", () => ({ provider: "openai" })],
+  ["boxed string", new String("openai")],
+  ["empty array", []],
+  [
+    "array carrying fields",
+    Object.assign([], { provider: "openai", apiKey: "k" }),
+  ],
+  ["inherited fields", Object.create({ provider: "openai", apiKey: "k" })],
+  [
+    "null prototype",
+    Object.assign(Object.create(null), { provider: "anthropic", apiKey: "k" }),
+  ],
+  [
+    "class instance",
+    new (class {
+      provider = "openrouter";
+      provisioningKey = "p";
+    })(),
+  ],
+  ["bare provider", { provider: "openai" }],
+  ["constructor provider", { provider: "constructor" }],
+  ["boxed provider", { provider: new String("openai") }],
+  [
+    "every string field",
+    {
+      provider: "bedrock",
+      apiKey: "AKIA",
+      secretKey: "s",
+      provisioningKey: "p",
+      region: "us-east-1",
+      projectId: "",
+      host: "127.0.0.1",
+      port: 1234,
+      modelId: "dropped",
+    },
+  ],
+  [
+    "explicit undefined fields",
+    { provider: "openai", apiKey: undefined, port: undefined, host: undefined },
+  ],
+  ["null apiKey", { provider: "openai", apiKey: null }],
+  ["numeric secretKey", { provider: "bedrock", secretKey: 5 }],
+  ["numeric region", { provider: "bedrock", region: 5 }],
+  ["numeric projectId", { provider: "openai", projectId: 5 }],
+  ["boxed apiKey", { provider: "openai", apiKey: new String("k") }],
+  ["padded host", { provider: "lmstudio", host: "  localhost  " }],
+  ["blank host", { provider: "lmstudio", host: "   " }],
+  ["scheme host", { provider: "lmstudio", host: "http://x" }],
+  ["numeric host", { provider: "lmstudio", host: 5 }],
+  ["null host", { provider: "lmstudio", host: null }],
+  ["string port", { provider: "ollama", port: "11435" }],
+  ["padded string port", { provider: "ollama", port: " 11435 " }],
+  ["blank string port", { provider: "ollama", port: " " }],
+  ["fractional port", { provider: "ollama", port: 12.5 }],
+  ["NaN port", { provider: "ollama", port: Number.NaN }],
+  ["zero port", { provider: "ollama", port: 0 }],
+  ["out-of-range port", { provider: "ollama", port: 70000 }],
+  ["boolean port", { provider: "ollama", port: true }],
+  ["null port", { provider: "ollama", port: null }],
+  ["hex string port", { provider: "ollama", port: "0x10" }],
+];
+
+describe("parseProviderConnect — pinned edge-case outputs", () => {
+  it("matches the recorded output for every edge payload", () => {
+    expect(
+      connectPayloadEdgeCases.map(([label, payload]) => {
+        const parsed = parseProviderConnect(viaBoundary(payload));
+        return [
+          label,
+          parsed === null ? null : { keys: Object.keys(parsed), parsed },
+        ];
+      }),
+    ).toMatchSnapshot();
+  });
+});
