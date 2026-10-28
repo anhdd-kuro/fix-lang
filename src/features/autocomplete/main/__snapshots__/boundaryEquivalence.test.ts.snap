@@ -1,0 +1,3309 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > payload array carrying the fields > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > payload boxed reason > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > payload boxed string > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > payload class instance > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > payload empty array > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > payload empty object > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > payload extra key > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > payload function > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > payload late reply > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 1,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > payload null > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > payload number > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > payload string > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > payload undefined > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > payload valid > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = -0 > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": -0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = -Infinity > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = Infinity > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = NaN > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = array > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = boolean > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = boxed number > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = boxed string > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = empty string > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = fraction > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 2,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = function > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = huge > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 1e+308,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = negative > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = null > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = object > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = string > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > prefixLength = undefined > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 0,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = -0 > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = -Infinity > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = Infinity > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = NaN > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = array > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = boolean > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = boxed number > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = boxed string > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = empty string > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = fraction > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = function > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = huge > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = negative > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = null > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = object > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = string > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > reason = undefined > verdict 1`] = `
+{
+  "debug": [],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = -0 > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = -Infinity > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = Infinity > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = NaN > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = array > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = boolean > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = boxed number > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = boxed string > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = empty string > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = fraction > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = function > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = huge > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = negative > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = null > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = object > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = string > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > requestId = undefined > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = -0 > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": -0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = -Infinity > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = Infinity > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = NaN > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = array > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = boolean > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = boxed number > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = boxed string > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = empty string > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = fraction > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 2,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = function > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = huge > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 1e+308,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = negative > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = null > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = object > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = string > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-skip > suppressedSincePrevious = undefined > verdict 1`] = `
+{
+  "debug": [
+    {
+      "prefixLength": 3,
+      "reason": "composing",
+      "suppressedInMain": 0,
+      "suppressedInRenderer": 0,
+    },
+  ],
+  "resolutionLookups": 0,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > payload array carrying the fields > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > payload boxed string > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > payload class instance > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > payload empty array > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > payload empty object > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > payload extra key > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > payload function > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > payload null > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > payload number > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > payload string > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > payload undefined > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > payload valid > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = -0 > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = -Infinity > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = Infinity > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = NaN > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = array > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = boolean > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = boxed number > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = boxed string > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = empty string > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = fraction > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = function > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = huge > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = negative > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = null > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = object > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = string > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "4",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > prefix = undefined > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = -0 > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": -0,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = -Infinity > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = Infinity > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = NaN > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = array > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = boolean > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = boxed number > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = boxed string > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = empty string > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = fraction > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 2.7,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = function > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = huge > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 1e+308,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = negative > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": -3,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = null > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = object > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = string > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > requestId = undefined > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 0,
+    "sessionId": "1",
+    "suffix": " end",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = -0 > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = -Infinity > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = Infinity > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = NaN > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = array > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = boolean > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = boxed number > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = boxed string > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = empty string > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": "",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = fraction > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = function > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = huge > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = negative > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = null > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = object > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = string > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": "4",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > autocomplete-suggest > suffix = undefined > verdict 1`] = `
+{
+  "keys": [
+    "requestId",
+    "prefix",
+    "suffix",
+    "sessionId",
+  ],
+  "request": {
+    "prefix": "hello there",
+    "requestId": 4,
+    "sessionId": "1",
+    "suffix": undefined,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = -0 > verdict 1`] = `
+{
+  "dailyCostCapUsd": 0,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = -Infinity > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = Infinity > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = NaN > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = array > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = boolean > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = boxed number > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = boxed string > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = empty string > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = fraction > verdict 1`] = `
+{
+  "dailyCostCapUsd": 2.7,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = function > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = huge > verdict 1`] = `
+{
+  "dailyCostCapUsd": 100,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = negative > verdict 1`] = `
+{
+  "dailyCostCapUsd": 0,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = null > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = object > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = string > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > dailyCostCapUsd = undefined > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = -0 > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = -Infinity > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = Infinity > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = NaN > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = array > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = boolean > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = boxed number > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = boxed string > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = empty string > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = fraction > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = function > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = huge > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = negative > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = null > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = object > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = string > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > enabled = undefined > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = -0 > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = -Infinity > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = Infinity > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = NaN > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = array > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = boolean > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = boxed number > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = boxed string > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = empty string > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = fraction > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = function > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = huge > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = negative > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = null > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = object > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = string > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "4",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > model = undefined > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > payload array carrying the fields > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > payload boxed string > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > payload boxed true > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > payload class instance > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > payload empty array > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > payload empty object > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > payload extra key > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > payload function > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > payload null > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > payload number > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > payload string > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > payload undefined > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > normalizeAutocompleteSettings > payload valid > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > array > verdict 1`] = `
+{
+  "ok": false,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > array reply > verdict 1`] = `
+{
+  "ok": false,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > array with field > verdict 1`] = `
+{
+  "ok": false,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > boxed reply > verdict 1`] = `
+{
+  "ok": false,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > inherited-looking key > verdict 1`] = `
+{
+  "ok": false,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > null > verdict 1`] = `
+{
+  "ok": false,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > null field > verdict 1`] = `
+{
+  "ok": false,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > number > verdict 1`] = `
+{
+  "ok": false,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > number reply > verdict 1`] = `
+{
+  "ok": false,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > numeric field > verdict 1`] = `
+{
+  "ok": false,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > object > verdict 1`] = `
+{
+  "ok": true,
+  "suggestion": " tail",
+}
+`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > sanitize array > verdict 1`] = `null`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > sanitize boxed string > verdict 1`] = `null`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > sanitize null > verdict 1`] = `null`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > sanitize number > verdict 1`] = `null`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > sanitize string > verdict 1`] = `" tail"`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > sanitize undefined > verdict 1`] = `null`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > string > verdict 1`] = `
+{
+  "ok": false,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > parseAutocompleteReply and sanitizeSuggestion > undefined reply > verdict 1`] = `
+{
+  "ok": false,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = -0 > verdict 1`] = `
+{
+  "reply": {
+    "success": true,
+  },
+  "written": {
+    "dailyCostCapUsd": -0,
+    "enabled": true,
+    "model": "m",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = -Infinity > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = Infinity > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = NaN > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = array > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = boolean > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = boxed number > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = boxed string > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = empty string > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = fraction > verdict 1`] = `
+{
+  "reply": {
+    "success": true,
+  },
+  "written": {
+    "dailyCostCapUsd": 2.7,
+    "enabled": true,
+    "model": "m",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = function > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = huge > verdict 1`] = `
+{
+  "reply": {
+    "success": true,
+  },
+  "written": {
+    "dailyCostCapUsd": 1e+308,
+    "enabled": true,
+    "model": "m",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = negative > verdict 1`] = `
+{
+  "reply": {
+    "success": true,
+  },
+  "written": {
+    "dailyCostCapUsd": -3,
+    "enabled": true,
+    "model": "m",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = null > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = object > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = string > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > dailyCostCapUsd = undefined > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = -0 > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = -Infinity > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = Infinity > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = NaN > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = array > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = boolean > verdict 1`] = `
+{
+  "reply": {
+    "success": true,
+  },
+  "written": {
+    "dailyCostCapUsd": 5,
+    "enabled": true,
+    "model": "m",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = boxed number > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = boxed string > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = empty string > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = fraction > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = function > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = huge > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = negative > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = null > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = object > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = string > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > enabled = undefined > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = -0 > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = -Infinity > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = Infinity > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = NaN > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = array > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = boolean > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = boxed number > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = boxed string > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = empty string > verdict 1`] = `
+{
+  "reply": {
+    "success": true,
+  },
+  "written": {
+    "dailyCostCapUsd": 5,
+    "enabled": true,
+    "model": "",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = fraction > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = function > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = huge > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = negative > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = null > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = object > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = string > verdict 1`] = `
+{
+  "reply": {
+    "success": true,
+  },
+  "written": {
+    "dailyCostCapUsd": 5,
+    "enabled": true,
+    "model": "4",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > model = undefined > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > payload array carrying the fields > verdict 1`] = `
+{
+  "reply": {
+    "success": true,
+  },
+  "written": [],
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > payload boxed string > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > payload class instance > verdict 1`] = `
+{
+  "reply": {
+    "success": true,
+  },
+  "written": Box {
+    "dailyCostCapUsd": 5,
+    "enabled": true,
+    "model": "m",
+    "prefix": "hello there",
+    "prefixLength": 3,
+    "reason": "composing",
+    "requestId": 4,
+    "suppressedSincePrevious": 1,
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > payload empty array > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > payload empty object > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > payload extra key > verdict 1`] = `
+{
+  "reply": {
+    "success": true,
+  },
+  "written": {
+    "dailyCostCapUsd": 5,
+    "enabled": true,
+    "extra": "x",
+    "model": "m",
+  },
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > payload function > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > payload missing key > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > payload null > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > payload number > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > payload string > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > payload undefined > verdict 1`] = `
+{
+  "reply": {
+    "error": "Malformed autocomplete settings",
+    "success": false,
+  },
+  "written": undefined,
+}
+`;
+
+exports[`autocomplete main boundary equivalence > set-autocomplete-settings > payload valid > verdict 1`] = `
+{
+  "reply": {
+    "success": true,
+  },
+  "written": {
+    "dailyCostCapUsd": 5,
+    "enabled": true,
+    "model": "m",
+  },
+}
+`;

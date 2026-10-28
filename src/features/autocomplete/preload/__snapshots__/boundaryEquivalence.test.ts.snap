@@ -1,0 +1,1064 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: -Infinity cap > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: Infinity cap > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: NaN cap > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: array > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: array carrying the fields > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: boxed cap > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: boxed enabled > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: boxed model > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: class instance > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "openai::gpt-5",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: extra key > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "extra": 1,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: function > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: missing enabled > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: negative zero cap > verdict 1`] = `
+{
+  "dailyCostCapUsd": -0,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: null > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: string > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: undefined > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: undefined enabled > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": false,
+  "model": "",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteSettings: valid > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "enabled": true,
+  "model": "m",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: -0 in a rollup > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+  "month": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "today": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": -0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: Infinity cap > verdict 1`] = `
+{
+  "dailyCostCapUsd": Infinity,
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+  "month": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "today": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: Infinity in a rollup > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+  "month": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": Infinity,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "today": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: NaN cap > verdict 1`] = `
+{
+  "dailyCostCapUsd": NaN,
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+  "month": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "today": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: NaN in a rollup > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+  "month": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "today": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": NaN,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: array > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+  "month": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "today": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: array rollup > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+  "month": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "today": [],
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: bad day > verdict 1`] = `
+{
+  "dailyCostCapUsd": 0,
+  "days": [],
+  "month": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "today": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: boxed cap > verdict 1`] = `
+{
+  "dailyCostCapUsd": 0,
+  "days": [],
+  "month": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "today": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: boxed date > verdict 1`] = `
+{
+  "dailyCostCapUsd": 0,
+  "days": [],
+  "month": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "today": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: class rollup > verdict 1`] = `
+{
+  "dailyCostCapUsd": 0,
+  "days": [],
+  "month": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "today": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: days not an array > verdict 1`] = `
+{
+  "dailyCostCapUsd": 0,
+  "days": [],
+  "month": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "today": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: empty days > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "days": [],
+  "month": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "today": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: extra key > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+  "extra": 1,
+  "month": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "today": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: extra key in a rollup > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+  "month": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "today": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "extra": "x",
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: missing counter in a rollup > verdict 1`] = `
+{
+  "dailyCostCapUsd": 0,
+  "days": [],
+  "month": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "today": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: missing today > verdict 1`] = `
+{
+  "dailyCostCapUsd": 0,
+  "days": [],
+  "month": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "today": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: null > verdict 1`] = `
+{
+  "dailyCostCapUsd": 0,
+  "days": [],
+  "month": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "today": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: string > verdict 1`] = `
+{
+  "dailyCostCapUsd": 0,
+  "days": [],
+  "month": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "today": {
+    "completionTokens": 0,
+    "date": "",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: valid > verdict 1`] = `
+{
+  "dailyCostCapUsd": 5,
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+  "month": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "today": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: -0 id > verdict 1`] = `
+{
+  "requestId": -0,
+  "suggestion": "x",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: Infinity id > verdict 1`] = `
+{
+  "requestId": Infinity,
+  "suggestion": "x",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: NaN id > verdict 1`] = `
+{
+  "requestId": NaN,
+  "suggestion": "x",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: array > verdict 1`] = `
+{
+  "requestId": 3,
+  "suggestion": "x",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: boxed id > verdict 1`] = `
+{
+  "requestId": 9,
+  "suggestion": null,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: boxed suggestion > verdict 1`] = `
+{
+  "requestId": 9,
+  "suggestion": null,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: extra key > verdict 1`] = `
+{
+  "extra": true,
+  "requestId": 3,
+  "suggestion": "x",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: function > verdict 1`] = `
+{
+  "requestId": 9,
+  "suggestion": null,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: missing id > verdict 1`] = `
+{
+  "requestId": 9,
+  "suggestion": null,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: missing suggestion > verdict 1`] = `
+{
+  "requestId": 9,
+  "suggestion": null,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: null > verdict 1`] = `
+{
+  "requestId": 9,
+  "suggestion": null,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: null suggestion > verdict 1`] = `
+{
+  "requestId": 3,
+  "suggestion": null,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: numeric suggestion > verdict 1`] = `
+{
+  "requestId": 9,
+  "suggestion": null,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: string > verdict 1`] = `
+{
+  "requestId": 9,
+  "suggestion": null,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: undefined suggestion > verdict 1`] = `
+{
+  "requestId": 9,
+  "suggestion": null,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > requestAutocompleteSuggestion: valid > verdict 1`] = `
+{
+  "requestId": 3,
+  "suggestion": " tail",
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: -Infinity cap > verdict 1`] = `
+{
+  "result": {
+    "success": false,
+  },
+  "sent": false,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: Infinity cap > verdict 1`] = `
+{
+  "result": {
+    "success": false,
+  },
+  "sent": false,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: NaN cap > verdict 1`] = `
+{
+  "result": {
+    "success": false,
+  },
+  "sent": false,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: array > verdict 1`] = `
+{
+  "result": {
+    "success": false,
+  },
+  "sent": false,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: array carrying the fields > verdict 1`] = `
+{
+  "result": {
+    "success": true,
+  },
+  "sent": true,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: boxed cap > verdict 1`] = `
+{
+  "result": {
+    "success": false,
+  },
+  "sent": false,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: boxed enabled > verdict 1`] = `
+{
+  "result": {
+    "success": false,
+  },
+  "sent": false,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: boxed model > verdict 1`] = `
+{
+  "result": {
+    "success": false,
+  },
+  "sent": false,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: class instance > verdict 1`] = `
+{
+  "result": {
+    "success": true,
+  },
+  "sent": true,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: extra key > verdict 1`] = `
+{
+  "result": {
+    "success": true,
+  },
+  "sent": true,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: function > verdict 1`] = `
+{
+  "result": {
+    "success": false,
+  },
+  "sent": false,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: missing enabled > verdict 1`] = `
+{
+  "result": {
+    "success": false,
+  },
+  "sent": false,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: negative zero cap > verdict 1`] = `
+{
+  "result": {
+    "success": true,
+  },
+  "sent": true,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: null > verdict 1`] = `
+{
+  "result": {
+    "success": false,
+  },
+  "sent": false,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: string > verdict 1`] = `
+{
+  "result": {
+    "success": false,
+  },
+  "sent": false,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: undefined > verdict 1`] = `
+{
+  "result": {
+    "success": false,
+  },
+  "sent": true,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: undefined enabled > verdict 1`] = `
+{
+  "result": {
+    "success": false,
+  },
+  "sent": false,
+}
+`;
+
+exports[`autocomplete preload boundary equivalence > setAutocompleteSettings: valid > verdict 1`] = `
+{
+  "result": {
+    "success": true,
+  },
+  "sent": true,
+}
+`;
