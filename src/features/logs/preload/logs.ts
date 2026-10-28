@@ -45,12 +45,16 @@ const createLogsFeature = () => ({
     const levels = normalizeLogLevels(request.levels);
     const payload: LogQueryRequest = {
       limit: request.limit ?? LOG_QUERY_PAGE_SIZE,
-      ...(request.beforeTimestamp
-        ? { beforeTimestamp: request.beforeTimestamp }
-        : {}),
-      ...(levels.length > 0 ? { levels } : {}),
-      ...(request.search !== undefined ? { search: request.search } : {}),
     };
+    if (request.beforeTimestamp) {
+      payload.beforeTimestamp = request.beforeTimestamp;
+    }
+    if (levels.length > 0) {
+      payload.levels = levels;
+    }
+    if (request.search !== undefined) {
+      payload.search = request.search;
+    }
     const result: unknown = await ipcRenderer.invoke("logs:query", payload);
     if (isLogQueryResult(result)) {
       return result;

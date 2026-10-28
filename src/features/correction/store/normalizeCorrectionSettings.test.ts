@@ -846,6 +846,24 @@ describe("normalizeCorrectionSettings — legacy standalone-Translate migration"
 
 const TRANSLATE_DEFAULT_HOTKEY = "Control+Shift+T";
 
+/** A raw value as electron-store hands it to `normalizeCorrectionSettings`. */
+type StoredJson =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | readonly StoredJson[]
+  | StoredRecord;
+
+type StoredRecord = { readonly [key: string]: StoredJson };
+
+type StoredCorrectionSettings = {
+  presets: readonly StoredJson[];
+  selectedPresetId: string;
+  combos?: StoredJson;
+};
+
 const storedCorrection = {
   id: "correction",
   name: "Correction",
@@ -2359,14 +2377,18 @@ describe("normalizeCorrectionSettings — preconditions the hotkey guard rests o
 });
 
 describe("normalizeCorrectionSettings — the built-in Perfect prompt combo", () => {
-  const comboFor = (stored?: unknown) =>
-    combosOf(
-      normalizeCorrectionSettings({
-        presets: [storedCorrection],
-        selectedPresetId: "correction",
-        ...(stored === undefined ? {} : { combos: stored }),
-      }),
-    ).find((combo) => combo.id === DEFAULT_PERFECT_PROMPT_COMBO_ID);
+  const comboFor = (stored?: StoredJson) => {
+    const settings: StoredCorrectionSettings = {
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+    };
+    if (stored !== undefined) {
+      settings.combos = stored;
+    }
+    return combosOf(normalizeCorrectionSettings(settings)).find(
+      (combo) => combo.id === DEFAULT_PERFECT_PROMPT_COMBO_ID,
+    );
+  };
 
   it("materializes into a profile that predates combos entirely", () => {
     // The whole reason the merge exists: an existing profile stores
