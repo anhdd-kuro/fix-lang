@@ -91,7 +91,8 @@
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
     "undici": "8.10.0",
-    "uuid": "14.0.2"
+    "uuid": "14.0.2",
+    "zod": "4.6.7"
   },
   "build": {
     "appId": "com.fixlang.app",
