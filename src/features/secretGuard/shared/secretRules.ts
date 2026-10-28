@@ -49,6 +49,9 @@ export type SecretRuleContext = {
   groups: Record<string, string | undefined>;
 };
 
+/** Extra characters folded into a reported span on each side of the value. */
+export type SpanWidening = { before: number; after: number };
+
 export type SecretRule = {
   id: SecretRuleId;
   /** Always global; cloned per scan so `lastIndex` can never leak between scans. */
@@ -81,7 +84,7 @@ export type SecretRule = {
    * `spanWidening`. It runs on accepted matches BEFORE `maskable`, which reads
    * the character after the widened end.
    */
-  widen?: (context: SecretRuleContext) => { before: number; after: number };
+  widen?: (context: SecretRuleContext) => SpanWidening;
   /** Rules the user must switch on explicitly. */
   optIn?: boolean;
 };
@@ -351,7 +354,7 @@ const LINE_BREAK = /[\r\n\u2028\u2029]/;
  * password itself, and the last such table still reported 12 truncations per
  * 100 000 as fully maskable.
  */
-const spanWidening = (quote: string): { before: number; after: number } => ({
+const spanWidening = (quote: string): SpanWidening => ({
   before: quote.length,
   after: quote.length,
 });

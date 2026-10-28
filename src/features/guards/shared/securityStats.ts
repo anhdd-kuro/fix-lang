@@ -34,10 +34,10 @@ export const SECURITY_STATS_RANGES: readonly SecurityStatsRange[] = [
   "7d",
 ];
 
-const RANGE_DAYS: Record<Exclude<SecurityStatsRange, "all">, number> = {
+const RANGE_DAYS = {
   "30d": 30,
   "7d": 7,
-};
+} satisfies Record<Exclude<SecurityStatsRange, "all">, number>;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
