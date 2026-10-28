@@ -117,6 +117,7 @@ import type { BrowserWindow } from "electron";
 import type { Mock } from "vitest";
 import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
 import type { PresetOutputMode } from "~/features/correction/shared/presetOutputMode";
+import type { CorrectionPreset } from "~/features/providers/store/apiStore";
 
 const HOTKEY = "Control+Shift+F";
 
@@ -138,21 +139,20 @@ const runPolishHotkey = async ({
   globalMode: CorrectionOutputMode;
 }) => {
   (outputModeStore.getCorrectionOutputMode as Mock).mockReturnValue(globalMode);
+  const preset: CorrectionPreset = {
+    id: "correction-default",
+    name: "Correction",
+    hotkey: HOTKEY,
+    systemPrompt: "Fix grammar.",
+    model: "",
+    isBuiltIn: true,
+  };
+  if (presetOutputMode) preset.outputMode = presetOutputMode;
   (getProfileSetting as Mock).mockImplementation((key: string) =>
     key === "models"
       ? []
       : {
-          presets: [
-            {
-              id: "correction-default",
-              name: "Correction",
-              hotkey: HOTKEY,
-              systemPrompt: "Fix grammar.",
-              model: "",
-              isBuiltIn: true,
-              ...(presetOutputMode ? { outputMode: presetOutputMode } : {}),
-            },
-          ],
+          presets: [preset],
           selectedPresetId: "correction-default",
         },
   );

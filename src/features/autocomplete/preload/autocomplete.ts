@@ -135,14 +135,13 @@ export const autocompleteFeature = {
    * future field carrying typed content could arrive from.
    */
   reportAutocompleteSkip: (report: AutocompleteSkipReport): void => {
-    ipcRenderer.send(AUTOCOMPLETE_SKIP_CHANNEL, {
+    const payload: AutocompleteSkipReport = {
       reason: report.reason,
       prefixLength: report.prefixLength,
       suppressedSincePrevious: report.suppressedSincePrevious,
-      ...(report.requestId === undefined
-        ? {}
-        : { requestId: report.requestId }),
-    });
+    };
+    if (report.requestId !== undefined) payload.requestId = report.requestId;
+    ipcRenderer.send(AUTOCOMPLETE_SKIP_CHANNEL, payload);
   },
 
   /** A malformed or rejected reply falls back to an empty, honestly-zeroed snapshot. */

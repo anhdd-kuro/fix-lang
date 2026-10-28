@@ -74,6 +74,7 @@ import {
 import { showAskInputWindow } from "../webViewWindows/askInputWindow";
 import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWindow";
 import type { BrowserWindow } from "electron";
+import type { LogContext } from "~/features/logs/shared/logging";
 import type {
   ComboPreset,
   ComboStep,
@@ -277,23 +278,22 @@ const handleComboError = (error: unknown, combo: ComboPreset): void => {
   }
 
   if (error instanceof ComboStepError) {
-    logger.error("correction.hotkey", "Combo step failed", {
+    const stepFailureContext: LogContext = {
       comboId: combo.id,
       stepIndex: error.stepIndex,
       code: error.code,
-      // Present only for `step-failed`, where the real reason (an API error,
-      // an auth failure, a network drop) is the wrapped cause — the notification
-      // deliberately shows only the step, so the diagnosis has to live here.
-      // Spread rather than an `undefined` value: `LogValue` has no undefined.
-      ...(error.cause === undefined
-        ? {}
-        : {
-            cause:
-              error.cause instanceof Error
-                ? error.cause.message
-                : String(error.cause),
-          }),
-    });
+    };
+    // Present only for `step-failed`, where the real reason (an API error,
+    // an auth failure, a network drop) is the wrapped cause — the notification
+    // deliberately shows only the step, so the diagnosis has to live here.
+    // Omitted rather than `undefined`: `LogValue` has no undefined.
+    if (error.cause !== undefined) {
+      stepFailureContext.cause =
+        error.cause instanceof Error
+          ? error.cause.message
+          : String(error.cause);
+    }
+    logger.error("correction.hotkey", "Combo step failed", stepFailureContext);
     new Notification(
       buildComboStepFailedNotification({
         stepPosition: error.stepIndex + 1,

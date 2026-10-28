@@ -792,15 +792,14 @@ const logUnparseableReply = (nowMs: number, context: LogContext): void => {
  * The error's CLASS is the diagnostic ("AccessDeniedException",
  * "RateLimitError", "AuthenticationError"); its prose is the leak.
  */
-const describeFailure = (
-  error: unknown,
-): { errorName: string; status?: number } => {
+type FailureDescription = { errorName: string; status?: number };
+
+const describeFailure = (error: unknown): FailureDescription => {
   if (!(error instanceof Error)) return { errorName: typeof error };
   const status = (error as { status?: unknown }).status;
-  return {
-    errorName: error.name,
-    ...(typeof status === "number" ? { status } : {}),
-  };
+  const failure: FailureDescription = { errorName: error.name };
+  if (typeof status === "number") failure.status = status;
+  return failure;
 };
 
 /**
@@ -1220,13 +1219,15 @@ export const requestAutocompleteSuggestion = async (
     // `"[REDACTED]"` with no error at all (the `selectionPoll` trap). The source
     // is omitted rather than reported as a null when nothing was attached, so a
     // reader never has to decide what a source with no context means.
-    logger.debug("autocomplete", "Suggestion resolved", {
+    const resolvedContext: LogContext = {
       prefixLength: prefix.length,
       suffixLength: suffix.length,
       contextLength,
-      ...(contextLength > 0 && askContext
-        ? { contextSource: askContext.source }
-        : {}),
+    };
+    if (contextLength > 0 && askContext) {
+      resolvedContext.contextSource = askContext.source;
+    }
+    Object.assign(resolvedContext, {
       // The environment block's SIZE only. Its lines name the user's presets
       // and state the minute they pressed the hotkey, and these lines are
       // copyable and exportable from the Logs tab. `environmentLength` also
@@ -1237,7 +1238,8 @@ export const requestAutocompleteSuggestion = async (
       provider: response.provider,
       latencyMs,
       hasSuggestion: suggestion !== null,
-    });
+    } satisfies LogContext);
+    logger.debug("autocomplete", "Suggestion resolved", resolvedContext);
 
     return { requestId, suggestion };
   } catch (error) {

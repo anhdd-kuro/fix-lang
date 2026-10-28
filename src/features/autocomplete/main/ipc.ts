@@ -91,17 +91,20 @@ const toSkipReport = (raw: unknown): AutocompleteSkipReport | null => {
   if (typeof raw !== "object" || raw === null) return null;
   const record = raw as Record<string, unknown>;
   if (!isAutocompleteRendererSkipReason(record.reason)) return null;
-  return {
+  const report: AutocompleteSkipReport = {
     reason: record.reason,
     prefixLength: toCount(record.prefixLength),
     suppressedSincePrevious: toCount(record.suppressedSincePrevious),
-    // Never logged, only matched. An unmatched id yields no line at all, so a
-    // junk value costs a dropped report rather than a fabricated one.
-    ...(typeof record.requestId === "number" &&
-    Number.isFinite(record.requestId)
-      ? { requestId: record.requestId }
-      : {}),
   };
+  // Never logged, only matched. An unmatched id yields no line at all, so a
+  // junk value costs a dropped report rather than a fabricated one.
+  if (
+    typeof record.requestId === "number" &&
+    Number.isFinite(record.requestId)
+  ) {
+    report.requestId = record.requestId;
+  }
+  return report;
 };
 
 /** The two suppressed counts every renderer-reported line carries. */

@@ -40,6 +40,7 @@ import { logger } from "~/main/logging/logService";
 import { notifyRequestError } from "~/main/notifications/error";
 import type { AIRequestOptions, CoreMessage } from "./requestTypes";
 import type { HistorySessionData } from "~/features/history/shared/historySession";
+import type { LogContext } from "~/features/logs/shared/logging";
 import type { TKey } from "~/features/i18n/shared/translate";
 import type { Model, ProviderId } from "~/features/providers/store/apiStore";
 
@@ -148,27 +149,26 @@ const logModelFetch = (
     error?: string;
   },
 ): void => {
-  const context = {
+  const hasKey = apiKey.trim().length > 0;
+  const context: LogContext = {
     provider,
-    keyPresent: apiKey.trim().length > 0,
-    ...(apiKey.trim()
-      ? { [KEY_FAMILY_LOG_FIELD]: describeKeyFamily(apiKey) }
-      : {}),
-    ...(apiKey.trim() && findKeyFamilyMismatch(provider, "api", apiKey)
-      ? { keyBelongsToAnotherProvider: true }
-      : {}),
-    ...(outcome.liveFetch !== undefined
-      ? { liveFetch: outcome.liveFetch }
-      : {}),
-    ...(outcome.modelCount !== undefined
-      ? { modelCount: outcome.modelCount }
-      : {}),
-    // Two passes before this text is persisted: the exact key is removed here,
-    // and `redactLogMessage` strips masked echoes and any other `sk-…` form.
-    ...(outcome.error !== undefined
-      ? { failure: withoutKeyEcho(outcome.error, apiKey) }
-      : {}),
+    keyPresent: hasKey,
   };
+  if (hasKey) {
+    context[KEY_FAMILY_LOG_FIELD] = describeKeyFamily(apiKey);
+    if (findKeyFamilyMismatch(provider, "api", apiKey)) {
+      context.keyBelongsToAnotherProvider = true;
+    }
+  }
+  if (outcome.liveFetch !== undefined) context.liveFetch = outcome.liveFetch;
+  if (outcome.modelCount !== undefined) {
+    context.modelCount = outcome.modelCount;
+  }
+  // Two passes before this text is persisted: the exact key is removed here,
+  // and `redactLogMessage` strips masked echoes and any other `sk-…` form.
+  if (outcome.error !== undefined) {
+    context.failure = withoutKeyEcho(outcome.error, apiKey);
+  }
 
   if (outcome.ok) {
     logger.debug("provider.models", "Model list fetched", context);

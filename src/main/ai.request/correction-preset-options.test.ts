@@ -279,14 +279,13 @@ describe("fixGrammar — Caveman intensity composed into the system prompt", () 
   };
 
   const setupCaveman = (extraOptions?: Record<string, string>) => {
-    setupMockSettings(
-      makePreset({
-        id: DEFAULT_CAVEMAN_PRESET_ID,
-        name: "Caveman",
-        systemPrompt: CAVEMAN_BASE_PROMPT,
-        ...(extraOptions ? { extraOptions } : {}),
-      }),
-    );
+    const overrides: Partial<CorrectionPreset> = {
+      id: DEFAULT_CAVEMAN_PRESET_ID,
+      name: "Caveman",
+      systemPrompt: CAVEMAN_BASE_PROMPT,
+    };
+    if (extraOptions) overrides.extraOptions = extraOptions;
+    setupMockSettings(makePreset(overrides));
   };
 
   const systemPromptOfLastCall = (): string =>

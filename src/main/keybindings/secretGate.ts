@@ -80,6 +80,7 @@ import {
 } from "~/features/secretGuard/shared/maskSecrets";
 import { logger } from "~/main/logging/logService";
 import { confirmSecretSend } from "~/main/notifications/secretGuardDialog";
+import type { LogContext } from "~/features/logs/shared/logging";
 import type { SecretMasking } from "~/features/secretGuard/shared/maskSecrets";
 import type {
   SecretGuardMode,
@@ -250,14 +251,15 @@ const confirmSend = async ({
   );
   const gateDecision = proceed ? "confirmed" : "declined";
 
-  logger.info(LOG_SCOPE, `Secret guard gate at ${site}`, {
+  const gateContext: LogContext = {
     guardMode,
     appliedMode: "confirm",
     gateDecision,
     matchCount,
     ruleIds: [...ruleIds],
-    ...(reason === undefined ? {} : { reason }),
-  });
+  };
+  if (reason !== undefined) gateContext.reason = reason;
+  logger.info(LOG_SCOPE, `Secret guard gate at ${site}`, gateContext);
 
   return proceed
     ? {

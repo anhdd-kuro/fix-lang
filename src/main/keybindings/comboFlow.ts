@@ -469,16 +469,15 @@ export const runCombo = async (
     // Ask path passes no `TransformContext`, and a first-step Ask that did
     // would be answering under a source-app hint the same preset never sees
     // when run by its own hotkey.
-    const context: TransformContext | undefined = resolved.preset.requiresInput
-      ? undefined
-      : index === 0
-        ? {
-            activeAppName,
-            ...(userMetadata ? { userMetadata } : {}),
-          }
-        : userMetadata
-          ? { userMetadata }
-          : undefined;
+    let context: TransformContext | undefined;
+    if (!resolved.preset.requiresInput) {
+      if (index === 0) {
+        context = { activeAppName };
+        if (userMetadata) context.userMetadata = userMetadata;
+      } else if (userMetadata) {
+        context = { userMetadata };
+      }
+    }
 
     const stepTimeoutMs = Math.min(COMBO_STEP_TIMEOUT_MS, remainingBudgetMs);
     let result: FixGrammarResult;
