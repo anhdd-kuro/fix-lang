@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 import {
   BUNDLED_UNDICI_BINDING,
@@ -69,4 +71,27 @@ describe("inlineUndiciRequirePlugin", () => {
   it("runs before other plugins", () => {
     expect(inlineUndiciRequirePlugin().enforce).toBe("pre");
   });
+});
+
+/**
+ * Regression guard for dependency bumps: every installed dist that loads
+ * undici through createRequire must still match the rewrite, or the next
+ * build ships a bare `undici` require (caught later by `check:bundle`).
+ */
+describe("installed dependencies that createRequire undici", () => {
+  const resolveFromRepo = createRequire(import.meta.url);
+  const LOOSE_UNDICI_CREATE_REQUIRE = /createRequire\([\s\S]{0,120}?\)\(\s*["']undici["']\s*\)/;
+
+  it.each(["@ai-sdk/provider-utils", "@openrouter/ai-sdk-provider"])(
+    "%s is fully rewritten",
+    (specifier) => {
+      const code = readFileSync(resolveFromRepo.resolve(specifier), "utf8");
+      expect(code).toMatch(LOOSE_UNDICI_CREATE_REQUIRE);
+
+      const rewritten = inlineUndiciCreateRequire(code);
+
+      expect(rewritten).not.toBeNull();
+      expect(rewritten).not.toMatch(LOOSE_UNDICI_CREATE_REQUIRE);
+    },
+  );
 });

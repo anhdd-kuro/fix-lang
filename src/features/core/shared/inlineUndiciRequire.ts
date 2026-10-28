@@ -9,8 +9,11 @@
  * so the bare `undici` survives into `out/main`, `check:bundle` fails, and a
  * packaged app (no `node_modules`) would throw `MODULE_NOT_FOUND` on the first
  * URL download. Swapping the call for a static namespace import makes Rollup
- * bundle the same `undici` package `httpKeepAlive` already ships — `Agent` and
- * `fetch` still come from one package, which is what the dependency needs.
+ * bundle the `undici` that module resolves to — for provider-utils that is its
+ * own nested `undici` 7.x, not the app's 8.x, so `out/main` carries two copies
+ * (~0.9 MB). `Agent` and `fetch` still come from one package, which is what the
+ * dependency needs. FixLang sends text-only prompts, so today no request
+ * reaches this download path; the rewrite keeps it working if one ever does.
  *
  * Pure and Node-only: imported by `electron.vite.config.ts`, never by app code.
  */

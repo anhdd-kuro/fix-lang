@@ -53,6 +53,20 @@ Symptom: **empty white screen** (main crashes before UI). Renderer is fine; main
 
 Renderer stays ESM. Do **not** switch main/preload back to ESM without verifying Electron named-export support.
 
+### Electron 44+ — main-process `clipboard` is async
+
+Electron 44/45 aligned `clipboard` with the W3C API: `readText()` returns `Promise<string>`, `writeText()` returns `Promise<void>`, in the **main** process too. Selection read, paste-back and clipboard restore (`src/utils.ts`, `clipboardChangeTracker.ts`, `ui/main/ui.ts`) all call them synchronously.
+
+Tests stay green — clipboard is mocked sync. Only `bunx tsc --noEmit` shows it (~19 new errors). Held on 43.x until that flow is ported to async and checked by hand in `bun run dev` (copy timing, paste, restore).
+
+### electron-vite 6 — externalizes deps by default
+
+v6 defaults `build.externalizeDeps` on → `out/` gets bare `require("electron-store")`, `openai`, … → `check:bundle` fails (packaged app would `MODULE_NOT_FOUND`). Keep `externalizeDeps: false` on main + preload.
+
+### AI SDK undici — `inlineUndiciRequirePlugin`
+
+`@ai-sdk/provider-utils` ≥ 5.0.15 and `@openrouter/ai-sdk-provider` ≥ 3.1 do `createRequire(...)("undici")`. Main build rewrites it to a static import (`src/features/core/shared/inlineUndiciRequire.ts`). A bump that changes the call shape fails `inlineUndiciRequire.test.ts` (scans the installed dist files) and `check:bundle` — widen the regex, never `ALLOWLIST`.
+
 ### AI SDK majors — bump as a pair
 
 `ai` and `@openrouter/ai-sdk-provider` versions track each other. Bump together. Touch point: `src/main/ai.request/shared.ts` (`generateText`, `createOpenRouter`).
