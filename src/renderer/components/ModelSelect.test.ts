@@ -1,6 +1,6 @@
 // No `@testing-library/react` is installed, so these render the real component
 // via `react-dom/client` + `act`, as `SettingUpdates.test.ts` does.
-import { act, createElement, type FormEvent } from "react";
+import { act, createElement, type ComponentProps, type FormEvent } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { messageLabel } from "~/features/i18n/shared/message";
@@ -190,10 +190,12 @@ describe("ModelSelect", () => {
     };
 
     const mount = async (
-      props: Record<string, unknown>,
+      props: ComponentProps<typeof ModelSelect>,
       overrides: {
         models?: unknown[];
-        states?: Record<string, unknown>;
+        states?: Partial<
+          Awaited<ReturnType<Window["electronAPI"]["getProviderStates"]>>
+        >;
         featureModel?: string;
         selectedModel?: string;
       } = {},

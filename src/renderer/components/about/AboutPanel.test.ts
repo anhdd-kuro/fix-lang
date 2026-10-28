@@ -13,7 +13,7 @@
  */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import { createTranslator } from "~/features/i18n/shared/translate";
 import { AboutPanel } from "./AboutPanel";
 import { I18nProvider } from "../../i18n/I18nProvider";
@@ -38,7 +38,8 @@ const click = async (element: Element) => {
   });
 };
 
-type ApiOverrides = Partial<Record<string, unknown>>;
+/** Every key is a real `ElectronAPI` member, so a misspelt override fails to compile. */
+type ApiOverrides = { [K in keyof Window["electronAPI"]]?: Mock };
 
 const buildApi = (overrides: ApiOverrides = {}) => ({
   // User guide reads

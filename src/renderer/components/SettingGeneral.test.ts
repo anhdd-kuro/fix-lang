@@ -110,6 +110,11 @@ const connectButtonNear = (
 
 type ResetResult = { success: boolean; error?: Label };
 
+/** Every key is a real `ElectronAPI` member, so a misspelt override fails to compile. */
+type ElectronAPIOverrides = {
+  [K in keyof Window["electronAPI"]]?: ReturnType<typeof vi.fn>;
+};
+
 type SettingGeneralApi = {
   getProviderStates: ReturnType<typeof vi.fn>;
   connectProvider: ReturnType<typeof vi.fn>;
@@ -149,7 +154,13 @@ const type = async (input: HTMLInputElement, value: string) => {
   });
 };
 
-const providerState = (overrides: Record<string, unknown> = {}) => ({
+type ProviderStates = Awaited<
+  ReturnType<Window["electronAPI"]["getProviderStates"]>
+>;
+
+const providerState = (
+  overrides: Partial<ProviderStates[keyof ProviderStates]> = {},
+) => ({
   connected: false,
   configured: false,
   apiKeySet: false,
@@ -433,7 +444,7 @@ describe("SettingGeneral", () => {
 
   const render = async (
     resetResult: ResetResult,
-    states: Record<string, unknown> = {
+    states: Partial<ProviderStates> = {
       openai: providerState({
         connected: true,
         configured: true,
@@ -443,7 +454,7 @@ describe("SettingGeneral", () => {
       openrouter: providerState(),
       ollama: providerState(),
     },
-    apiOverrides: Record<string, unknown> = {},
+    apiOverrides: ElectronAPIOverrides = {},
   ) => {
     api = {
       // Set on every render, not in a `beforeEach`: `vi.clearAllMocks()`

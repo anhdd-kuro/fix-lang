@@ -6,7 +6,10 @@ import { Button } from "./Button";
 import CopyButton from "./CopyButton";
 import { Spinner } from "./Spinner";
 import { useI18n } from "../i18n/useI18n";
-import type { UpdateState } from "~/features/update/shared/update";
+import type {
+  UpdateActionResult,
+  UpdateState,
+} from "~/features/update/shared/update";
 
 /** Author GitHub profile — opened from the About tab header icon. */
 const GITHUB_PROFILE_URL = "https://github.com/anhdd-kuro";
@@ -204,7 +207,7 @@ export const SettingUpdates = () => {
   }, []);
 
   const run = async (
-    request: () => Promise<unknown>,
+    request: () => Promise<UpdateState | UpdateActionResult>,
     failureMessage: Message,
   ) => {
     if (actionPending) return;
