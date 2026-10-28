@@ -7,7 +7,10 @@ import CopyButton from "./CopyButton";
 import { Spinner } from "./Spinner";
 import { useI18n } from "../i18n/useI18n";
 import type { PrereleaseState } from "~/features/update/shared/prerelease";
-import type { UpdateState } from "~/features/update/shared/update";
+import type {
+  UpdateActionResult,
+  UpdateState,
+} from "~/features/update/shared/update";
 
 const GITHUB_PROFILE_URL = "https://github.com/anhdd-kuro";
 
@@ -181,6 +184,8 @@ const initialPrereleaseState: PrereleaseState = {
 
 const updateApi = () => window.electronAPI;
 
+/** A resolved action that main reported as failed (`{ success: false }`). */
+
 const BYTES_PER_MEGABYTE = 1024 * 1024;
 
 /** Pre-formatted for `t()`, which would otherwise re-format a bare number. */
@@ -254,21 +259,21 @@ export const SettingUpdates = () => {
     let receivedLiveState = false;
 
     // Subscribe before fetching so a late snapshot cannot overwrite a newer event.
-    const unsubscribe = api.onUpdateStateChanged((next) => {
+    const unsubscribe = api.onUpdateStateChanged((nextState) => {
       receivedLiveState = true;
       if (mounted) {
         setActionPending(false);
         setMountLoadError(null);
-        setState(next);
+        setState(nextState);
       }
     });
 
     void api
       .getUpdateState()
-      .then((next) => {
+      .then((nextState) => {
         if (mounted && !receivedLiveState) {
           setMountLoadError(null);
-          setState(next);
+          setState(nextState);
         }
       })
       .catch(() => {
@@ -335,7 +340,7 @@ export const SettingUpdates = () => {
   }, []);
 
   const run = async (
-    request: () => Promise<unknown>,
+    request: () => Promise<UpdateState | UpdateActionResult>,
     failureMessage: Message,
     /** True for the one stable request that claims main's `installing` flag. */
     isInstallRequest = false,

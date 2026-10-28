@@ -28,6 +28,8 @@ import {
 } from "./service";
 import type { AskContextSource } from "~/features/ask/shared/ask";
 import type { LogContext } from "~/features/logs/shared/logging";
+import type { ProviderEndpointMap } from "~/features/providers/store/apiStore";
+import type { AutocompleteRequest } from "./service";
 
 const {
   makeAIRequestMock,
@@ -57,7 +59,10 @@ const {
   // Defaults to the shipped default (`confirm`), so every test in this file
   // runs with the scan ARMED rather than with the one setting that disables it
   // — a suite that silently tested `off` would prove nothing about the guard.
-  getSecretGuardSettingsMock: vi.fn(() => ({ mode: "confirm", highEntropyRule: false })),
+  getSecretGuardSettingsMock: vi.fn(() => ({
+    mode: "confirm",
+    highEntropyRule: false,
+  })),
   loggerMock: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
@@ -113,7 +118,9 @@ const waitForCalls = async (count: number): Promise<void> => {
  * raw-text stub no longer means "the model suggested this", it means "the model
  * broke the contract", and the two must not be spelled the same way.
  */
-const jsonReply = (suggestion: string): string[] => [JSON.stringify({ suggestion })];
+const jsonReply = (suggestion: string): string[] => [
+  JSON.stringify({ suggestion }),
+];
 
 const respondWith = (text: string) =>
   makeAIRequestMock.mockResolvedValue({
@@ -125,7 +132,7 @@ const respondWith = (text: string) =>
   });
 
 /** A reply exactly as the provider returned it, contract or not. */
-const respondRaw = (raw: unknown) =>
+const respondRaw = (raw: string) =>
   makeAIRequestMock.mockResolvedValue({
     content: [raw],
     model: "ornith-1.0-9b",
@@ -153,17 +160,19 @@ let dailyCostCapUsd = DEFAULT_DAILY_COST_CAP_USD;
  * first; editing a local provider's host moves the second without any switch.
  */
 let currentProfileId = "profile-a";
-let providerEndpoints: Record<string, { host: string; port: number }> = {};
+let providerEndpoints: ProviderEndpointMap = {};
 
 /** Leaves every request in flight so it can be superseded and aborted. */
 const pendingRequests = (): AbortSignal[] => {
   const signals: AbortSignal[] = [];
-  makeAIRequestMock.mockImplementation((options: { abortSignal: AbortSignal }) => {
-    signals.push(options.abortSignal);
-    return new Promise(() => {
-      // Never settles: the request stays in flight for the test.
-    });
-  });
+  makeAIRequestMock.mockImplementation(
+    (options: { abortSignal: AbortSignal }) => {
+      signals.push(options.abortSignal);
+      return new Promise(() => {
+        // Never settles: the request stays in flight for the test.
+      });
+    },
+  );
   return signals;
 };
 
@@ -177,7 +186,8 @@ describe("requestAutocompleteSuggestion", () => {
       if (key === "settingsAutocomplete") {
         return { enabled: true, model: "openai::gpt-4o-mini", dailyCostCapUsd };
       }
-      if (key === "settingsCorrect") return { presets: [], selectedPresetId: "" };
+      if (key === "settingsCorrect")
+        return { presets: [], selectedPresetId: "" };
       if (key === "providerEndpoints") return providerEndpoints;
       return undefined;
     });
@@ -209,7 +219,7 @@ describe("requestAutocompleteSuggestion", () => {
     respondWith(" over the lazy dog.");
   });
 
-  const ask = (overrides: Record<string, unknown> = {}) =>
+  const ask = (overrides: Partial<AutocompleteRequest> = {}) =>
     requestAutocompleteSuggestion({
       requestId: 1,
       sessionId: "window-1",
@@ -241,7 +251,9 @@ describe("requestAutocompleteSuggestion", () => {
   describe("gates that make no request at all", () => {
     it("is inert when the feature is disabled", async () => {
       getProfileSettingMock.mockImplementation((key: string) =>
-        key === "settingsAutocomplete" ? { enabled: false, model: "" } : { presets: [] },
+        key === "settingsAutocomplete"
+          ? { enabled: false, model: "" }
+          : { presets: [] },
       );
 
       expect((await ask()).suggestion).toBeNull();
@@ -249,7 +261,9 @@ describe("requestAutocompleteSuggestion", () => {
     });
 
     it("skips a prefix shorter than the minimum", async () => {
-      expect((await ask({ prefix: "a".repeat(MIN_PREFIX_CHARS - 1) })).suggestion).toBeNull();
+      expect(
+        (await ask({ prefix: "a".repeat(MIN_PREFIX_CHARS - 1) })).suggestion,
+      ).toBeNull();
       expect(makeAIRequestMock).not.toHaveBeenCalled();
     });
 
@@ -261,7 +275,9 @@ describe("requestAutocompleteSuggestion", () => {
 
     it("skips when no model resolves anywhere", async () => {
       getProfileSettingMock.mockImplementation((key: string) =>
-        key === "settingsAutocomplete" ? { enabled: true, model: "" } : { presets: [] },
+        key === "settingsAutocomplete"
+          ? { enabled: true, model: "" }
+          : { presets: [] },
       );
       getDefaultModelIdMock.mockReturnValue("");
 
@@ -282,7 +298,10 @@ describe("requestAutocompleteSuggestion", () => {
     it("falls back to the Ask preset's model", async () => {
       getProfileSettingMock.mockImplementation((key: string) => {
         if (key === "settingsAutocomplete") return { enabled: true, model: "" };
-        return { presets: [{ id: "ask", model: "openrouter::llama" }], selectedPresetId: "" };
+        return {
+          presets: [{ id: "ask", model: "openrouter::llama" }],
+          selectedPresetId: "",
+        };
       });
 
       await ask();
@@ -358,7 +377,7 @@ describe("requestAutocompleteSuggestion", () => {
 
     // Undefined would omit the parameter and a reasoning model's own default is
     // reasoning ON — the exact bug the literal guards against.
-    it("sends the literal \"none\", never undefined", async () => {
+    it('sends the literal "none", never undefined', async () => {
       await ask();
 
       const [options] = makeAIRequestMock.mock.calls[0];
@@ -372,7 +391,10 @@ describe("requestAutocompleteSuggestion", () => {
       const second = await ask({ requestId: 2 });
 
       expect(makeAIRequestMock).toHaveBeenCalledOnce();
-      expect(second).toEqual({ requestId: 2, suggestion: " over the lazy dog." });
+      expect(second).toEqual({
+        requestId: 2,
+        suggestion: " over the lazy dog.",
+      });
     });
 
     it("treats a different prefix as a new request", async () => {
@@ -452,16 +474,18 @@ describe("requestAutocompleteSuggestion", () => {
       // Must actually settle on abort: a request that never rejects never runs
       // its cleanup, and cleanup is the whole subject here.
       const signals: AbortSignal[] = [];
-      makeAIRequestMock.mockImplementation((options: { abortSignal: AbortSignal }) => {
-        signals.push(options.abortSignal);
-        return new Promise((_resolve, reject) => {
-          options.abortSignal.addEventListener("abort", () => {
-            const error = new Error("aborted");
-            error.name = "AbortError";
-            reject(error);
+      makeAIRequestMock.mockImplementation(
+        (options: { abortSignal: AbortSignal }) => {
+          signals.push(options.abortSignal);
+          return new Promise((_resolve, reject) => {
+            options.abortSignal.addEventListener("abort", () => {
+              const error = new Error("aborted");
+              error.name = "AbortError";
+              reject(error);
+            });
           });
-        });
-      });
+        },
+      );
 
       void ask({ prefix: `${LONG_PREFIX} one` });
       await waitForCalls(1);
@@ -509,9 +533,15 @@ describe("requestAutocompleteSuggestion", () => {
       void ask({ prefix: `${LONG_PREFIX} two` });
       await waitForCalls(2);
 
-      const fromCache = await ask({ requestId: 3, prefix: `${LONG_PREFIX} one` });
+      const fromCache = await ask({
+        requestId: 3,
+        prefix: `${LONG_PREFIX} one`,
+      });
 
-      expect(fromCache).toEqual({ requestId: 3, suggestion: " over the lazy dog." });
+      expect(fromCache).toEqual({
+        requestId: 3,
+        suggestion: " over the lazy dog.",
+      });
       // No new call — it really was a cache hit, not a re-request.
       expect(makeAIRequestMock).toHaveBeenCalledTimes(2);
       expect(signals[0].aborted).toBe(true);
@@ -525,7 +555,11 @@ describe("requestAutocompleteSuggestion", () => {
       void ask({ prefix: `${LONG_PREFIX} two`, sessionId: "window-2" });
       await waitForCalls(2);
 
-      await ask({ requestId: 3, prefix: `${LONG_PREFIX} one`, sessionId: "window-1" });
+      await ask({
+        requestId: 3,
+        prefix: `${LONG_PREFIX} one`,
+        sessionId: "window-1",
+      });
 
       expect(signals[0].aborted).toBe(false);
     });
@@ -560,7 +594,9 @@ describe("requestAutocompleteSuggestion", () => {
 
       dailyCostCapUsd = 2;
 
-      expect((await ask({ requestId: 2, prefix: `${LONG_PREFIX} more` })).suggestion).not.toBeNull();
+      expect(
+        (await ask({ requestId: 2, prefix: `${LONG_PREFIX} more` })).suggestion,
+      ).not.toBeNull();
     });
 
     /**
@@ -617,7 +653,9 @@ describe("requestAutocompleteSuggestion", () => {
       await waitForCalls(2);
 
       expect(signals[0].aborted).toBe(true);
-      expect((await ask({ prefix: `${LONG_PREFIX} three` })).suggestion).toBeNull();
+      expect(
+        (await ask({ prefix: `${LONG_PREFIX} three` })).suggestion,
+      ).toBeNull();
       expect(makeAIRequestMock).toHaveBeenCalledTimes(2);
     });
 
@@ -645,23 +683,30 @@ describe("requestAutocompleteSuggestion", () => {
     });
 
     it.each([
-      ["the feature is disabled", { enabled: false, model: "openai::gpt-4o-mini" }, LONG_PREFIX],
+      [
+        "the feature is disabled",
+        { enabled: false, model: "openai::gpt-4o-mini" },
+        LONG_PREFIX,
+      ],
       [
         "the prefix is too short",
         { enabled: true, model: "openai::gpt-4o-mini" },
         BELOW_THRESHOLD,
       ],
       ["no model resolves", { enabled: true, model: "" }, LONG_PREFIX],
-    ])("does not count a request gated before dispatch: %s", async (_case, settings, prefix) => {
-      getProfileSettingMock.mockImplementation((key: string) =>
-        key === "settingsAutocomplete" ? settings : { presets: [] },
-      );
-      getDefaultModelIdMock.mockReturnValue("");
+    ])(
+      "does not count a request gated before dispatch: %s",
+      async (_case, settings, prefix) => {
+        getProfileSettingMock.mockImplementation((key: string) =>
+          key === "settingsAutocomplete" ? settings : { presets: [] },
+        );
+        getDefaultModelIdMock.mockReturnValue("");
 
-      await ask({ prefix });
+        await ask({ prefix });
 
-      expect(usageStoreMock.recordDispatch).not.toHaveBeenCalled();
-    });
+        expect(usageStoreMock.recordDispatch).not.toHaveBeenCalled();
+      },
+    );
   });
 
   /**
@@ -679,7 +724,9 @@ describe("requestAutocompleteSuggestion", () => {
   describe("short-window rate limit", () => {
     const FROZEN = new Date(2026, 6, 31, 12, 0, 0);
 
-    const atFrozenClock = async (body: (setNow: (ms: number) => void) => Promise<void>) => {
+    const atFrozenClock = async (
+      body: (setNow: (ms: number) => void) => Promise<void>,
+    ) => {
       vi.useFakeTimers({ toFake: ["Date"] });
       try {
         vi.setSystemTime(FROZEN);
@@ -716,9 +763,13 @@ describe("requestAutocompleteSuggestion", () => {
      * second window's real user.
      */
     it("leaves headroom over the fastest rate the debounce can produce", () => {
-      const perWindowCeiling = Math.ceil(RATE_LIMIT_WINDOW_MS / GHOST_TEXT_DEBOUNCE_MS);
+      const perWindowCeiling = Math.ceil(
+        RATE_LIMIT_WINDOW_MS / GHOST_TEXT_DEBOUNCE_MS,
+      );
 
-      expect(RATE_LIMIT_PER_SESSION).toBeGreaterThanOrEqual(perWindowCeiling * 2);
+      expect(RATE_LIMIT_PER_SESSION).toBeGreaterThanOrEqual(
+        perWindowCeiling * 2,
+      );
       expect(RATE_LIMIT_GLOBAL).toBeGreaterThanOrEqual(
         RATE_LIMIT_PER_SESSION + perWindowCeiling,
       );
@@ -765,7 +816,9 @@ describe("requestAutocompleteSuggestion", () => {
         }
       });
 
-      expect(usageStoreMock.recordDispatch).toHaveBeenCalledTimes(RATE_LIMIT_PER_SESSION);
+      expect(usageStoreMock.recordDispatch).toHaveBeenCalledTimes(
+        RATE_LIMIT_PER_SESSION,
+      );
     });
 
     it("admits again once the window has elapsed", async () => {
@@ -779,7 +832,9 @@ describe("requestAutocompleteSuggestion", () => {
         await askFresh(9_000);
       });
 
-      expect(makeAIRequestMock).toHaveBeenCalledTimes(RATE_LIMIT_PER_SESSION + 1);
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(
+        RATE_LIMIT_PER_SESSION + 1,
+      );
     });
 
     /**
@@ -800,7 +855,9 @@ describe("requestAutocompleteSuggestion", () => {
         await askFresh(9_000);
       });
 
-      expect(makeAIRequestMock).toHaveBeenCalledTimes(RATE_LIMIT_PER_SESSION + 1);
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(
+        RATE_LIMIT_PER_SESSION + 1,
+      );
     });
 
     /**
@@ -1109,7 +1166,11 @@ describe("requestAutocompleteSuggestion", () => {
         await ask();
 
         expect(usageStoreMock.recordUsage).toHaveBeenCalledWith(
-          { promptTokens: null, completionTokens: null, estimatedCostUsd: null },
+          {
+            promptTokens: null,
+            completionTokens: null,
+            estimatedCostUsd: null,
+          },
           expect.any(Date),
         );
       });
@@ -1265,16 +1326,22 @@ describe("requestAutocompleteSuggestion", () => {
     });
 
     it("keeps a numeric status when the provider supplies one", async () => {
-      const rejected = Object.assign(new Error("Rate limit reached for org-abc"), {
-        name: "RateLimitError",
-        status: 429,
-      });
+      const rejected = Object.assign(
+        new Error("Rate limit reached for org-abc"),
+        {
+          name: "RateLimitError",
+          status: 429,
+        },
+      );
       makeAIRequestMock.mockRejectedValue(rejected);
 
       await ask();
 
       const [, , context] = loggerMock.debug.mock.calls[0];
-      expect(context).toMatchObject({ errorName: "RateLimitError", status: 429 });
+      expect(context).toMatchObject({
+        errorName: "RateLimitError",
+        status: 429,
+      });
       expect(JSON.stringify(context)).not.toContain("org-abc");
     });
   });
@@ -1307,8 +1374,13 @@ describe("requestAutocompleteSuggestion", () => {
 
         await ask();
 
-        const [dispatchedAt] = usageStoreMock.recordDispatch.mock.calls[0] as [Date];
-        const [, recordedAt] = usageStoreMock.recordUsage.mock.calls[0] as [unknown, Date];
+        const [dispatchedAt] = usageStoreMock.recordDispatch.mock.calls[0] as [
+          Date,
+        ];
+        const [, recordedAt] = usageStoreMock.recordUsage.mock.calls[0] as [
+          unknown,
+          Date,
+        ];
         expect(dispatchedAt.getTime()).toBe(lastMoment.getTime());
         expect(recordedAt.getTime()).toBe(dispatchedAt.getTime());
       } finally {
@@ -1479,7 +1551,11 @@ describe("requestAutocompleteSuggestion", () => {
     it("evicts the oldest entry once the bound is passed", async () => {
       const stepMs = 130;
       const askFor = (prefix: string) =>
-        requestAutocompleteSuggestion({ requestId: 1, sessionId: "window-1", prefix });
+        requestAutocompleteSuggestion({
+          requestId: 1,
+          sessionId: "window-1",
+          prefix,
+        });
 
       vi.useFakeTimers({ toFake: ["Date"] });
       try {
@@ -1614,7 +1690,10 @@ describe("requestAutocompleteSuggestion", () => {
     // implementations, so the `mode: "off"` case below would otherwise leak
     // into every test declared after it and silently disarm them.
     beforeEach(() => {
-      getSecretGuardSettingsMock.mockReturnValue({ mode: "confirm", highEntropyRule: false });
+      getSecretGuardSettingsMock.mockReturnValue({
+        mode: "confirm",
+        highEntropyRule: false,
+      });
     });
 
     it("dispatches nothing when the text around the caret looks like a credential", async () => {
@@ -1659,7 +1738,10 @@ describe("requestAutocompleteSuggestion", () => {
     });
 
     it("dispatches normally when the secret guard is off", async () => {
-      getSecretGuardSettingsMock.mockReturnValue({ mode: "off", highEntropyRule: false });
+      getSecretGuardSettingsMock.mockReturnValue({
+        mode: "off",
+        highEntropyRule: false,
+      });
 
       await ask({ prefix: `my key is ${fakeAwsKeyId}` });
 
@@ -1678,7 +1760,8 @@ describe("requestAutocompleteSuggestion", () => {
       await ask({ prefix: LONG_PREFIX });
 
       expect(makeAIRequestMock).toHaveBeenCalledOnce();
-      const systemPrompt = makeAIRequestMock.mock.calls[0][0].systemPrompt as string;
+      const systemPrompt = makeAIRequestMock.mock.calls[0][0]
+        .systemPrompt as string;
       expect(systemPrompt).not.toContain(fakeAwsKeyId);
       expect(systemPrompt).toContain("[redacted]");
     });
@@ -1692,7 +1775,10 @@ describe("requestAutocompleteSuggestion", () => {
     it.each(["confirm", "mask"] as const)(
       "refuses an unmaskable environment assignment span in %s mode",
       async (mode) => {
-        getSecretGuardSettingsMock.mockReturnValue({ mode, highEntropyRule: false });
+        getSecretGuardSettingsMock.mockReturnValue({
+          mode,
+          highEntropyRule: false,
+        });
         rememberAskSession("window-1", {
           environment: [
             "App locale: en",
@@ -1708,7 +1794,10 @@ describe("requestAutocompleteSuggestion", () => {
     );
 
     it("sends a secret-shaped environment name unchanged when the guard is off", async () => {
-      getSecretGuardSettingsMock.mockReturnValue({ mode: "off", highEntropyRule: false });
+      getSecretGuardSettingsMock.mockReturnValue({
+        mode: "off",
+        highEntropyRule: false,
+      });
       rememberAskSession("window-1", {
         environment: `- ${fakeAwsKeyId} (2026-08-11T05:28:00.000Z)`,
       });
@@ -1716,7 +1805,8 @@ describe("requestAutocompleteSuggestion", () => {
       await ask({ prefix: LONG_PREFIX });
 
       expect(makeAIRequestMock).toHaveBeenCalledOnce();
-      const systemPrompt = makeAIRequestMock.mock.calls[0][0].systemPrompt as string;
+      const systemPrompt = makeAIRequestMock.mock.calls[0][0]
+        .systemPrompt as string;
       expect(systemPrompt).toContain(fakeAwsKeyId);
     });
 
@@ -1765,8 +1855,10 @@ describe("requestAutocompleteSuggestion", () => {
     const sentSystemPrompt = (call = 0): string =>
       makeAIRequestMock.mock.calls[call][0].systemPrompt as string;
 
-    const attach = (text: string, source: AskContextSource = "selection"): void =>
-      rememberAskSession("window-1", { context: { text, source } });
+    const attach = (
+      text: string,
+      source: AskContextSource = "selection",
+    ): void => rememberAskSession("window-1", { context: { text, source } });
 
     it("sends the passage the window has attached", async () => {
       attach("The deploy slipped to Friday.");
@@ -1774,7 +1866,9 @@ describe("requestAutocompleteSuggestion", () => {
       await ask();
 
       expect(sentPrompt()).toContain("The deploy slipped to Friday.");
-      expect(sentPrompt()).toContain("Context the user attached (selected text):");
+      expect(sentPrompt()).toContain(
+        "Context the user attached (selected text):",
+      );
     });
 
     /**
@@ -2040,7 +2134,9 @@ describe("requestAutocompleteSuggestion", () => {
     it("sends exactly the pre-environment prompt when the press resolved none", async () => {
       await ask();
 
-      expect(sentSystemPrompt(0)).not.toContain("Environment at the time of the request");
+      expect(sentSystemPrompt(0)).not.toContain(
+        "Environment at the time of the request",
+      );
       expect(sentUserPrompt(0).startsWith("Text before the caret:")).toBe(true);
     });
 
@@ -2049,7 +2145,9 @@ describe("requestAutocompleteSuggestion", () => {
 
       await ask({ sessionId: "window-2" });
 
-      expect(sentSystemPrompt()).not.toContain("Keyboard input source: Japanese");
+      expect(sentSystemPrompt()).not.toContain(
+        "Keyboard input source: Japanese",
+      );
     });
 
     describe("what it says about itself", () => {
@@ -2093,7 +2191,9 @@ describe("requestAutocompleteSuggestion", () => {
        * Logs tab. Lengths only, exactly like the passage and the prefix.
        */
       it("never writes a directive line into a log", async () => {
-        attachEnvironment(`${ENVIRONMENT}\n- Clinic letter polish (2026-08-11T05:28:00.000Z)`);
+        attachEnvironment(
+          `${ENVIRONMENT}\n- Clinic letter polish (2026-08-11T05:28:00.000Z)`,
+        );
 
         await ask();
 
@@ -2128,13 +2228,17 @@ describe("requestAutocompleteSuggestion", () => {
 
     const disableFeature = (): void => {
       getProfileSettingMock.mockImplementation((key: string) =>
-        key === "settingsAutocomplete" ? { enabled: false, model: "" } : { presets: [] },
+        key === "settingsAutocomplete"
+          ? { enabled: false, model: "" }
+          : { presets: [] },
       );
     };
 
     const removeEveryModel = (): void => {
       getProfileSettingMock.mockImplementation((key: string) =>
-        key === "settingsAutocomplete" ? { enabled: true, model: "" } : { presets: [] },
+        key === "settingsAutocomplete"
+          ? { enabled: true, model: "" }
+          : { presets: [] },
       );
       getDefaultModelIdMock.mockReturnValue("");
     };
@@ -2145,7 +2249,9 @@ describe("requestAutocompleteSuggestion", () => {
       await ask();
 
       expect(loggerMock.debug).toHaveBeenCalledOnce();
-      expect(loggerMock.debug.mock.calls[0]?.[2]).toMatchObject({ reason: "disabled" });
+      expect(loggerMock.debug.mock.calls[0]?.[2]).toMatchObject({
+        reason: "disabled",
+      });
     });
 
     it("states that the prefix is too short, with its length and the threshold", async () => {
@@ -2266,7 +2372,8 @@ describe("requestAutocompleteSuggestion", () => {
           for (let i = 0; i < 5; i += 1) await ask({ requestId: i });
 
           vi.setSystemTime(
-            new Date(2026, 6, 31, 12, 0, 0).getTime() + AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS,
+            new Date(2026, 6, 31, 12, 0, 0).getTime() +
+              AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS,
           );
           await ask({ requestId: 99 });
         } finally {
@@ -2293,7 +2400,10 @@ describe("requestAutocompleteSuggestion", () => {
           await ask({ requestId: i, prefix: LONG_PREFIX });
         }
 
-        expect(reasonsLogged().sort()).toEqual(["no-model", "prefix-too-short"]);
+        expect(reasonsLogged().sort()).toEqual([
+          "no-model",
+          "prefix-too-short",
+        ]);
       });
 
       it("does not let one reason silence a different one", async () => {
@@ -2352,7 +2462,13 @@ describe("requestAutocompleteSuggestion", () => {
         ...loggerMock.warn.mock.calls,
         ...loggerMock.error.mock.calls,
       ]);
-      for (const secret of [prefix, suffix, suggestion, "private", "confidential"]) {
+      for (const secret of [
+        prefix,
+        suffix,
+        suggestion,
+        "private",
+        "confidential",
+      ]) {
         expect(everythingLogged).not.toContain(secret);
       }
     });
@@ -2412,7 +2528,10 @@ describe("requestAutocompleteSuggestion", () => {
       ["a truncated envelope", '{"suggestion":" over the lazy do'],
       ["a non-string suggestion field", '{"suggestion":42}'],
       ["a null suggestion field", '{"suggestion":null}'],
-      ["a bare string, which is what the old protocol expected", " over the lazy dog."],
+      [
+        "a bare string, which is what the old protocol expected",
+        " over the lazy dog.",
+      ],
       ["prose wrapped around a valid object", 'Sure! {"suggestion":" tail"}'],
     ])("shows nothing for %s", async (_description, raw) => {
       respondRaw(raw);
@@ -2483,7 +2602,9 @@ describe("requestAutocompleteSuggestion", () => {
        */
       it("carries the reply's length, never the reply, the prefix or the suffix", async () => {
         const prefix = "my private unsent sentence about a medical result";
-        respondRaw(`Nothing to continue here as the input text "${prefix}" is unclear`);
+        respondRaw(
+          `Nothing to continue here as the input text "${prefix}" is unclear`,
+        );
 
         await ask({ prefix, suffix: " and its confidential continuation" });
 
@@ -2493,7 +2614,13 @@ describe("requestAutocompleteSuggestion", () => {
           ...loggerMock.warn.mock.calls,
           ...loggerMock.error.mock.calls,
         ]);
-        for (const secret of [prefix, "private", "medical", "confidential", "Nothing to continue"]) {
+        for (const secret of [
+          prefix,
+          "private",
+          "medical",
+          "confidential",
+          "Nothing to continue",
+        ]) {
           expect(everythingLogged).not.toContain(secret);
         }
       });
@@ -2706,13 +2833,24 @@ describe("requestAutocompleteSuggestion", () => {
        */
       it("keeps at most RESOLUTION_MEMORY_MAX_ENTRIES surfaces, oldest out first", async () => {
         respondWith(" over the lazy dog.");
-        for (let index = 0; index <= RESOLUTION_MEMORY_MAX_ENTRIES; index += 1) {
-          await ask({ requestId: index, sessionId: `window-${index}`, prefix: `${LONG_PREFIX} ${index}` });
+        for (
+          let index = 0;
+          index <= RESOLUTION_MEMORY_MAX_ENTRIES;
+          index += 1
+        ) {
+          await ask({
+            requestId: index,
+            sessionId: `window-${index}`,
+            prefix: `${LONG_PREFIX} ${index}`,
+          });
         }
 
         expect(takeAutocompleteResolution("window-0", 0)).toBeNull();
         expect(
-          takeAutocompleteResolution(`window-${RESOLUTION_MEMORY_MAX_ENTRIES}`, RESOLUTION_MEMORY_MAX_ENTRIES),
+          takeAutocompleteResolution(
+            `window-${RESOLUTION_MEMORY_MAX_ENTRIES}`,
+            RESOLUTION_MEMORY_MAX_ENTRIES,
+          ),
         ).not.toBeNull();
       });
     });

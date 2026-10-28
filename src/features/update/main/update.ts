@@ -28,15 +28,13 @@ export const registerUpdateHandlers = (service: UpdateService): void => {
   });
   // Takes no renderer input: the target release and the shell command are both
   // decided in main, so nothing crossing the bridge can influence what runs.
-  ipcMain.handle(
-    "updates:install",
-    (): Promise<InstallUpdateResult> => service.installUpdate(),
+  ipcMain.handle("updates:install", (): Promise<InstallUpdateResult> =>
+    service.installUpdate(),
   );
   // Also input-free, and the service refuses unless it is already in
   // `restart-required` — a renderer message cannot restart the app at will.
-  ipcMain.handle(
-    "updates:restart",
-    (): UpdateActionResult => service.restartForUpdate(),
+  ipcMain.handle("updates:restart", (): UpdateActionResult =>
+    service.restartForUpdate(),
   );
   ipcMain.handle("updates:open-release", async () => {
     try {

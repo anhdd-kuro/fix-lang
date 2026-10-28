@@ -27,15 +27,15 @@ cask merely to make a test pass.
 
 ## Deliverables and ownership
 
-| Owner | Repository / paths | Deliverable | Must not modify |
-| --- | --- | --- | --- |
-| Bootstrap agent | isolated `/private/tmp/fixlang-homebrew-tap-*` worktree | public `anhdd-kuro/homebrew-tap` with its initial history | FixLang files, the user’s existing dirty files, `AGENTS.md` |
-| Tap-logic agent | `scripts/sync-fixlang.mjs`, `scripts/sync-fixlang.test.mjs`, optional test fixtures under `scripts/fixtures/` | dependency-free strict version, release-selection, cask parse/render, and decision logic | workflow, README, generated cask |
-| Tap-workflow agent | `.github/workflows/sync-fixlang.yml` | secure scheduled/manual orchestration and platform validation | sync script behavior/tests, README |
-| Tap-docs agent | `README.md` | exact user commands, trust/Gatekeeper limits, maintainer usage | workflow, scripts, Cask |
-| Cask-sync agent | `Casks/fixlang.rb` only, created after a verified public release | literal versioned cask produced by the workflow | bootstrap/test/workflow/docs files |
-| FixLang-docs agent | `README.md` and only directly related docs in FixLang | Homebrew install/update guidance after remote tap verification | FixLang release workflow and package configuration |
-| Fresh review agent | read-only review of both repositories | independent findings plus verification evidence | no edits unless delegated a follow-up |
+| Owner              | Repository / paths                                                                                            | Deliverable                                                                              | Must not modify                                             |
+| ------------------ | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Bootstrap agent    | isolated `/private/tmp/fixlang-homebrew-tap-*` worktree                                                       | public `anhdd-kuro/homebrew-tap` with its initial history                                | FixLang files, the user’s existing dirty files, `AGENTS.md` |
+| Tap-logic agent    | `scripts/sync-fixlang.mjs`, `scripts/sync-fixlang.test.mjs`, optional test fixtures under `scripts/fixtures/` | dependency-free strict version, release-selection, cask parse/render, and decision logic | workflow, README, generated cask                            |
+| Tap-workflow agent | `.github/workflows/sync-fixlang.yml`                                                                          | secure scheduled/manual orchestration and platform validation                            | sync script behavior/tests, README                          |
+| Tap-docs agent     | `README.md`                                                                                                   | exact user commands, trust/Gatekeeper limits, maintainer usage                           | workflow, scripts, Cask                                     |
+| Cask-sync agent    | `Casks/fixlang.rb` only, created after a verified public release                                              | literal versioned cask produced by the workflow                                          | bootstrap/test/workflow/docs files                          |
+| FixLang-docs agent | `README.md` and only directly related docs in FixLang                                                         | Homebrew install/update guidance after remote tap verification                           | FixLang release workflow and package configuration          |
+| Fresh review agent | read-only review of both repositories                                                                         | independent findings plus verification evidence                                          | no edits unless delegated a follow-up                       |
 
 The initial tap has no tracked `Casks/fixlang.rb`: an empty directory cannot be
 tracked, and committing a placeholder cask would violate the no-cask-before-
@@ -241,6 +241,7 @@ Implement these workflow steps, keeping command boundaries explicit and
 
    A failure must leave no commit. Restore only the generated Cask file in the
    ephemeral runner checkout, never use force push or history rewrite.
+
 10. Directly commit the one file with
     `chore(cask): update fixlang to X.Y.Z` and push `main` with the tap token.
     Assert the staged path list contains exactly `Casks/fixlang.rb`.
@@ -385,30 +386,30 @@ accepting earlier agent summaries.
 Review checklist:
 
 - [ ] The public repository exists, defaults to `main`, and uses no
-  cross-repository credentials, PAT, deploy key, GitHub App, or secret.
+      cross-repository credentials, PAT, deploy key, GitHub App, or secret.
 - [ ] All listed actions are pinned to commit SHA; workflow permissions are
-  least privilege; checkout does not persist credentials; concurrency prevents
-  overlapping writers.
+      least privilege; checkout does not persist credentials; concurrency prevents
+      overlapping writers.
 - [ ] Tests were RED before logic, are dependency-free, pass, and cover strict
-  semver/BigInt, newest-candidate failure, no release, equal/lower version,
-  malformed cask, checksum parsing, and safe rendering.
+      semver/BigInt, newest-candidate failure, no release, equal/lower version,
+      malformed cask, checksum parsing, and safe rendering.
 - [ ] No release produces no cask commit. A failed newest candidate cannot
-  fall back. Malformed casks cannot be overwritten. Equal/lower releases
-  cannot rewrite a checksum or downgrade users.
+      fall back. Malformed casks cannot be overwritten. Equal/lower releases
+      cannot rewrite a checksum or downgrade users.
 - [ ] The validation order is release/assets → checksum → DMG verify/mount →
-  plist/identifier/arm64 → tag ancestry → cask render → Homebrew quality →
-  one-file commit → remote consumer smoke test.
+      plist/identifier/arm64 → tag ancestry → cask render → Homebrew quality →
+      one-file commit → remote consumer smoke test.
 - [ ] The Cask has the exact required immutable URL and safe caveat contract;
-  it does not auto-update, run hooks, or run `xattr`.
+      it does not auto-update, run hooks, or run `xattr`.
 - [ ] The smoke test used remote `anhdd-kuro/tap/fixlang`, a unique temporary
-  `--appdir`, normal uninstall, and never touched `/Applications/FixLang.app`.
+      `--appdir`, normal uninstall, and never touched `/Applications/FixLang.app`.
 - [ ] A smoke-test failure would create a direct revert commit and fail; no
-  recovery force-pushes, retags, or replaces public assets.
+      recovery force-pushes, retags, or replaces public assets.
 - [ ] FixLang documentation was added only after a working public cask and
-  makes no overclaim about a production upgrade.
+      makes no overclaim about a production upgrade.
 - [ ] Every changed repository is clean apart from knowingly unrelated user
-  changes; commits match the stage boundaries and contain no secrets,
-  generated app artifacts, or user files.
+      changes; commits match the stage boundaries and contain no secrets,
+      generated app artifacts, or user files.
 
 Run the appropriate final verification suite:
 
@@ -434,15 +435,15 @@ goal complete until Stage 6’s genuine upgrade evidence exists.
 
 ## Commit and evidence ledger
 
-| Stage | Repository | Commit | Required proof |
-| --- | --- | --- | --- |
-| Bootstrap | `homebrew-tap` | `chore(tap): bootstrap FixLang cask synchronization` | public repo/main, isolated bootstrap, clean push |
-| RED contract | `homebrew-tap` | `test(tap): define FixLang cask sync policy` | failing then passing `node --test` evidence |
-| GREEN contract | `homebrew-tap` | `feat(tap): implement FixLang cask sync policy` | policy coverage/no dependencies |
-| Workflow | `homebrew-tap` | `ci(tap): synchronize verified FixLang releases` | pinned/minimal workflow plus pre-release no-op |
-| First cask | `homebrew-tap` | `chore(cask): update fixlang to 0.2.0` | real public release and remote install/uninstall |
-| User docs | `fix-lang` | `docs: document Homebrew installation` | README after tap works |
-| Later cask | `homebrew-tap` | `chore(cask): update fixlang to <later version>` | remote genuine `brew upgrade` proof |
+| Stage          | Repository     | Commit                                               | Required proof                                   |
+| -------------- | -------------- | ---------------------------------------------------- | ------------------------------------------------ |
+| Bootstrap      | `homebrew-tap` | `chore(tap): bootstrap FixLang cask synchronization` | public repo/main, isolated bootstrap, clean push |
+| RED contract   | `homebrew-tap` | `test(tap): define FixLang cask sync policy`         | failing then passing `node --test` evidence      |
+| GREEN contract | `homebrew-tap` | `feat(tap): implement FixLang cask sync policy`      | policy coverage/no dependencies                  |
+| Workflow       | `homebrew-tap` | `ci(tap): synchronize verified FixLang releases`     | pinned/minimal workflow plus pre-release no-op   |
+| First cask     | `homebrew-tap` | `chore(cask): update fixlang to 0.2.0`               | real public release and remote install/uninstall |
+| User docs      | `fix-lang`     | `docs: document Homebrew installation`               | README after tap works                           |
+| Later cask     | `homebrew-tap` | `chore(cask): update fixlang to <later version>`     | remote genuine `brew upgrade` proof              |
 
 ## Plan self-review
 

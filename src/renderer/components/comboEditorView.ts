@@ -241,8 +241,12 @@ export const comboErrorMessage = (
     case "unknown-preset":
       return msg("settings.correction.combos.error.unknownPreset");
     case "missing-inline-input": {
-      const step = combo.steps.find((candidate) => candidate.id === error.stepId);
-      const presetName = step ? presetsById.get(step.presetId)?.name ?? "" : "";
+      const step = combo.steps.find(
+        (candidate) => candidate.id === error.stepId,
+      );
+      const presetName = step
+        ? (presetsById.get(step.presetId)?.name ?? "")
+        : "";
       return msg("settings.correction.combos.error.missingInlineInput", {
         presetName,
       });
@@ -273,7 +277,10 @@ export const mapComboErrorsToFieldMessages = (
   for (const error of errors) {
     const message = comboErrorMessage(error, combo, presetsById);
     if (error.stepId) {
-      stepErrorsById[error.stepId] = [...(stepErrorsById[error.stepId] ?? []), message];
+      stepErrorsById[error.stepId] = [
+        ...(stepErrorsById[error.stepId] ?? []),
+        message,
+      ];
     } else if (error.code === "step-count") {
       stepCountErrors.push(message);
     } else {
@@ -286,7 +293,10 @@ export const mapComboErrorsToFieldMessages = (
 
 // --- Save gating across every combo -------------------------------------
 
-export type ComboErrorsById = ReadonlyMap<string, readonly ComboValidationError[]>;
+export type ComboErrorsById = ReadonlyMap<
+  string,
+  readonly ComboValidationError[]
+>;
 
 /**
  * Runs `validateCombo` for every combo in the profile (not just the one being

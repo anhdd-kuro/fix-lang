@@ -8,7 +8,7 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 
 - Select text in any app, press a preset hotkey, then either paste the result back automatically or show it in a result-only popup
 - Built-in presets (each with its own hotkey): **Correction** (`Ctrl+Shift+F`), **Summarize** (`Ctrl+Shift+S`), **Prompt optimization** (`Ctrl+Shift+D`), **Translate** (`Ctrl+Shift+T`), **Business Writing** (`Ctrl+Shift+B`), **Context-Aware Structured Text** (`Ctrl+Shift+R`), **Ask AI** (`Ctrl+Shift+A`), **Caveman** (`Ctrl+Shift+C`)
-- **Caveman** compresses text instead of polishing it — drops filler and hedging, and never touches code blocks or identifiers. Three intensities in Settings → Transform: **Lite** (drop filler only, keep every article and full sentences), **Full** (drop articles, fragments allowed, but general technical terms stay spelled out), **Ultra** (Full plus shortening — it abbreviates general technical terms such as *database* or *configuration*, using only short forms that are already established in the input's own language, never invented ones; strips conjunctions and uses arrows for cause and effect). The intensity control appears only on Caveman
+- **Caveman** compresses text instead of polishing it — drops filler and hedging, and never touches code blocks or identifiers. Three intensities in Settings → Transform: **Lite** (drop filler only, keep every article and full sentences), **Full** (drop articles, fragments allowed, but general technical terms stay spelled out), **Ultra** (Full plus shortening — it abbreviates general technical terms such as _database_ or _configuration_, using only short forms that are already established in the input's own language, never invented ones; strips conjunctions and uses arrows for cause and effect). The intensity control appears only on Caveman
 - **Ask AI** opens a small input window instead of requiring a selection: type a question, optionally with selected text carried along as context, and get a GFM-rendered answer in a popup (up to 5 stacked at once). The popup shows what you selected, then your question, then the answer — the first two are folded to 3 lines each and expand on click, the answer never is. Selected nothing? The selection block is simply absent
 - **Combos** — chain 2–5 presets behind one hotkey; each step's output feeds the next, and only the last result is delivered. Build them in Settings → Combos, where each combo gets its own hotkey, output mode, and a cost estimate from its steps' models. An **Ask AI** step stores its question up front instead of prompting mid-run. Press `Ctrl+Escape` to cancel a running combo; a segmented ring in the overlay shows which step you are on
 - **Perfect prompt** ships built in — Correction → Prompt optimization → Caveman, waiting in Settings → Combos. If you are upgrading and never touched this combo, it moves to the new chain on the next load; if you edited its steps at all — reordered them, added or removed one, or swapped a preset — your version is left exactly as you built it. Its name, hotkey and output mode are always kept. This happens **once**: afterwards the chain is yours, and if you rebuild the old Correction → Context-Aware Structured Text → Prompt optimization sequence yourself, it stays that way. It arrives with **no hotkey**: assign one there before it can run, since a single press is three AI calls. Edit it freely; delete it and it comes back on the next load, the same as a built-in preset
@@ -36,16 +36,16 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 
 Eight tabs, opened from the menu-bar tray or after a transform:
 
-| Tab | What it shows |
-| --- | --- |
-| **Overview** | Token stats with an estimated-spend hint (and how many transforms could be priced), preset usage charts, Codex-style token activity calendar |
-| **History** | Transform, Ask AI, and PromptGen history with cost tracking; last-action preview. The eye control opens the saved completion — raw JSON, or a **View as chat** tab that also states prompt/completion tokens and the reasoning effort used |
-| **Models** | Token usage over time, Model Breakdown donut + table for the selected range |
-| **Usage** | Account-level spend and token usage, one sub-tab per connected provider that has a billing API (OpenAI, OpenRouter) — daily spend and token charts, spend-share donut, per-model activity, and (OpenAI) billed spend per project |
-| **Logs** | Structured, redacted app events — multi-select level filter, search, copy/export as `.txt` |
-| **Security** | What the four guard rails actually did over the selected range, as charts plus counts — secret-guard mix (masked / confirmed / cancelled / unrestored), selection-guard mix (blocked apps, cancelled size/age confirms, dropped Ask context), and which detectors matched. Read-only; the controls live in **Settings → Security**. Counted from this machine's local logs, so clearing the Logs tab resets the numbers |
-| **Autocomplete** | Today / month-to-date / 62-day request, token, and estimated-cost rollups for ghost-text suggestions, plus how much of the daily request cap is spent |
-| **About** | Two sub-tabs — **App updates** (version, release notes, install; see [App updates](#app-updates)) and **User guide** (onboarding that shows your own preset shortcuts, output mode, connected providers, and why History/Usage may look empty) |
+| Tab              | What it shows                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Overview**     | Token stats with an estimated-spend hint (and how many transforms could be priced), preset usage charts, Codex-style token activity calendar                                                                                                                                                                                                                                                                         |
+| **History**      | Transform, Ask AI, and PromptGen history with cost tracking; last-action preview. The eye control opens the saved completion — raw JSON, or a **View as chat** tab that also states prompt/completion tokens and the reasoning effort used                                                                                                                                                                           |
+| **Models**       | Token usage over time, Model Breakdown donut + table for the selected range                                                                                                                                                                                                                                                                                                                                          |
+| **Usage**        | Account-level spend and token usage, one sub-tab per connected provider that has a billing API (OpenAI, OpenRouter) — daily spend and token charts, spend-share donut, per-model activity, and (OpenAI) billed spend per project                                                                                                                                                                                     |
+| **Logs**         | Structured, redacted app events — multi-select level filter, search, copy/export as `.txt`                                                                                                                                                                                                                                                                                                                           |
+| **Security**     | What the three guard rails actually did over the selected range, as charts plus counts — secret-guard mix (masked / confirmed / cancelled / unrestored), selection-guard mix (blocked apps, cancelled size confirms, dropped Ask context), and which detectors matched. Read-only; the controls live in **Settings → Security**. Counted from this machine's local logs, so clearing the Logs tab resets the numbers |
+| **Autocomplete** | Today / month-to-date / 62-day request, token, and estimated-cost rollups for ghost-text suggestions, plus how much of the daily request cap is spent                                                                                                                                                                                                                                                                |
+| **About**        | Two sub-tabs — **App updates** (version, release notes, install; see [App updates](#app-updates)) and **User guide** (onboarding that shows your own preset shortcuts, output mode, connected providers, and why History/Usage may look empty)                                                                                                                                                                       |
 
 Overview, Models, and Security share a time-range filter (All / 30d / 7d).
 
@@ -196,15 +196,18 @@ If you disconnect a provider, only the presets and settings that were using it g
    ```bash
    shasum -a 256 "FixLang-<version>-arm64.dmg"
    ```
+
 3. Open the DMG and drag FixLang to `/Applications`. To update an existing
    installation, quit FixLang first and replace `/Applications/FixLang.app`.
 4. Open the app, go to Settings → General to connect one or more providers (see
    [Provider setup](#provider-setup-settings--general)), and grant Accessibility
    permission when prompted.
 
-FixLang releases are unsigned and not notarized. macOS Gatekeeper may warn or
-block the app. Only if you downloaded a release you trust and Gatekeeper blocks
-it, run:
+FixLang releases are ad-hoc signed but not notarized, so on first launch macOS
+refuses to open the app. Open **System Settings → Privacy & Security** and click
+**Open Anyway** (on macOS 14 and earlier you can instead Control-click the app
+and choose **Open**). Only if you downloaded a release you trust and macOS
+still refuses to open it, run:
 
 ```bash
 xattr -dr com.apple.quarantine "/Applications/FixLang.app"
@@ -303,9 +306,9 @@ that prompt, or explicitly trust only this cask first:
 brew trust --cask anhdd-kuro/tap/fixlang
 ```
 
-FixLang remains unsigned. Homebrew does not bypass Gatekeeper or grant
-Accessibility permission. If macOS blocks a release you trust, use the manual
-`xattr` command above; grant Accessibility permission when FixLang asks. The
+FixLang is not notarized. Homebrew does not bypass Gatekeeper or grant
+Accessibility permission. If macOS blocks a release you trust, use **Open
+Anyway** as described above; grant Accessibility permission when FixLang asks. The
 app's **About** tab delegates its **Update now** button to `brew upgrade --cask
 fixlang` — it is not a self-updater, and it never touches Gatekeeper.
 
@@ -336,8 +339,8 @@ tag is absent, the feature is excluded from the build** — no renderer bundle i
 emitted for it, its global hotkey is never registered (so the key stays free for
 other apps), its IPC handlers are not installed, and its settings tab is hidden.
 
-| Feature | Tag | Env form |
-| --- | --- | --- |
+| Feature                       | Tag           | Env form                     |
+| ----------------------------- | ------------- | ---------------------------- |
 | Prompt generation (PromptGen) | `--promptgen` | `FIXLANG_FEATURES=promptgen` |
 
 ```bash
@@ -380,7 +383,8 @@ bun run build          # production build
 bun run start          # preview production build
 bun run test           # Vitest once — use `bun run test`, NOT `bun test`
 bun run test:w         # Vitest watch
-bun run lint           # ESLint (cached)
+bun run lint           # oxlint (type-aware) + oxfmt --check
+bun run lint:fix       # apply oxlint fixes + oxfmt formatting
 bun run i18n:check     # catalog parity, plurals, sort order, JA coverage
 bun run check:bundle   # after `bun run build` — verify no runtime dep needs node_modules
 bun run themes:generate  # after editing theme .ts files
@@ -402,9 +406,9 @@ bun run themes:generate  # after editing theme .ts files
 
 ## Publishing a macOS release
 
-FixLang distributes unsigned Apple Silicon macOS releases through public GitHub
-Releases. No Apple ID, Developer ID certificate, notarization, or GitHub Actions
-secrets are required. This keeps publishing simple, but users will encounter the
+FixLang distributes ad-hoc signed Apple Silicon macOS releases through public
+GitHub Releases. No Apple ID, Developer ID certificate, notarization, or GitHub
+Actions secrets are required. This keeps publishing simple, but users will encounter the
 Gatekeeper warning described above.
 
 Release a version by increasing `package.json` to a strictly higher stable
@@ -500,12 +504,12 @@ the `release` job in `.github/workflows/prerelease.yml`.
 ## Security
 
 - API keys, AWS Bedrock secret access keys, and provider admin keys (OpenRouter provisioning, OpenAI Admin) are handled main-process-only — encrypted at rest via the OS keychain (Electron `safeStorage`) — and are never sent back to the renderer/UI process after being saved.
-- A credential that provably belongs to another provider or another slot is refused before it is stored, so a mispasted key fails loudly at connect time instead of turning into a permanent 401. Logs record which *kind* of key was used, never the key itself.
+- A credential that provably belongs to another provider or another slot is refused before it is stored, so a mispasted key fails loudly at connect time instead of turning into a permanent 401. Logs record which _kind_ of key was used, never the key itself.
 - Keys are never included in profile import or export; exporting a profile shares its settings, never its credentials.
 - Secrets are scoped to one profile and one provider at a time — switching profiles switches the whole connected set, and neither another profile nor another provider can read a key it did not store.
 - A freshly created profile has no provider connected — nothing is auto-selected or auto-populated from another profile.
 - Requests are sent only to the providers you connect (OpenAI, OpenRouter, Anthropic, AWS Bedrock, Ollama, or LM Studio), and each request carries only that provider's credentials. Structured logs redact keys, tokens, and clipboard content before writing to disk.
-- Four guard rails run before a selection leaves the machine: a frontmost-app deny-list, a stale/unknown-age clipboard confirm, a selection-size confirm, and a secret guard (`off` / `confirm` / `mask`). They are configured in **Settings → Security** — each is adjustable and each can be turned off — and the **Security** dashboard tab shows what they have done. The secret guard is a pattern check, not a guarantee: it will miss a credential that does not look like one, it cannot un-send, and text you send after choosing *Send anyway* is saved to local history like any other transform.
+- Three guard rails run before a selection leaves the machine: a frontmost-app deny-list, a selection-size confirm, and a secret guard (`off` / `confirm` / `mask`). They are configured in **Settings → Security** — each is adjustable and each can be turned off — and the **Security** dashboard tab shows what they have done. The secret guard is a pattern check, not a guarantee: it will miss a credential that does not look like one, it cannot un-send, and text you send after choosing _Send anyway_ is saved to local history like any other transform.
 
 ## License
 

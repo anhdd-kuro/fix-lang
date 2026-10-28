@@ -19,10 +19,13 @@ file, each one a defect in the previous round's fix.
 ```ts
 // The pattern that is still live in SettingAutocomplete.tsx:189 — DO NOT COPY
 const persist = async (previous: T, next: T) => {
-  setSettings(next);                       // optimistic
+  setSettings(next); // optimistic
   const result = await window.electronAPI.setX(next);
-  if (result.success) { flashSaved(); return; }
-  setSettings(previous);                   // rollback
+  if (result.success) {
+    flashSaved();
+    return;
+  }
+  setSettings(previous); // rollback
   setStatus(saveError);
 };
 // caller: persist(settings, { ...settings, field })   ← base AND rollback from this render
@@ -50,7 +53,7 @@ the panel on a phantom. **On failure, ask the store what it actually holds
 **3. A rejected value must not survive into the next write.** Between "write
 failed" and "re-read returned", the panel still holds the rejected value, and
 the next edit builds its whole-object payload around it — that write succeeds
-and *makes the rejection real*. This one persisted a deny-list removal the
+and _makes the rejection real_. This one persisted a deny-list removal the
 store had refused.
 
 **4. Completions are not ordered.** An older success settling last overwrites
@@ -70,7 +73,7 @@ next write's base is post-recovery by construction.
 Two corollaries that were each their own defect:
 
 - **A successful setter re-earns trust on its own.** After a failed write whose
-  re-read also failed, the base is untrusted. A later successful write *is*
+  re-read also failed, the base is untrusted. A later successful write _is_
   authoritative — the store now holds what the panel holds — so restore trust
   there. Otherwise Restore defaults succeeds against an unreadable store,
   reports `Saved.`, and leaves every later edit refused.
@@ -87,12 +90,12 @@ got wrong:
 - **Claim at every mutation, not just the two obvious wrappers.** Capacity
   warnings, chooser/drop failures, and Restore defaults all bypassed it.
 - **A late-landing action must NOT re-claim.** A drop or a dialog pick that
-  resolves minutes later is an *old* action finishing; re-claiming makes it the
+  resolves minutes later is an _old_ action finishing; re-claiming makes it the
   newest owner and lets it narrate `Saved.` over an edit the user made since.
   Pass the original token down (`addDeniedBundleIds(ids, ownsStatus)` takes it
   as a **required** argument — an optional one invites exactly this mistake).
 
-Known consequence, deliberately accepted: a superseded write now says *nothing*,
+Known consequence, deliberately accepted: a superseded write now says _nothing_,
 including for capacity overflow and failure. Newest-claim-wins buys "no wrong
 messages" at the price of "a late partial failure may go unreported."
 

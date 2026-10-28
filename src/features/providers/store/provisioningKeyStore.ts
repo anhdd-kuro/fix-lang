@@ -86,7 +86,7 @@ const ENCRYPTION_UNAVAILABLE = "OS secure storage unavailable";
  * Never logs the key.
  */
 export const setLegacyProvisioningKey = async (
-  raw: string
+  raw: string,
 ): Promise<SecretWriteResult> => {
   const validated = validateProvisioningKeyInput(raw);
   if (!validated.ok) {
@@ -114,17 +114,18 @@ export const setLegacyProvisioningKey = async (
 };
 
 /** Remove the stored key. `force` makes deleting a missing file a no-op. */
-export const clearLegacyProvisioningKey = async (): Promise<SecretWriteResult> => {
-  try {
-    await rm(getProvisioningKeyPath(), { force: true });
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to clear key",
-    };
-  }
-};
+export const clearLegacyProvisioningKey =
+  async (): Promise<SecretWriteResult> => {
+    try {
+      await rm(getProvisioningKeyPath(), { force: true });
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to clear key",
+      };
+    }
+  };
 
 /**
  * Decrypt + return the provisioning key for in-main callers (e.g. #59's
@@ -148,7 +149,7 @@ export const getLegacyProvisioningKey = async (): Promise<string | null> => {
   if (!safeStorage.isEncryptionAvailable()) {
     // Can't decrypt without OS encryption; do not throw. Non-secret warning.
     console.warn(
-      "provisioningKeyStore: stored key present but OS encryption unavailable; cannot decrypt"
+      "provisioningKeyStore: stored key present but OS encryption unavailable; cannot decrypt",
     );
     return null;
   }
@@ -175,7 +176,8 @@ export const hasLegacyProvisioningKey = async (): Promise<boolean> => {
 };
 
 const activeProfileId = async (): Promise<string | null> => {
-  const { getCurrentProfileId } = await import("~/features/providers/store/apiStore");
+  const { getCurrentProfileId } =
+    await import("~/features/providers/store/apiStore");
   return getCurrentProfileId() || null;
 };
 

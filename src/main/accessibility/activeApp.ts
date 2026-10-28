@@ -58,7 +58,7 @@ export const parseActiveApp = (stdout: string): ActiveApp | null => {
 
   // Control characters would break out of the prompt's context block, and
   // no real app name contains them.
-  // eslint-disable-next-line no-control-regex -- stripping C0/C1 controls is the point
+  // oxlint-disable-next-line no-control-regex -- stripping C0/C1 controls is the point
   const name = rawName.replace(/[\x00-\x1f\x7f-\x9f]/g, "").trim();
   const bundleId = rawBundleId.trim() || null;
 
@@ -108,7 +108,10 @@ const runFrontmostAppScript = (): Promise<string> =>
  * `accessibility.activeApp` log scope regardless of which `osascript`
  * invocation produced the raw line.
  */
-export const logActiveAppRead = (app: ActiveApp | null, rawStdout: string): void => {
+export const logActiveAppRead = (
+  app: ActiveApp | null,
+  rawStdout: string,
+): void => {
   if (app) recordActiveApp(app);
   logger.debug(
     "accessibility.activeApp",

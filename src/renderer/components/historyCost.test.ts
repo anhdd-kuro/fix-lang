@@ -10,9 +10,9 @@ import { formatCostLabel, resolveCostDisplay } from "./historyCost";
 
 describe("resolveCostDisplay", () => {
   it("resolves 'na' for status 'na'", () => {
-    expect(resolveCostDisplay({ costStatus: "na", estimatedCostUsd: null })).toEqual(
-      { kind: "na" }
-    );
+    expect(
+      resolveCostDisplay({ costStatus: "na", estimatedCostUsd: null }),
+    ).toEqual({ kind: "na" });
   });
 
   it("resolves 'na' for a legacy/migrated entry with no cost fields", () => {
@@ -20,7 +20,9 @@ describe("resolveCostDisplay", () => {
   });
 
   it("resolves a standard-precision zero for a genuine zero (local/Ollama)", () => {
-    expect(resolveCostDisplay({ costStatus: "zero", estimatedCostUsd: 0 })).toEqual({
+    expect(
+      resolveCostDisplay({ costStatus: "zero", estimatedCostUsd: 0 }),
+    ).toEqual({
       kind: "amount",
       valueUsd: 0,
       minimumFractionDigits: 2,
@@ -30,7 +32,7 @@ describe("resolveCostDisplay", () => {
 
   it("resolves standard precision for a priced 'ok' cost", () => {
     expect(
-      resolveCostDisplay({ costStatus: "ok", estimatedCostUsd: 1.23 })
+      resolveCostDisplay({ costStatus: "ok", estimatedCostUsd: 1.23 }),
     ).toEqual({
       kind: "amount",
       valueUsd: 1.23,
@@ -41,7 +43,7 @@ describe("resolveCostDisplay", () => {
 
   it("resolves widened precision for a tiny sub-cent 'ok' cost", () => {
     expect(
-      resolveCostDisplay({ costStatus: "ok", estimatedCostUsd: 0.0006 })
+      resolveCostDisplay({ costStatus: "ok", estimatedCostUsd: 0.0006 }),
     ).toEqual({
       kind: "amount",
       valueUsd: 0.0006,
@@ -51,14 +53,14 @@ describe("resolveCostDisplay", () => {
   });
 
   it("resolves 'na' for an 'ok' status with a null cost (inconsistent state)", () => {
-    expect(resolveCostDisplay({ costStatus: "ok", estimatedCostUsd: null })).toEqual(
-      { kind: "na" }
-    );
+    expect(
+      resolveCostDisplay({ costStatus: "ok", estimatedCostUsd: null }),
+    ).toEqual({ kind: "na" });
   });
 
   it("resolves standard precision when an 'ok' cost is exactly zero", () => {
     expect(
-      resolveCostDisplay({ costStatus: "ok", estimatedCostUsd: 0 })
+      resolveCostDisplay({ costStatus: "ok", estimatedCostUsd: 0 }),
     ).toEqual({
       kind: "amount",
       valueUsd: 0,
@@ -71,16 +73,17 @@ describe("resolveCostDisplay", () => {
 describe("formatCostLabel", () => {
   const localeCases = ["en" as const, "ja" as const];
 
-  it.each(localeCases)(
-    "renders the translated N/A key in %s",
-    (locale) => {
-      const t = createTranslator(locale);
-      const { formatNumber } = createFormatters(locale);
-      expect(
-        formatCostLabel({ costStatus: "na", estimatedCostUsd: null }, t, formatNumber)
-      ).toBe(t("history.cost.na"));
-    }
-  );
+  it.each(localeCases)("renders the translated N/A key in %s", (locale) => {
+    const t = createTranslator(locale);
+    const { formatNumber } = createFormatters(locale);
+    expect(
+      formatCostLabel(
+        { costStatus: "na", estimatedCostUsd: null },
+        t,
+        formatNumber,
+      ),
+    ).toBe(t("history.cost.na"));
+  });
 
   it("renders different N/A wording per locale — not a coincidental match", () => {
     expect(createTranslator("en")("history.cost.na")).not.toBe(
@@ -88,16 +91,17 @@ describe("formatCostLabel", () => {
     );
   });
 
-  it.each(localeCases)(
-    "renders $0.00 for a genuine zero in %s",
-    (locale) => {
-      const t = createTranslator(locale);
-      const { formatNumber } = createFormatters(locale);
-      expect(
-        formatCostLabel({ costStatus: "zero", estimatedCostUsd: 0 }, t, formatNumber)
-      ).toBe("$0.00");
-    }
-  );
+  it.each(localeCases)("renders $0.00 for a genuine zero in %s", (locale) => {
+    const t = createTranslator(locale);
+    const { formatNumber } = createFormatters(locale);
+    expect(
+      formatCostLabel(
+        { costStatus: "zero", estimatedCostUsd: 0 },
+        t,
+        formatNumber,
+      ),
+    ).toBe("$0.00");
+  });
 
   it.each(localeCases)(
     "renders a two-decimal USD amount for a priced cost in %s",
@@ -105,9 +109,13 @@ describe("formatCostLabel", () => {
       const t = createTranslator(locale);
       const { formatNumber } = createFormatters(locale);
       expect(
-        formatCostLabel({ costStatus: "ok", estimatedCostUsd: 1.23 }, t, formatNumber)
+        formatCostLabel(
+          { costStatus: "ok", estimatedCostUsd: 1.23 },
+          t,
+          formatNumber,
+        ),
       ).toBe("$1.23");
-    }
+    },
   );
 
   it.each(localeCases)(
@@ -118,10 +126,10 @@ describe("formatCostLabel", () => {
       const label = formatCostLabel(
         { costStatus: "ok", estimatedCostUsd: 0.0006 },
         t,
-        formatNumber
+        formatNumber,
       );
       expect(label).not.toBe("$0.00");
       expect(label).toBe("$0.0006");
-    }
+    },
   );
 });

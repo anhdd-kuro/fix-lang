@@ -12,9 +12,7 @@
  * lastActionHistory pointer.
  */
 // vi.mock calls must precede the module-under-test imports (mocks are
-// registered before the SUT resolves its deps), which conflicts with
-// import-x/order grouping — disabled file-wide for this test.
-/* eslint-disable import-x/order */
+// registered before the SUT resolves its deps).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
@@ -35,16 +33,16 @@ vi.mock("./historyDb", () => ({
 }));
 
 // electron-store is only used for the lastActionHistory pointer now.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- test mock; Store.get/set accept any shape
+// oxlint-disable-next-line typescript/no-explicit-any -- test mock; Store.get/set accept any shape
 const storeMap = new Map<string, any>();
 vi.mock("electron-store", () => {
   return {
     default: class MockStore {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic K/V store API
+      // oxlint-disable-next-line typescript/no-explicit-any -- generic K/V store API
       get(key: string): any {
         return storeMap.get(key);
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic K/V store API
+      // oxlint-disable-next-line typescript/no-explicit-any -- generic K/V store API
       set(key: string, value: any): void {
         storeMap.set(key, value);
       }
@@ -59,6 +57,7 @@ import {
   filterHistoryByPreset,
   getHistory,
   mergeLegacyHistoryEntries,
+  migrateLegacyHistoryBuckets,
   overrideHistory,
   removeHistoryEntry,
 } from "./historyStore";
@@ -145,16 +144,13 @@ describe("CRUD delegation", () => {
   it("overrideHistory delegates to repo.overrideFeature", () => {
     const entries = [makeEntry()];
     overrideHistory("corrections", entries);
-    expect(repoMock.overrideFeature).toHaveBeenCalledWith(
-      "corrections",
-      [
-        {
-          ...entries[0],
-          promptTokens: estimateTextTokens(entries[0].original),
-          completionTokens: estimateTextTokens(entries[0].corrected),
-        },
-      ]
-    );
+    expect(repoMock.overrideFeature).toHaveBeenCalledWith("corrections", [
+      {
+        ...entries[0],
+        promptTokens: estimateTextTokens(entries[0].original),
+        completionTokens: estimateTextTokens(entries[0].corrected),
+      },
+    ]);
   });
 });
 
@@ -239,36 +235,48 @@ describe("mergeLegacyHistoryEntries", () => {
   });
 
   it("tags untagged legacy summarize entries with the Summarize preset name", () => {
-    const result = mergeLegacyHistoryEntries(
-      [],
-      { summarize: [makeEntry({ original: "long text", timestamp: "2024-01-02T00:00:00Z" })] },
-    );
+    const result = mergeLegacyHistoryEntries([], {
+      summarize: [
+        makeEntry({ original: "long text", timestamp: "2024-01-02T00:00:00Z" }),
+      ],
+    });
     expect(result[0].presetName).toBe("Summarize");
   });
 
   it("preserves an existing presetName on legacy entries (no overwrite)", () => {
-    const result = mergeLegacyHistoryEntries(
-      [],
-      {
-        translations: [
-          makeEntry({
-            original: "x",
-            timestamp: "2024-01-03T00:00:00Z",
-            presetName: "Custom Translate",
-          }),
-        ],
-      },
-    );
+    const result = mergeLegacyHistoryEntries([], {
+      translations: [
+        makeEntry({
+          original: "x",
+          timestamp: "2024-01-03T00:00:00Z",
+          presetName: "Custom Translate",
+        }),
+      ],
+    });
     expect(result[0].presetName).toBe("Custom Translate");
   });
 
   it("keeps existing corrections first, then appends legacy entries", () => {
     const corrections = [
-      makeEntry({ original: "fix me", timestamp: "2024-02-01T00:00:00Z", presetName: "Correction" }),
+      makeEntry({
+        original: "fix me",
+        timestamp: "2024-02-01T00:00:00Z",
+        presetName: "Correction",
+      }),
     ];
     const result = mergeLegacyHistoryEntries(corrections, {
-      translations: [makeEntry({ original: "translate me", timestamp: "2024-01-01T00:00:00Z" })],
-      summarize: [makeEntry({ original: "summarize me", timestamp: "2024-01-02T00:00:00Z" })],
+      translations: [
+        makeEntry({
+          original: "translate me",
+          timestamp: "2024-01-01T00:00:00Z",
+        }),
+      ],
+      summarize: [
+        makeEntry({
+          original: "summarize me",
+          timestamp: "2024-01-02T00:00:00Z",
+        }),
+      ],
     });
     expect(result).toHaveLength(3);
     expect(result[0].original).toBe("fix me");
@@ -280,17 +288,71 @@ describe("mergeLegacyHistoryEntries", () => {
   });
 
   it("de-duplicates entries sharing timestamp + original", () => {
-    const dup = makeEntry({ original: "dup", timestamp: "2024-03-01T00:00:00Z", presetName: "Correction" });
+    const dup = makeEntry({
+      original: "dup",
+      timestamp: "2024-03-01T00:00:00Z",
+      presetName: "Correction",
+    });
     const result = mergeLegacyHistoryEntries([dup], {
-      translations: [makeEntry({ original: "dup", timestamp: "2024-03-01T00:00:00Z" })],
+      translations: [
+        makeEntry({ original: "dup", timestamp: "2024-03-01T00:00:00Z" }),
+      ],
     });
     expect(result).toHaveLength(1);
     expect(result[0].presetName).toBe("Correction");
   });
 
   it("returns corrections unchanged when there are no legacy buckets", () => {
-    const corrections = [makeEntry({ original: "a", timestamp: "2024-04-01T00:00:00Z" })];
+    const corrections = [
+      makeEntry({ original: "a", timestamp: "2024-04-01T00:00:00Z" }),
+    ];
     const result = mergeLegacyHistoryEntries(corrections, {});
     expect(result).toEqual(corrections);
+  });
+});
+
+describe("migrateLegacyHistoryBuckets — reads the retired electron-store buckets", () => {
+  it("passes each array bucket's entries through unvalidated, in order", () => {
+    const corrections = [makeEntry({ original: "c" })];
+    const promptGen = [makeEntry({ original: "p" }), { junk: true }, 7];
+    const translations = [makeEntry({ original: "t" })];
+    const summarize = [null];
+    storeMap.set("corrections", corrections);
+    storeMap.set("promptGen", promptGen);
+    storeMap.set("translations", translations);
+    storeMap.set("summarize", summarize);
+
+    migrateLegacyHistoryBuckets();
+
+    expect(repoMock.migrateLegacyBuckets).toHaveBeenCalledTimes(1);
+    expect(repoMock.migrateLegacyBuckets).toHaveBeenCalledWith(
+      corrections,
+      promptGen,
+      { translations, summarize },
+    );
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["null", null],
+    ["a string", "entries"],
+    ["a number", 3],
+    ["an object", { 0: makeEntry() }],
+  ])("reads a %s bucket as empty", (_label, bucket) => {
+    for (const key of [
+      "corrections",
+      "promptGen",
+      "translations",
+      "summarize",
+    ]) {
+      storeMap.set(key, bucket);
+    }
+
+    migrateLegacyHistoryBuckets();
+
+    expect(repoMock.migrateLegacyBuckets).toHaveBeenCalledWith([], [], {
+      translations: [],
+      summarize: [],
+    });
   });
 });

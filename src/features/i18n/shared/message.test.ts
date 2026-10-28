@@ -8,6 +8,8 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  isLabel,
+  isMessage,
   messageLabel,
   msg,
   resolveLabel,
@@ -17,8 +19,10 @@ import {
   type Translate,
 } from "./message";
 
+type RecordingTranslate = { t: Translate; calls: [string, unknown][] };
+
 /** Records every call so tests can assert both the return value and the forwarded args. */
-const fakeTranslate = (): { t: Translate; calls: [string, unknown][] } => {
+const fakeTranslate = (): RecordingTranslate => {
   const calls: [string, unknown][] = [];
   const t: Translate = (key, params) => {
     calls.push([key, params]);
@@ -65,7 +69,10 @@ describe("messageLabel", () => {
 describe("resolveMessage", () => {
   it("forwards key and params to the translate function", () => {
     const { t, calls } = fakeTranslate();
-    const message: Message = { key: "overview.value.days", params: { count: 2 } };
+    const message: Message = {
+      key: "overview.value.days",
+      params: { count: 2 },
+    };
     const result = resolveMessage(message, t);
     expect(calls).toEqual([["overview.value.days", { count: 2 }]]);
     expect(result).toBe('overview.value.days:{"count":2}');
@@ -100,5 +107,30 @@ describe("resolveLabel", () => {
       t,
     );
     expect(result).toBe('models.table.showMore:{"count":7}');
+  });
+});
+
+describe("isMessage / isLabel boundary edges", () => {
+  it("refuses a stray key instead of ignoring it", () => {
+    expect(isMessage({ key: "k", extra: 1 })).toBe(false);
+    expect(isLabel({ kind: "text", text: "t", extra: 1 })).toBe(false);
+  });
+
+  it("refuses boxed strings and empty keys", () => {
+    expect(isMessage({ key: new String("k") })).toBe(false);
+    expect(isMessage({ key: "" })).toBe(false);
+    expect(isLabel({ kind: "text", text: new String("t") })).toBe(false);
+  });
+
+  it("accepts number params of every kind, including NaN", () => {
+    expect(
+      isMessage({ key: "k", params: { n: Number.NaN, i: Infinity } }),
+    ).toBe(true);
+    expect(isMessage({ key: "k", params: { n: null } })).toBe(false);
+  });
+
+  it("checks a message label's descriptor, not just its keys", () => {
+    expect(isLabel({ kind: "message", message: { key: "k" } })).toBe(true);
+    expect(isLabel({ kind: "message", message: { key: "" } })).toBe(false);
   });
 });

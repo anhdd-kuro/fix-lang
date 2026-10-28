@@ -48,7 +48,7 @@ export type AskInputPayload = {
    * them. The same string rides every autocomplete dispatch from this window.
    */
   contextDirectives?: string;
-}
+};
 
 /** Sent from the main flow to a newly opened Ask result window. */
 export type AskResultPayload = {
@@ -66,4 +66,4 @@ export type AskResultPayload = {
    * window renders its answer.
    */
   markdown: boolean;
-}
+};

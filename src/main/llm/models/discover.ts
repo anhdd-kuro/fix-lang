@@ -5,9 +5,13 @@
 import fs from "fs";
 import path from "path";
 import { resolveOllamaEndpoint } from "~/features/providers/shared/ollamaEndpoint";
-import { getProviderEndpoint, type Model } from "~/features/providers/store/apiStore";
+import {
+  getProviderEndpoint,
+  type Model,
+} from "~/features/providers/store/apiStore";
 import { createOllamaClient } from "../providers/ollama/client";
 import type { ProviderEndpoint } from "~/features/providers/shared/lmstudioEndpoint";
+import type { JsonObject } from "~/main/jsonValue";
 
 /**
  * Format model size into a human-readable string (e.g., 7B, 13B)
@@ -46,7 +50,7 @@ export type ModelMetadata = {
   size?: number;
   family?: string;
   quantization?: string;
-  parameters?: Record<string, unknown> & { parameter_size?: number };
+  parameters?: JsonObject & { parameter_size?: number };
 };
 
 /**
@@ -156,42 +160,44 @@ export async function getLocalModels(): Promise<Model[]> {
     console.log("[DEBUG] Starting local model discovery...");
     console.log("[DEBUG] Creating Ollama client instance...");
 
-    console.log(
-      "[DEBUG] Attempting to connect to Ollama"
-    );
+    console.log("[DEBUG] Attempting to connect to Ollama");
 
     // Let's test the Ollama server separately first
     try {
-      const listResponse = await createOllamaClient(resolveOllamaEndpoint(getProviderEndpoint("ollama"))).list();
+      const listResponse = await createOllamaClient(
+        resolveOllamaEndpoint(getProviderEndpoint("ollama")),
+      ).list();
 
       if (listResponse.models.length > 0) {
         console.log(
           "[DEBUG] Direct connection to Ollama successful",
           listResponse.models
             ? `Found ${listResponse.models.length} models directly`
-            : "No models in direct response"
+            : "No models in direct response",
         );
         console.log(
           "[DEBUG] Raw Ollama response:",
-          JSON.stringify(listResponse, null, 2)
+          JSON.stringify(listResponse, null, 2),
         );
       } else {
         console.log(
-          `[DEBUG] Direct connection to Ollama failed: ${listResponse}`
+          `[DEBUG] Direct connection to Ollama failed: ${String(listResponse)}`,
         );
       }
     } catch (directErr) {
       console.log(
         "[DEBUG] Direct connection to Ollama failed with error:",
-        directErr
+        directErr,
       );
     }
 
     console.log("[DEBUG] Now trying through the OllamaClient class...");
-    const ollamaModels = await createOllamaClient(resolveOllamaEndpoint(getProviderEndpoint("ollama"))).list();
+    const ollamaModels = await createOllamaClient(
+      resolveOllamaEndpoint(getProviderEndpoint("ollama")),
+    ).list();
     console.log(
       "[DEBUG] OllamaClient.listModels() returned:",
-      JSON.stringify(ollamaModels, null, 2)
+      JSON.stringify(ollamaModels, null, 2),
     );
 
     if (!ollamaModels || ollamaModels.models.length === 0) {
@@ -215,7 +221,7 @@ export async function getLocalModels(): Promise<Model[]> {
 
     console.log(
       `Found ${localModels.length} supported local models`,
-      localModels
+      localModels,
     );
     return localModels;
   } catch (err) {
@@ -230,11 +236,13 @@ export async function getLocalModels(): Promise<Model[]> {
  */
 export async function checkModelStatus(modelId: string): Promise<ModelStatus> {
   try {
-    const models = await createOllamaClient(resolveOllamaEndpoint(getProviderEndpoint("ollama"))).list();
+    const models = await createOllamaClient(
+      resolveOllamaEndpoint(getProviderEndpoint("ollama")),
+    ).list();
 
     // Check if model exists in Ollama
     const exists = models.models.some(
-      (model: ModelMetadata) => model.name === modelId
+      (model: ModelMetadata) => model.name === modelId,
     );
     return exists ? "available" : "not-found";
   } catch (err) {
@@ -275,7 +283,7 @@ export function registerModel(model: Model): Model {
  * This is a fallback mechanism if Ollama API fails
  */
 export async function scanForModelFiles(
-  directories: string[] = DEFAULT_MODEL_DIRECTORIES
+  directories: string[] = DEFAULT_MODEL_DIRECTORIES,
 ): Promise<string[]> {
   const modelFiles: string[] = [];
 
@@ -316,7 +324,7 @@ function isModelDirectory(dirPath: string): boolean {
         file.endsWith(".bin") ||
         file.endsWith(".gguf") ||
         file.endsWith(".safetensors") ||
-        file.includes("config.json")
+        file.includes("config.json"),
     );
   } catch (error) {
     console.error(`Error checking directory ${dirPath}:`, error);

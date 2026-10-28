@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { z } from "zod";
 import {
   BETA_CASK_TOKEN,
   isCaskToken,
@@ -101,14 +102,26 @@ export type ReconcileContext = ReconcileContextBase &
  */
 export const UPGRADE_GRACE_MS = 20 * 60_000;
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-/** Missing or nonsensical timestamps read as "long ago", never as "just now". */
-const parseStartedAt = (value: unknown): number =>
-  typeof value === "number" && Number.isSafeInteger(value) && value > 0
-    ? value
-    : 0;
+/**
+ * The marker as written to disk. Both versions are required; the later fields
+ * fall back instead of rejecting a marker written before they existed.
+ */
+const PendingInstallMarkerSchema = z.object({
+  fromVersion: z.string().min(1),
+  toVersion: z.string().min(1),
+  /** Missing or nonsensical timestamps read as "long ago", never as "just now". */
+  startedAt: z.number().int().positive().catch(0),
+  appPath: z.string().catch(""),
+  // Arrow-wrapped: both helpers are declared below this schema.
+  caskToken: z
+    .unknown()
+    .optional()
+    .transform((value) => parseCaskToken(value)),
+  fromCaskToken: z
+    .unknown()
+    .optional()
+    .transform((value) => parseOptionalCaskToken(value)),
+});
 
 /**
  * Missing, corrupt, or foreign values fall back to the stable token rather
@@ -127,23 +140,17 @@ const parseOptionalCaskToken = (value: unknown): CaskToken | undefined =>
 /** Parses the marker defensively; a corrupt file must never break startup. */
 export const parsePendingInstall = (raw: string): PendingInstall | null => {
   try {
-    const value: unknown = JSON.parse(raw);
-    if (
-      !isRecord(value) ||
-      typeof value.fromVersion !== "string" ||
-      typeof value.toVersion !== "string" ||
-      value.fromVersion.length === 0 ||
-      value.toVersion.length === 0
-    ) {
+    const marker = PendingInstallMarkerSchema.safeParse(JSON.parse(raw));
+    if (!marker.success) {
       return null;
     }
     return Object.freeze({
-      fromVersion: value.fromVersion,
-      toVersion: value.toVersion,
-      startedAt: parseStartedAt(value.startedAt),
-      appPath: typeof value.appPath === "string" ? value.appPath : "",
-      caskToken: parseCaskToken(value.caskToken),
-      fromCaskToken: parseOptionalCaskToken(value.fromCaskToken),
+      fromVersion: marker.data.fromVersion,
+      toVersion: marker.data.toVersion,
+      startedAt: marker.data.startedAt,
+      appPath: marker.data.appPath,
+      caskToken: marker.data.caskToken,
+      fromCaskToken: marker.data.fromCaskToken,
     });
   } catch {
     return null;

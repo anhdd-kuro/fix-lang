@@ -30,7 +30,8 @@ vi.mock("../components/LanguageTabs", () => ({
   LanguageTabs: () => createElement("div", { "data-stub": "language-tabs" }),
 }));
 vi.mock("../components/OutputModeTabs", () => ({
-  OutputModeTabs: () => createElement("div", { "data-stub": "output-mode-tabs" }),
+  OutputModeTabs: () =>
+    createElement("div", { "data-stub": "output-mode-tabs" }),
 }));
 vi.mock("../components/Tooltip", () => ({
   default: () => createElement("span", { "data-stub": "tooltip" }),
@@ -39,7 +40,8 @@ vi.mock("./components/TrayToolbar", () => ({
   TrayToolbar: () => createElement("div", { "data-stub": "tray-toolbar" }),
 }));
 vi.mock("./components/TrayActivityHeatmap", () => ({
-  TrayActivityHeatmapLoader: () => createElement("div", { "data-stub": "heatmap" }),
+  TrayActivityHeatmapLoader: () =>
+    createElement("div", { "data-stub": "heatmap" }),
 }));
 vi.mock("../hooks/useTheme", () => ({
   useTheme: () => ({ themeId: "default", setTheme: vi.fn(), isLoading: false }),
@@ -89,7 +91,10 @@ describe("TrayWindowMain", () => {
    *   "" to a real id, which is what triggered the duplicate.
    */
   const render = async (resolveProfileAfterMount: boolean): Promise<void> => {
-    const profileResult = { currentProfileId: "profile_1", currentProfile: null };
+    const profileResult = {
+      currentProfileId: "profile_1",
+      currentProfile: null,
+    };
     let releaseProfile: () => void = vi.fn();
     const pendingProfile = new Promise<typeof profileResult>((resolve) => {
       releaseProfile = () => resolve(profileResult);

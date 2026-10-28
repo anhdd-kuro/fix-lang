@@ -68,11 +68,14 @@ const invokePrereleaseAction = async (
 
 /** Exposes the app-update state and explicit user actions to the renderer. */
 export const updateFeature = {
-  getUpdateState: (): Promise<UpdateState> => invokeUpdateAction("updates:get-state"),
+  getUpdateState: (): Promise<UpdateState> =>
+    invokeUpdateAction("updates:get-state"),
 
-  checkForUpdates: (): Promise<UpdateState> => invokeUpdateAction("updates:check"),
+  checkForUpdates: (): Promise<UpdateState> =>
+    invokeUpdateAction("updates:check"),
 
-  openUpdateRelease: (): Promise<OpenUpdateReleaseResult> => invokeOpenRelease(),
+  openUpdateRelease: (): Promise<OpenUpdateReleaseResult> =>
+    invokeOpenRelease(),
 
   /** Asks main to run `brew upgrade --cask fixlang` and relaunch FixLang. */
   installUpdate: (): Promise<InstallUpdateResult> => invokeInstall(),
@@ -83,7 +86,7 @@ export const updateFeature = {
   onUpdateStateChanged: (
     callback: (state: UpdateState) => void,
   ): (() => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, state: unknown) => {
+    const listener: Parameters<typeof ipcRenderer.on>[1] = (_event, state) => {
       if (isUpdateState(state)) {
         callback(state);
       }

@@ -7,7 +7,10 @@ import {
 
 describe("normalizeSecretGuardSettings", () => {
   it("ships the guard on, in confirm mode, with the opt-in rule off", () => {
-    expect(DEFAULT_SECRET_GUARD_SETTINGS).toEqual({ mode: "confirm", highEntropyRule: false });
+    expect(DEFAULT_SECRET_GUARD_SETTINGS).toEqual({
+      mode: "confirm",
+      highEntropyRule: false,
+    });
   });
 
   it("offers exactly three modes", () => {
@@ -15,11 +18,15 @@ describe("normalizeSecretGuardSettings", () => {
   });
 
   it.each(SECRET_GUARD_MODES)("keeps a stored %s mode", (mode) => {
-    expect(normalizeSecretGuardSettings({ mode, highEntropyRule: false }).mode).toBe(mode);
+    expect(
+      normalizeSecretGuardSettings({ mode, highEntropyRule: false }).mode,
+    ).toBe(mode);
   });
 
   it("keeps the opt-in rule when it is explicitly on", () => {
-    expect(normalizeSecretGuardSettings({ mode: "mask", highEntropyRule: true })).toEqual({
+    expect(
+      normalizeSecretGuardSettings({ mode: "mask", highEntropyRule: true }),
+    ).toEqual({
       mode: "mask",
       highEntropyRule: true,
     });
@@ -50,7 +57,11 @@ describe("normalizeSecretGuardSettings", () => {
   });
 
   it("returns a fresh object rather than the shared default", () => {
-    expect(normalizeSecretGuardSettings(undefined)).not.toBe(DEFAULT_SECRET_GUARD_SETTINGS);
-    expect(normalizeSecretGuardSettings(undefined)).toEqual(DEFAULT_SECRET_GUARD_SETTINGS);
+    expect(normalizeSecretGuardSettings(undefined)).not.toBe(
+      DEFAULT_SECRET_GUARD_SETTINGS,
+    );
+    expect(normalizeSecretGuardSettings(undefined)).toEqual(
+      DEFAULT_SECRET_GUARD_SETTINGS,
+    );
   });
 });

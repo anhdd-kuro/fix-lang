@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "semi": true,
+  "singleQuote": false,
+  "jsxSingleQuote": false,
+  "quoteProps": "as-needed",
+  "tabWidth": 2,
+  "useTabs": false,
+  "printWidth": 80,
+  "trailingComma": "all",
+  "bracketSameLine": false,
+  "bracketSpacing": true,
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "proseWrap": "preserve",
+  "sortImports": false,
+  "sortPackageJson": false,
+  "ignorePatterns": [
+    "graft/**",
+    "src/prompts/**",
+    "src/themes/json/**",
+    "src/themes/fixtures/**",
+    "src/renderer/themes/generated/**",
+    "**/*.generated.ts",
+    "src/main/webViewWindows/overlay.html",
+    "tools/oxlint/anti-slop/**"
+  ]
+}

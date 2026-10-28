@@ -27,7 +27,9 @@ export const resolveLmStudioApiKey = (apiKey?: string | null): string => {
   return trimmed && trimmed.length > 0 ? trimmed : LMSTUDIO_DEFAULT_API_KEY;
 };
 
-export const createLmStudioOpenAIClient = (options: LmStudioClientOptions = {}): OpenAI => {
+export const createLmStudioOpenAIClient = (
+  options: LmStudioClientOptions = {},
+): OpenAI => {
   const endpoint = resolveLmStudioEndpoint(options.endpoint);
   return new OpenAI({
     baseURL: buildLmStudioBaseUrl(endpoint),
@@ -37,7 +39,10 @@ export const createLmStudioOpenAIClient = (options: LmStudioClientOptions = {}):
   });
 };
 
-const toLmStudioModel = (model: { id: string; created?: number | null }): Model => ({
+const toLmStudioModel = (model: {
+  id: string;
+  created?: number | null;
+}): Model => ({
   id: model.id,
   name: model.id,
   created: model.created ?? 0,

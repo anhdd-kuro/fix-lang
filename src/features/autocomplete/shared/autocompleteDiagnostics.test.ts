@@ -4,26 +4,37 @@ import {
   AUTOCOMPLETE_RENDERER_SKIP_REASONS,
   AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS,
   createSkipThrottle,
-  isAutocompleteRendererSkipReason,
   wastedSuggestionLogLevel,
 } from "./autocompleteDiagnostics";
+import { AutocompleteRendererSkipReasonSchema } from "./autocompleteSchemas";
 import type { AutocompleteWastedReason } from "./autocompleteDiagnostics";
 
-describe("isAutocompleteRendererSkipReason", () => {
+describe("AutocompleteRendererSkipReasonSchema", () => {
   it.each(AUTOCOMPLETE_RENDERER_SKIP_REASONS)("accepts %s", (reason) => {
-    expect(isAutocompleteRendererSkipReason(reason)).toBe(true);
+    expect(AutocompleteRendererSkipReasonSchema.safeParse(reason).success).toBe(
+      true,
+    );
   });
 
   /**
    * The guard is what stops renderer-controlled text reaching a log file the
    * user can export, so anything not on the list is not a reason.
    */
-  it.each(["", "composing ", "COMPOSING", "prefix_too_short", 1, null, undefined, {}, []])(
-    "rejects %p",
-    (value) => {
-      expect(isAutocompleteRendererSkipReason(value)).toBe(false);
-    },
-  );
+  it.each([
+    "",
+    "composing ",
+    "COMPOSING",
+    "prefix_too_short",
+    1,
+    null,
+    undefined,
+    {},
+    [],
+  ])("rejects %p", (value) => {
+    expect(AutocompleteRendererSkipReasonSchema.safeParse(value).success).toBe(
+      false,
+    );
+  });
 });
 
 describe("createSkipThrottle", () => {
@@ -40,7 +51,9 @@ describe("createSkipThrottle", () => {
     const throttle = createSkipThrottle();
     throttle.admit("disabled", 0);
 
-    expect(throttle.admit("disabled", AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS - 1)).toEqual({
+    expect(
+      throttle.admit("disabled", AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS - 1),
+    ).toEqual({
       emit: false,
     });
   });
@@ -51,7 +64,9 @@ describe("createSkipThrottle", () => {
     throttle.admit("disabled", 1);
     throttle.admit("disabled", 2);
 
-    expect(throttle.admit("disabled", AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS)).toEqual({
+    expect(
+      throttle.admit("disabled", AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS),
+    ).toEqual({
       emit: true,
       suppressedSincePrevious: 2,
     });
@@ -132,27 +147,30 @@ describe("reason tokens survive the real redactor", () => {
    * here would leave a line that says a suggestion was wasted and refuses to
    * say by what.
    */
-  it.each(WASTED_REASONS)("keeps %s and its model/latency fields intact", (reason) => {
-    const context = {
-      reason,
-      model: "lmstudio::ornith-1.0-35b",
-      provider: "lmstudio",
-      latencyMs: 24484,
-      prefixLength: 39,
-      /**
-       * `unparseable-reply` only, and the key that has to be watched: the
-       * obvious names for it are all trapped. `replyTokens` would be blanked for
-       * containing `token`, exactly as `clipboardRead` was, leaving a warning
-       * that says the model emitted garbage and refuses to say how much.
-       */
-      replyLength: 128,
-      suppressedSincePrevious: 3,
-      suppressedInRenderer: 2,
-      suppressedInMain: 1,
-    };
+  it.each(WASTED_REASONS)(
+    "keeps %s and its model/latency fields intact",
+    (reason) => {
+      const context = {
+        reason,
+        model: "lmstudio::ornith-1.0-35b",
+        provider: "lmstudio",
+        latencyMs: 24484,
+        prefixLength: 39,
+        /**
+         * `unparseable-reply` only, and the key that has to be watched: the
+         * obvious names for it are all trapped. `replyTokens` would be blanked for
+         * containing `token`, exactly as `clipboardRead` was, leaving a warning
+         * that says the model emitted garbage and refuses to say how much.
+         */
+        replyLength: 128,
+        suppressedSincePrevious: 3,
+        suppressedInRenderer: 2,
+        suppressedInMain: 1,
+      };
 
-    expect(redactLogContext(context)).toEqual(context);
-  });
+      expect(redactLogContext(context)).toEqual(context);
+    },
+  );
 });
 
 /**
@@ -166,7 +184,10 @@ describe("wastedSuggestionLogLevel", () => {
     expect(wastedSuggestionLogLevel(0)).toBe("debug");
   });
 
-  it.each([1, 2, 50])("raises a recurrence to warn: %p suppressed", (suppressed) => {
-    expect(wastedSuggestionLogLevel(suppressed)).toBe("warn");
-  });
+  it.each([1, 2, 50])(
+    "raises a recurrence to warn: %p suppressed",
+    (suppressed) => {
+      expect(wastedSuggestionLogLevel(suppressed)).toBe("warn");
+    },
+  );
 });

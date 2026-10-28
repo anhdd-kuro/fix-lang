@@ -1,18 +1,23 @@
 /**
  * @file secretGuardSettings.ts
- * @description The secret guard's stored settings shape and its normalizer.
+ * @description The secret guard's stored settings shape, its normalizer, and
+ * the payload schema both IPC boundaries validate against.
  *
  * Pure and electron-free — shared by main, preload and renderer.
  */
+import { z } from "zod";
 
 /**
  * ONE enum rather than two booleans: masking suppresses the confirm dialog, so
  * `confirm && mask` is an impossible state, and encoding an impossible state
  * means maintaining a resolver for it forever.
  */
-export type SecretGuardMode = "off" | "confirm" | "mask";
+const SecretGuardModeSchema = z.enum(["off", "confirm", "mask"]);
 
-export const SECRET_GUARD_MODES: readonly SecretGuardMode[] = ["off", "confirm", "mask"];
+export type SecretGuardMode = z.infer<typeof SecretGuardModeSchema>;
+
+export const SECRET_GUARD_MODES: readonly SecretGuardMode[] =
+  SecretGuardModeSchema.options;
 
 export type SecretGuardSettings = {
   mode: SecretGuardMode;
@@ -25,21 +30,35 @@ export const DEFAULT_SECRET_GUARD_SETTINGS: SecretGuardSettings = {
   highEntropyRule: false,
 };
 
-const isSecretGuardMode = (value: unknown): value is SecretGuardMode =>
-  SECRET_GUARD_MODES.includes(value as SecretGuardMode);
-
 /**
- * Coerces stored JSON into {@link SecretGuardSettings}.
+ * Stored JSON → {@link SecretGuardSettings}, field by field.
  *
  * Junk normalizes to `"confirm"` — fail SAFE, because junk must never silently
  * disable a privacy guard. Junk entropy normalizes to `false` — fail QUIET,
  * because only an explicit opt-in should switch on the rule that produces false
- * positives.
+ * positives. A non-object reads as nothing stored, so it gets both defaults.
  */
-export const normalizeSecretGuardSettings = (raw: unknown): SecretGuardSettings => {
-  const value = (raw ?? {}) as Partial<Record<keyof SecretGuardSettings, unknown>>;
-  return {
-    mode: isSecretGuardMode(value.mode) ? value.mode : DEFAULT_SECRET_GUARD_SETTINGS.mode,
-    highEntropyRule: value.highEntropyRule === true,
-  };
-};
+const StoredSecretGuardSettingsSchema = z
+  .object({
+    mode: SecretGuardModeSchema.catch(DEFAULT_SECRET_GUARD_SETTINGS.mode),
+    highEntropyRule: z.boolean().catch(false),
+  })
+  .catch(() => ({ ...DEFAULT_SECRET_GUARD_SETTINGS }));
+
+/** Coerces stored JSON into {@link SecretGuardSettings}; never throws. */
+export const normalizeSecretGuardSettings =
+  StoredSecretGuardSettingsSchema.parse;
+
+/**
+ * Exactly the payloads `normalizeSecretGuardSettings` leaves unchanged — what
+ * the main handler and the preload bridge each accept, independently. A
+ * predicate that accepted something the normalizer then rewrote would report
+ * a successful write of settings the user never chose: `highEntropyRule`
+ * therefore must be a real boolean, while `false` and `mode: "off"` stay legal
+ * because they are choices, not malformed input. Extra keys are tolerated
+ * (the store's normalizer drops them).
+ */
+export const SecretGuardSettingsPayloadSchema = z.looseObject({
+  mode: SecretGuardModeSchema,
+  highEntropyRule: z.boolean(),
+});

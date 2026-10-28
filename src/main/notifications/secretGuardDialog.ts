@@ -36,7 +36,12 @@ const describeRules = (ruleIds: readonly SecretRuleId[]): string => {
   const omitted = ruleIds.length - named.length;
   const parts =
     omitted > 0
-      ? [...named, mainT("notifications.secretGuard.confirm.andMore", { count: omitted })]
+      ? [
+          ...named,
+          mainT("notifications.secretGuard.confirm.andMore", {
+            count: omitted,
+          }),
+        ]
       : named;
   return parts.join(", ");
 };
@@ -89,7 +94,9 @@ export const confirmSecretSend = async (
 
   dialogInFlight = true;
   try {
-    const { response } = await dialog.showMessageBox(buildSecretConfirmDialog(input));
+    const { response } = await dialog.showMessageBox(
+      buildSecretConfirmDialog(input),
+    );
     return response === SEND_INDEX;
   } catch {
     // A dialog that failed to open was never answered, so it is not consent.

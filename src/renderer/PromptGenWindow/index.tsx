@@ -29,13 +29,13 @@ const PromptGenWindow: React.FC = () => {
     window.electronAPI.onPromptGenData((payload) => {
       console.log(
         `🚀 \n - window.electronAPI.onPromptGenData \n - payload:`,
-        payload
+        payload,
       );
       setData(payload);
 
       if (payload.autoCopy && payload.prompts.length > 0) {
         const allPrompts = payload.prompts.join("\n\n");
-        window.electronAPI.copyToClipboard(allPrompts);
+        void window.electronAPI.copyToClipboard(allPrompts);
       }
     });
     return () => {
@@ -74,7 +74,9 @@ const PromptGenWindow: React.FC = () => {
       <div className="flex justify-between items-center sticky bottom-0 bg-card p-3 rounded-md shadow-md border border-card-control-border">
         <div className="text-xs text-muted-foreground">
           {data.promptTokens && (
-            <span>{t("common.promptTokens", { count: data.promptTokens })}</span>
+            <span>
+              {t("common.promptTokens", { count: data.promptTokens })}
+            </span>
           )}
           {" | "}
           {data.completionTokens && (
@@ -107,6 +109,6 @@ if (container) {
   root.render(
     <I18nProvider>
       <PromptGenWindow />
-    </I18nProvider>
+    </I18nProvider>,
   );
 }

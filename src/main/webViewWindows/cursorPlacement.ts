@@ -14,14 +14,14 @@
 export type Point = {
   x: number;
   y: number;
-}
+};
 
 export type Rect = {
   x: number;
   y: number;
   width: number;
   height: number;
-}
+};
 
 /** Matches the offset `showCorrectionResultWindow` already uses. */
 export const DEFAULT_CURSOR_OFFSET = 16;
@@ -38,7 +38,7 @@ export type ClampToWorkAreaInput = {
   offset?: number;
   /** Cascade position for the Nth simultaneously-open window (0-based). Defaults to 0 (no cascade). */
   index?: number;
-}
+};
 
 /**
  * Positions a `width`x`height` window near `cursor`, offset by `offset` (and

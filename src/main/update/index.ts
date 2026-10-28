@@ -15,7 +15,10 @@ import {
   type ActiveCaskChannel,
   type CaskToken,
 } from "./homebrew";
-import { appBundlePath, shouldCheckForUpdatesOnLaunch } from "./installationPath";
+import {
+  appBundlePath,
+  shouldCheckForUpdatesOnLaunch,
+} from "./installationPath";
 import { createPendingInstallStore } from "./pendingInstall";
 import { createUpdateService, type UpdateService } from "./updateService";
 import type { TKey } from "~/features/i18n/shared/translate";

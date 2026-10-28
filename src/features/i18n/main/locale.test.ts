@@ -41,13 +41,22 @@ vi.mock("~/features/i18n/store/localeStore", () => ({
 
 vi.mock("~/main/webViewWindows", () => ({
   syncPromptGenWindowLocale: webViewWindowsMocks.syncPromptGenWindowLocale,
-  syncCorrectionResultWindowLocale: webViewWindowsMocks.syncCorrectionResultWindowLocale,
+  syncCorrectionResultWindowLocale:
+    webViewWindowsMocks.syncCorrectionResultWindowLocale,
   syncErrorPopupLocale: webViewWindowsMocks.syncErrorPopupLocale,
   syncAskInputWindowLocale: webViewWindowsMocks.syncAskInputWindowLocale,
   syncAskResultWindowLocale: webViewWindowsMocks.syncAskResultWindowLocale,
 }));
 
-type Handler = (event: unknown, raw: unknown) => unknown;
+/** A structured-clone value as it reaches a handler, before the handler parses it. */
+type IpcArg = string | number | boolean | null | undefined | IpcArgRecord;
+
+type IpcArgRecord = { readonly [key: string]: IpcArg };
+
+/** Union of the `get-locale` and `set-locale` reply envelopes. */
+type LocaleReply = { locale?: string; success?: boolean; error?: string };
+
+type Handler = (event: undefined, raw: IpcArg) => Promise<LocaleReply>;
 
 const buildWindow = (isDestroyed: boolean) => ({
   isDestroyed: () => isDestroyed,
@@ -55,7 +64,9 @@ const buildWindow = (isDestroyed: boolean) => ({
 });
 
 const getHandler = (channel: string): Handler => {
-  const call = electronMocks.handle.mock.calls.find(([name]) => name === channel);
+  const call = electronMocks.handle.mock.calls.find(
+    ([name]) => name === channel,
+  );
   if (!call) {
     throw new Error(`no handler registered for channel "${channel}"`);
   }
@@ -71,7 +82,9 @@ describe("registerLocaleHandlers", () => {
   it("get-locale returns the current stored locale", async () => {
     localeStoreMocks.getLocale.mockReturnValue("ja");
 
-    await expect(getHandler("get-locale")(undefined, undefined)).resolves.toEqual({
+    await expect(
+      getHandler("get-locale")(undefined, undefined),
+    ).resolves.toEqual({
       locale: "ja",
     });
   });
@@ -85,7 +98,10 @@ describe("registerLocaleHandlers", () => {
     });
 
     expect(localeStoreMocks.setLocale).toHaveBeenCalledWith("ja");
-    expect(window.webContents.send).toHaveBeenCalledWith("locale-changed", "ja");
+    expect(window.webContents.send).toHaveBeenCalledWith(
+      "locale-changed",
+      "ja",
+    );
   });
 
   it.each([["fr"], [""], [42], [null], [undefined], [{ locale: "ja" }]])(
@@ -123,11 +139,19 @@ describe("broadcastLocale", () => {
 
     broadcastLocale("ja");
 
-    expect(webViewWindowsMocks.syncPromptGenWindowLocale).toHaveBeenCalledTimes(1);
-    expect(webViewWindowsMocks.syncCorrectionResultWindowLocale).toHaveBeenCalledTimes(1);
+    expect(webViewWindowsMocks.syncPromptGenWindowLocale).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(
+      webViewWindowsMocks.syncCorrectionResultWindowLocale,
+    ).toHaveBeenCalledTimes(1);
     expect(webViewWindowsMocks.syncErrorPopupLocale).toHaveBeenCalledTimes(1);
-    expect(webViewWindowsMocks.syncAskInputWindowLocale).toHaveBeenCalledTimes(1);
-    expect(webViewWindowsMocks.syncAskResultWindowLocale).toHaveBeenCalledTimes(1);
+    expect(webViewWindowsMocks.syncAskInputWindowLocale).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(webViewWindowsMocks.syncAskResultWindowLocale).toHaveBeenCalledTimes(
+      1,
+    );
   });
 });
 
@@ -140,7 +164,7 @@ describe("syncLocaleToWindow", () => {
     localeStoreMocks.getLocale.mockReturnValue("en");
     const webContents = { isDestroyed: () => false, send: vi.fn() };
 
-    syncLocaleToWindow(webContents as unknown as Electron.WebContents);
+    syncLocaleToWindow(webContents);
 
     expect(webContents.send).toHaveBeenCalledWith("locale-changed", "en");
   });
@@ -149,7 +173,7 @@ describe("syncLocaleToWindow", () => {
     localeStoreMocks.getLocale.mockReturnValue("en");
     const webContents = { isDestroyed: () => true, send: vi.fn() };
 
-    syncLocaleToWindow(webContents as unknown as Electron.WebContents);
+    syncLocaleToWindow(webContents);
 
     expect(webContents.send).not.toHaveBeenCalled();
   });

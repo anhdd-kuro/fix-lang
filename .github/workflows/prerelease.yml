@@ -167,7 +167,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: bunx electron-builder --mac --arm64 --publish never
 
-      - name: Validate unsigned arm64 artifacts
+      - name: Validate ad-hoc signed arm64 artifacts
         shell: bash
         run: |
           set -euo pipefail
@@ -194,6 +194,18 @@ jobs:
           app_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${mount_path}/FixLang.app/Contents/Info.plist")"
           if [ "${app_version}" != "${package_version}" ]; then
             echo "DMG contains FixLang ${app_version}, expected ${package_version}." >&2
+            exit 1
+          fi
+
+          # Same seal the stable workflow asserts: without a full ad-hoc seal a
+          # quarantined copy is reported as "damaged" and only `xattr` opens it.
+          app_path="${mount_path}/FixLang.app"
+          codesign --verify --deep --strict "${app_path}"
+          signature_details="$(codesign -dv "${app_path}" 2>&1)"
+          if ! grep -qx 'Identifier=com.fixlang.app' <<< "${signature_details}" \
+            || ! grep -qx 'Signature=adhoc' <<< "${signature_details}"; then
+            echo "FixLang.app is not ad-hoc signed as com.fixlang.app:" >&2
+            echo "${signature_details}" >&2
             exit 1
           fi
 

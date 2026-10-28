@@ -19,6 +19,14 @@ describe("parseFeatureFlags", () => {
     expect(flags.promptGen).toBe(false);
   });
 
+  it("treats inherited Object.prototype names as unknown tags", () => {
+    const flags = parseFeatureFlags({
+      argv: ["--constructor", "--toString"],
+      env: { FIXLANG_FEATURES: "constructor,__proto__" },
+    });
+    expect(flags).toEqual({ promptGen: false });
+  });
+
   it("enables promptGen on --promptgen", () => {
     expect(parseFeatureFlags({ argv: ["--promptgen"] }).promptGen).toBe(true);
   });

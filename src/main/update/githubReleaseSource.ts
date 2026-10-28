@@ -1,3 +1,4 @@
+import type { JsonValue } from "~/main/jsonValue";
 import { logger } from "~/main/logging/logService";
 import {
   comparePrereleaseOrder,
@@ -44,7 +45,7 @@ type GitHubResponse = Readonly<{
   status: number;
   /** Absent in test doubles that don't model pagination; treated as "no next page". */
   headers?: Readonly<{ get: (name: string) => string | null }>;
-  json: () => Promise<unknown>;
+  json: () => Promise<JsonValue>;
 }>;
 
 export type GitHubFetch = (
@@ -62,7 +63,7 @@ export type PrereleaseCandidate = Readonly<{
 }>;
 
 export type GitHubReleaseSource = Readonly<{
-  getLatestRelease: () => Promise<unknown>;
+  getLatestRelease: () => Promise<JsonValue>;
   /**
    * Rejects only when the scan produced nothing AND could not complete —
    * never over a single malformed item, or a failed page past the first.
@@ -161,7 +162,7 @@ const validatePrereleaseItem = (value: unknown): PrereleaseCandidate | null => {
 export const createGitHubReleaseSource = (
   fetchLatest: GitHubFetch = globalThis.fetch,
 ): GitHubReleaseSource => ({
-  getLatestRelease: async (): Promise<unknown> => {
+  getLatestRelease: async (): Promise<JsonValue> => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 

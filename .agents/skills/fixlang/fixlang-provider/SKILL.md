@@ -1,6 +1,6 @@
 ---
 name: fixlang-provider
-description: "Step-by-step guide to adding or changing an AI provider, plus the credential/cost invariants that outlive the recipe. Use when adding a provider, touching API/admin key storage, the capability registry, model discovery, credential logging, or per-provider cost rules. Examples: \"add a provider\", \"why is this admin key 401ing\", \"store an extra secret for a provider\", \"is this log line leaking a key\", \"why does this model show N/A cost\". Covers src/main/llm/providers/, src/features/providers/shared/providers.ts, providerKeyShapes.ts, store/profileSecretStore.ts, src/main/ai.request/{shared,cost}.ts."
+description: 'Step-by-step guide to adding or changing an AI provider, plus the credential/cost invariants that outlive the recipe. Use when adding a provider, touching API/admin key storage, the capability registry, model discovery, credential logging, or per-provider cost rules. Examples: "add a provider", "why is this admin key 401ing", "store an extra secret for a provider", "is this log line leaking a key", "why does this model show N/A cost". Covers src/main/llm/providers/, src/features/providers/shared/providers.ts, providerKeyFamilies.ts, store/profileSecretStore.ts, src/main/ai.request/{shared,cost}.ts.'
 ---
 
 # FixLang — Providers
@@ -17,14 +17,14 @@ Nine steps. The compiler catches steps 1–5 (every table is an exhaustive `Reco
 
 `src/features/providers/shared/providers.ts`, six edits in one file:
 
-| Table | What to add |
-|---|---|
-| `PROVIDER_IDS` | the id |
-| `PROVIDER_ORDER` | the id, **position is a billing decision** — see below |
-| `PROVIDER_LOG_LABELS` | diagnostics-only English name (user-facing names come from i18n) |
-| `PROVIDER_REQUIRES_API_KEY` | true unless the provider can connect without a key |
-| `PROVIDER_SUPPORTS_API_KEY` | true if a key can be stored at all — a superset of the row above, and the gap between them is exactly LM Studio's optional local key (`requires: false`, `supports: true`) |
-| `PROVIDER_SUPPORTS_PROVISIONING_KEY` | true ONLY if you are also shipping a Usage sub-tab that reads it |
+| Table                                | What to add                                                                                                                                                                |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PROVIDER_IDS`                       | the id                                                                                                                                                                     |
+| `PROVIDER_ORDER`                     | the id, **position is a billing decision** — see below                                                                                                                     |
+| `PROVIDER_LOG_LABELS`                | diagnostics-only English name (user-facing names come from i18n)                                                                                                           |
+| `PROVIDER_REQUIRES_API_KEY`          | true unless the provider can connect without a key                                                                                                                         |
+| `PROVIDER_SUPPORTS_API_KEY`          | true if a key can be stored at all — a superset of the row above, and the gap between them is exactly LM Studio's optional local key (`requires: false`, `supports: true`) |
+| `PROVIDER_SUPPORTS_PROVISIONING_KEY` | true ONLY if you are also shipping a Usage sub-tab that reads it                                                                                                           |
 
 `PROVIDER_ORDER` is `resolveModelRef`'s precedence for BARE (un-prefixed) ids. Placing a new provider ABOVE an existing one hands it every legacy ref both can serve — a different key, a different bill, no error. `anthropic` sits below `openrouter` for exactly that reason. Default to appending below any provider whose catalogue overlaps yours.
 
@@ -34,11 +34,11 @@ Do NOT set `PROVIDER_SUPPORTS_PROVISIONING_KEY` "for later": that table drives t
 
 ### Step 2 — Refuse foreign keys
 
-`src/features/providers/shared/providerKeyShapes.ts`, if the key has a recognizable prefix:
+`src/features/providers/shared/providerKeyFamilies.ts`, if the key has a recognizable prefix:
 
-1. Add the shape to `ProviderKeyShape` and a prefix row to `SHAPE_PREFIXES` (match order matters — a longer prefix that shares a stem must be tested first, as `sk-or-` is before any bare `sk-`).
+1. Add the shape to `ProviderKeyFamily` and a prefix row to `KEY_FAMILY_PREFIXES` (match order matters — a longer prefix that shares a stem must be tested first, as `sk-or-` is before any bare `sk-`).
 2. Add `"<id>:api"` to `EXPECTED_PREFIX`.
-3. Add `"<id>:api"` to `FOREIGN_SHAPES` listing every OTHER shape, **and add your new shape to the other providers' lists**. A one-way entry only refuses the paste in one direction.
+3. Add `"<id>:api"` to `FOREIGN_KEY_FAMILIES` listing every OTHER shape, **and add your new shape to the other providers' lists**. A one-way entry only refuses the paste in one direction.
 
 One shape per provider is usually enough even when the provider mints several kinds: `sk-ant-` covers both `sk-ant-api…` and `sk-ant-admin…`, because FixLang stores only the request key and an admin key is equally foreign everywhere else.
 
@@ -49,6 +49,7 @@ Skip this step entirely for a provider whose key has no stable prefix — an unr
 `src/main/llm/providers/<id>/` with `models.ts` and `request.ts`. Copy `bedrock/` for a key-based cloud provider; copy `lmstudio/` for a local one.
 
 `models.ts` — returns `Model[]`:
+
 - Tag every entry `provider: "<id>"`. An untagged entry formats as an `openrouter::` ref.
 - `created` is epoch **seconds** for cloud providers (Ollama alone reports ms, and `normalizeModelTimestamp` sorts that out). An ISO timestamp must be converted, not passed through.
 - Ship NO `pricing` unless the provider's own API returns per-token prices. Inventing them makes `buildPriceMap` bill from fabricated numbers.
@@ -56,6 +57,7 @@ Skip this step entirely for a provider whose key has no stable prefix — an unr
 - Bound the request: a 5s timeout matches the other providers, because the Connect button blocks on this call.
 
 `request.ts` — returns the `AIRequestResponse` shape:
+
 - Read the key with `getProfileSecret(profileId, "<id>", "api")`; missing key → `notifyRequestError` then throw.
 - Use `toConversation(messages)` — AI SDK v7 rejects `system`-role entries inside `messages`.
 - `usageCounts` / `sumTokenField` normalize token counts across SDK versions; `extractResolvedModel(body, modelId)` records what the provider actually served.
@@ -107,12 +109,12 @@ bun run build && bun run check:bundle
 
 Adding an id breaks a predictable set of fixtures. All of them are assertions about the provider LIST, not about your provider:
 
-| File | What to update |
-|---|---|
-| `shared/providers.test.ts` | the explicit id list, the `groupModelsByProvider` groups, the `sanitizeEnabledProviders` input |
-| `main/providerChannels.test.ts` | `get-provider-states` sorted keys, the full expected state object, the model-count `numbers` array |
-| `renderer/components/modelSelectOptions.test.ts` | expected group order and labels |
-| `i18n/shared/catalogIntegrity.test.ts` | passes once step 5's exemption is in |
+| File                                             | What to update                                                                                     |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `shared/providers.test.ts`                       | the explicit id list, the `groupModelsByProvider` groups, the `sanitizeEnabledProviders` input     |
+| `main/providerChannels.test.ts`                  | `get-provider-states` sorted keys, the full expected state object, the model-count `numbers` array |
+| `renderer/components/modelSelectOptions.test.ts` | expected group order and labels                                                                    |
+| `i18n/shared/catalogIntegrity.test.ts`           | passes once step 5's exemption is in                                                               |
 
 Watch also for tests that used your new id as their **unknown-provider sentinel** (`api.test.ts`, `connectProvider.test.ts`, `preload/api.test.ts`, `modelRef.test.ts` all did). Re-point them at a string that can never become a provider, e.g. `"not-a-provider"` — do not delete the assertion.
 
@@ -132,7 +134,7 @@ Every accessor in `provisioningKeyStore` and all three IPC channels take an expl
 
 ### Provider-scoped storage ≠ a provider-correct value
 
-A key pasted into the wrong slot used to store fine and show "Key set" (existence is all `hasProfileSecret` can see without decrypting), then 401 forever. `findKeyShapeMismatch(provider, kind, raw)` refuses a positively-identified foreign key at BOTH the `connect-provider` handler and `setProfileSecret` (the chokepoint a future writer cannot skip). Slot-level, not provider-level: OpenAI's admin endpoints reject a project key and its chat endpoints reject an admin key, so both wrong-slot-same-account cases are refused too.
+A key pasted into the wrong slot used to store fine and show "Key set" (existence is all `hasProfileSecret` can see without decrypting), then 401 forever. `findKeyFamilyMismatch(provider, kind, raw)` refuses a positively-identified foreign key at BOTH the `connect-provider` handler and `setProfileSecret` (the chokepoint a future writer cannot skip). Slot-level, not provider-level: OpenAI's admin endpoints reject a project key and its chat endpoints reject an admin key, so both wrong-slot-same-account cases are refused too.
 
 An **unrecognized** format is still accepted on purpose — refusing it would lock out legacy `sk-…` keys, LM Studio's arbitrary local key, and any future format.
 
@@ -140,7 +142,7 @@ Each admin-key field carries a "where to get this key" link to the provider's ow
 
 ### Credential REQUESTS are logged, keys never are
 
-Every admin request (`provider.openai.admin`, `provider.openrouter.admin`) and model-list fetch (`provider.models`) logs the key's *shape label*, plus `storedKeyBelongsToAnother{Provider,Slot}` when a pre-guard key is still on disk. That flag is the whole diagnosis for an otherwise opaque `Unauthorized`.
+Every admin request (`provider.openai.admin`, `provider.openrouter.admin`) and model-list fetch (`provider.models`) logs the key's _shape label_, plus `storedKeyBelongsToAnother{Provider,Slot}` when a pre-guard key is still on disk. That flag is the whole diagnosis for an otherwise opaque `Unauthorized`.
 
 Log the shape, never the value, and keep labels free of an `sk-…` prefix: `redactLogMessage` would rewrite them to `[REDACTED]`.
 

@@ -1,8 +1,7 @@
 /**
  * @file confirmSelectionGuard.ts
- * @description Confirm-before-send dialog for every overridable selection
- * guard: an oversized selection, a clipboard older than the configured limit,
- * and a clipboard whose age cannot be established at all.
+ * @description Confirm-before-send dialog for the one overridable selection
+ * guard, an oversized selection.
  *
  * Uses only the awaited `dialog.showMessageBox` — the sync form previously
  * froze the main process behind stacked modals on repeated hotkey presses (see
@@ -10,9 +9,8 @@
  * `~/main/index.ts`), and that failure mode is exactly what this dialog would
  * risk on a mis-selected large document if it were allowed to stack.
  *
- * ONE module, one `pending`, for all three reasons: the guards can fire on the
- * same press, and two dialogs stacked over a single hotkey is how a consent
- * surface becomes something people dismiss without reading.
+ * ONE module, one `pending`: two dialogs stacked over repeated presses is how
+ * a consent surface becomes something people dismiss without reading.
  */
 import { dialog } from "electron";
 import { mainT } from "~/main/i18n";
@@ -39,40 +37,15 @@ type DialogCopy = {
   detail: string;
 };
 
-/**
- * The age dialogs say the two different things they actually know. "This has
- * been on the clipboard for 12 minutes" is a measurement; "this was already
- * there when FixLang started, so it may be far older than it looks" is the
- * absence of one, and a user deciding whether to send a password needs to be
- * told which of those they are looking at.
- */
-const resolveCopy = (verdict: ConfirmVerdict): DialogCopy => {
-  if (verdict.reason === "large-selection") {
-    return {
-      titleKey: "notifications.confirm.largeSelection.title",
-      message: mainT("notifications.confirm.largeSelection.message", { chars: verdict.chars }),
-      detail: mainT("notifications.confirm.largeSelection.detail", { limit: verdict.limit }),
-    };
-  }
-
-  if (verdict.reason === "stale-clipboard") {
-    return {
-      titleKey: "notifications.confirm.staleClipboard.title",
-      message: mainT("notifications.confirm.staleClipboard.message", {
-        seconds: Math.round(verdict.ageMs / 1000),
-      }),
-      detail: mainT("notifications.confirm.staleClipboard.detail", {
-        seconds: Math.round(verdict.limitMs / 1000),
-      }),
-    };
-  }
-
-  return {
-    titleKey: "notifications.confirm.unknownClipboardAge.title",
-    message: mainT("notifications.confirm.unknownClipboardAge.message"),
-    detail: mainT("notifications.confirm.unknownClipboardAge.detail"),
-  };
-};
+const resolveCopy = (verdict: ConfirmVerdict): DialogCopy => ({
+  titleKey: "notifications.confirm.largeSelection.title",
+  message: mainT("notifications.confirm.largeSelection.message", {
+    chars: verdict.chars,
+  }),
+  detail: mainT("notifications.confirm.largeSelection.detail", {
+    limit: verdict.limit,
+  }),
+});
 
 const showDialog = async (verdict: ConfirmVerdict): Promise<boolean> => {
   const copy = resolveCopy(verdict);
@@ -93,7 +66,9 @@ const showDialog = async (verdict: ConfirmVerdict): Promise<boolean> => {
 };
 
 /** Resolves `true` only when the user picked "Send anyway". */
-export const confirmSelectionGuard = async (verdict: ConfirmVerdict): Promise<boolean> => {
+export const confirmSelectionGuard = async (
+  verdict: ConfirmVerdict,
+): Promise<boolean> => {
   if (pending) return false;
 
   pending = showDialog(verdict);

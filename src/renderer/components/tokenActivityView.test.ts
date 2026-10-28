@@ -36,7 +36,9 @@ const identityFmt = { date: (dayKey: string) => dayKey };
 
 type DayCell = Extract<TokenActivityCalendarCell, { kind: "day" }>;
 
-const dayCell = (overrides: Partial<DayCell> = {}): TokenActivityCalendarCell => ({
+const dayCell = (
+  overrides: Partial<DayCell> = {},
+): TokenActivityCalendarCell => ({
   kind: "day",
   date: "2024-06-18",
   tokenTotal: 1234,
@@ -88,15 +90,24 @@ describe("STAT_CARD_KEYS", () => {
 describe("weeklyRangeOf", () => {
   it("returns the Sunday-start week window for a mid-week day key", () => {
     // 2024-06-18 is a Tuesday; the containing week runs Sun 06-16 .. Sat 06-22.
-    expect(weeklyRangeOf("2024-06-18")).toEqual({ start: "2024-06-16", end: "2024-06-22" });
+    expect(weeklyRangeOf("2024-06-18")).toEqual({
+      start: "2024-06-16",
+      end: "2024-06-22",
+    });
   });
 
   it("a Sunday day key is its own week start", () => {
-    expect(weeklyRangeOf("2024-06-16")).toEqual({ start: "2024-06-16", end: "2024-06-22" });
+    expect(weeklyRangeOf("2024-06-16")).toEqual({
+      start: "2024-06-16",
+      end: "2024-06-22",
+    });
   });
 
   it("a Saturday day key is its own week end", () => {
-    expect(weeklyRangeOf("2024-06-22")).toEqual({ start: "2024-06-16", end: "2024-06-22" });
+    expect(weeklyRangeOf("2024-06-22")).toEqual({
+      start: "2024-06-16",
+      end: "2024-06-22",
+    });
   });
 });
 
@@ -122,9 +133,15 @@ describe("peakHourMessage", () => {
 
 describe("tooltipMessageForCell", () => {
   it("returns undefined for a placeholder cell in every mode", () => {
-    expect(tooltipMessageForCell("daily", placeholderCell, identityFmt)).toBeUndefined();
-    expect(tooltipMessageForCell("weekly", placeholderCell, identityFmt)).toBeUndefined();
-    expect(tooltipMessageForCell("cumulative", placeholderCell, identityFmt)).toBeUndefined();
+    expect(
+      tooltipMessageForCell("daily", placeholderCell, identityFmt),
+    ).toBeUndefined();
+    expect(
+      tooltipMessageForCell("weekly", placeholderCell, identityFmt),
+    ).toBeUndefined();
+    expect(
+      tooltipMessageForCell("cumulative", placeholderCell, identityFmt),
+    ).toBeUndefined();
   });
 
   describe("daily mode", () => {
@@ -155,7 +172,11 @@ describe("tooltipMessageForCell", () => {
 
   describe("weekly mode", () => {
     it("no corrections → resolves the Sunday-start week window through fmt.date", () => {
-      const cell = dayCell({ date: "2024-06-18", tokenTotal: 700, correctionCount: 0 });
+      const cell = dayCell({
+        date: "2024-06-18",
+        tokenTotal: 700,
+        correctionCount: 0,
+      });
       expect(tooltipMessageForCell("weekly", cell, identityFmt)).toEqual({
         key: "overview.tokenActivity.tooltip.weekly",
         params: { tokens: 700, start: "2024-06-16", end: "2024-06-22" },
@@ -163,18 +184,36 @@ describe("tooltipMessageForCell", () => {
     });
 
     it("1 correction → the singular withCorrections base key", () => {
-      const cell = dayCell({ date: "2024-06-18", tokenTotal: 700, correctionCount: 1 });
+      const cell = dayCell({
+        date: "2024-06-18",
+        tokenTotal: 700,
+        correctionCount: 1,
+      });
       expect(tooltipMessageForCell("weekly", cell, identityFmt)).toEqual({
         key: "overview.tokenActivity.tooltip.weekly.withCorrections",
-        params: { tokens: 700, start: "2024-06-16", end: "2024-06-22", count: 1 },
+        params: {
+          tokens: 700,
+          start: "2024-06-16",
+          end: "2024-06-22",
+          count: 1,
+        },
       });
     });
 
     it("N corrections → withCorrections base key with the count param", () => {
-      const cell = dayCell({ date: "2024-06-18", tokenTotal: 700, correctionCount: 3 });
+      const cell = dayCell({
+        date: "2024-06-18",
+        tokenTotal: 700,
+        correctionCount: 3,
+      });
       expect(tooltipMessageForCell("weekly", cell, identityFmt)).toEqual({
         key: "overview.tokenActivity.tooltip.weekly.withCorrections",
-        params: { tokens: 700, start: "2024-06-16", end: "2024-06-22", count: 3 },
+        params: {
+          tokens: 700,
+          start: "2024-06-16",
+          end: "2024-06-22",
+          count: 3,
+        },
       });
     });
   });
@@ -211,7 +250,11 @@ describe("rendered tooltip strings (EN + JA)", () => {
 
   it("daily, no corrections", () => {
     const message = requireMessage(
-      tooltipMessageForCell("daily", dayCell({ tokenTotal: 1500, correctionCount: 0 }), fmt),
+      tooltipMessageForCell(
+        "daily",
+        dayCell({ tokenTotal: 1500, correctionCount: 0 }),
+        fmt,
+      ),
     );
     expect(resolveMessage(message, createTranslator("en"))).toBe(
       "1,500 tokens on 2024-06-18",
@@ -223,10 +266,18 @@ describe("rendered tooltip strings (EN + JA)", () => {
 
   it("daily, singular vs plural corrections (ja collapses both to _other)", () => {
     const one = requireMessage(
-      tooltipMessageForCell("daily", dayCell({ tokenTotal: 10, correctionCount: 1 }), fmt),
+      tooltipMessageForCell(
+        "daily",
+        dayCell({ tokenTotal: 10, correctionCount: 1 }),
+        fmt,
+      ),
     );
     const many = requireMessage(
-      tooltipMessageForCell("daily", dayCell({ tokenTotal: 10, correctionCount: 3 }), fmt),
+      tooltipMessageForCell(
+        "daily",
+        dayCell({ tokenTotal: 10, correctionCount: 3 }),
+        fmt,
+      ),
     );
 
     expect(resolveMessage(one, createTranslator("en"))).toBe(
@@ -261,7 +312,11 @@ describe("rendered tooltip strings (EN + JA)", () => {
 
   it("cumulative", () => {
     const message = requireMessage(
-      tooltipMessageForCell("cumulative", dayCell({ tokenTotal: 99, correctionCount: 0 }), fmt),
+      tooltipMessageForCell(
+        "cumulative",
+        dayCell({ tokenTotal: 99, correctionCount: 0 }),
+        fmt,
+      ),
     );
     expect(resolveMessage(message, createTranslator("en"))).toBe(
       "99 tokens through 2024-06-18",
@@ -282,8 +337,12 @@ describe("dayKeyDateFormatter", () => {
 
   it("formats a day key through the locale-aware formatDate, differing between en and ja, never the raw key", () => {
     const dayKey = "2024-06-18";
-    const enLabel = dayKeyDateFormatter(createFormatters("en").formatDate).date(dayKey);
-    const jaLabel = dayKeyDateFormatter(createFormatters("ja").formatDate).date(dayKey);
+    const enLabel = dayKeyDateFormatter(createFormatters("en").formatDate).date(
+      dayKey,
+    );
+    const jaLabel = dayKeyDateFormatter(createFormatters("ja").formatDate).date(
+      dayKey,
+    );
 
     expect(enLabel).not.toBe(dayKey);
     expect(jaLabel).not.toBe(dayKey);
@@ -295,12 +354,24 @@ describe("dayKeyDateFormatter", () => {
   });
 
   it("this drives the real tooltipMessageForCell call site end to end (both locales)", () => {
-    const cell = dayCell({ date: "2024-06-18", tokenTotal: 500, correctionCount: 0 });
+    const cell = dayCell({
+      date: "2024-06-18",
+      tokenTotal: 500,
+      correctionCount: 0,
+    });
     const enMessage = requireMessage(
-      tooltipMessageForCell("daily", cell, dayKeyDateFormatter(createFormatters("en").formatDate)),
+      tooltipMessageForCell(
+        "daily",
+        cell,
+        dayKeyDateFormatter(createFormatters("en").formatDate),
+      ),
     );
     const jaMessage = requireMessage(
-      tooltipMessageForCell("daily", cell, dayKeyDateFormatter(createFormatters("ja").formatDate)),
+      tooltipMessageForCell(
+        "daily",
+        cell,
+        dayKeyDateFormatter(createFormatters("ja").formatDate),
+      ),
     );
 
     const enText = resolveMessage(enMessage, createTranslator("en"));
@@ -320,7 +391,10 @@ describe("dayKeyDateFormatter", () => {
 
     const { formatDate } = createFormatters("en");
     const correct = dayKeyDateFormatter(formatDate).date("2026-01-01");
-    const buggy = formatDate(new Date("2026-01-01"), { month: "short", day: "numeric" });
+    const buggy = formatDate(new Date("2026-01-01"), {
+      month: "short",
+      day: "numeric",
+    });
 
     expect(correct).toBe("Jan 1");
     expect(buggy).toBe("Dec 31");

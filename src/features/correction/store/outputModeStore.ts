@@ -20,10 +20,7 @@ class OutputModeStore {
 
   getCorrectionOutputMode(): CorrectionOutputMode {
     return normalizeCorrectionOutputMode(
-      this.store.get(
-        "correctionOutputMode",
-        DEFAULT_CORRECTION_OUTPUT_MODE,
-      ),
+      this.store.get("correctionOutputMode", DEFAULT_CORRECTION_OUTPUT_MODE),
     );
   }
 

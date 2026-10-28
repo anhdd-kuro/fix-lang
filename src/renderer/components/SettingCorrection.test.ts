@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import { CAVEMAN_MODE_OPTION_KEY } from "~/features/correction/shared/presetOptions";
 import { createTranslator } from "~/features/i18n/shared/translate";
 import {
@@ -207,9 +207,12 @@ const chooseOption = async (
   });
 };
 
+/** Every key is a real `ElectronAPI` member, so a misspelt override fails to compile. */
+type ElectronAPIMocks = { [K in keyof Window["electronAPI"]]?: Mock };
+
 const baseElectronAPI = (
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> => ({
+  overrides: ElectronAPIMocks = {},
+): ElectronAPIMocks => ({
   getKeyBindings: vi.fn().mockResolvedValue({}),
   onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
   fetchAIModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
@@ -324,8 +327,9 @@ describe("SettingCorrection output-mode and markdown controls", () => {
     // `inputId`, not `id`: react-select's `htmlFor` target is the input.
     expect(input.getAttribute("role")).toBe("combobox");
     expect(
-      container.querySelector<HTMLLabelElement>('label[for="preset-output-mode"]')
-        ?.textContent,
+      container.querySelector<HTMLLabelElement>(
+        'label[for="preset-output-mode"]',
+      )?.textContent,
     ).toBe(tEn("settings.correction.outputMode.label"));
     expect(outputModeControlText()).toContain(
       tEn("settings.correction.outputMode.inherit"),
@@ -482,7 +486,8 @@ describe("SettingCorrection output-mode and markdown controls", () => {
     );
 
     const resetButton = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === tEn("settings.correction.resetBuiltIn"),
+      (button) =>
+        button.textContent === tEn("settings.correction.resetBuiltIn"),
     );
     await act(async () => {
       resetButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -812,10 +817,7 @@ describe("SettingCorrection preset-scoped options", () => {
     // under the jsdom environment `import.meta.url` is not a file: URL, so
     // handing it to `readFile` throws "The URL must be of scheme file".
     const source = await readFile(
-      path.join(
-        process.cwd(),
-        "src/renderer/components/SettingCorrection.tsx",
-      ),
+      path.join(process.cwd(), "src/renderer/components/SettingCorrection.tsx"),
       "utf8",
     );
 

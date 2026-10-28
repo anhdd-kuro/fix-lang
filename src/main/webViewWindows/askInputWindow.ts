@@ -9,10 +9,12 @@
  */
 import path from "node:path";
 import { app, BrowserWindow, ipcMain, screen } from "electron";
+import { z } from "zod";
 import {
   abortAutocomplete,
   forgetAskSession,
   rememberAskSession,
+  type AutocompleteAskSession,
 } from "~/features/autocomplete/main/service";
 import { attachThemeSync } from "./attachThemeSync";
 import { clampToWorkArea } from "./cursorPlacement";
@@ -42,7 +44,8 @@ const WINDOW_WIDTH = 620;
  */
 const WINDOW_HEIGHT = 380;
 
-const resolveWindowHeight = (_payload: AskInputPayload): number => WINDOW_HEIGHT;
+const resolveWindowHeight = (_payload: AskInputPayload): number =>
+  WINDOW_HEIGHT;
 
 /** Called with the submitted question text. */
 export type AskInputSubmitHandler = (question: string) => void;
@@ -190,17 +193,15 @@ const syncAskAutocompleteSession = (
     forgetAskSession(sessionId);
     return;
   }
-  rememberAskSession(sessionId, {
-    ...(payload.context.length > 0
-      ? {
-          context: {
-            text: payload.context,
-            source: payload.contextSource ?? "selection",
-          },
-        }
-      : {}),
-    ...(environment.length > 0 ? { environment } : {}),
-  });
+  const session: AutocompleteAskSession = {};
+  if (payload.context.length > 0) {
+    session.context = {
+      text: payload.context,
+      source: payload.contextSource ?? "selection",
+    };
+  }
+  if (environment.length > 0) session.environment = environment;
+  rememberAskSession(sessionId, session);
 };
 
 /**
@@ -333,6 +334,9 @@ ipcMain.on("ask-input-ready", () => {
   revealWindow();
 });
 
+/** The renderer sends the typed question; anything else submits nothing. */
+const AskQuestionSchema = z.string();
+
 // Submitting is a real question, not a dismissal, but it still ends whatever
 // ghost-text request was running for the prefix typed before this Enter —
 // the renderer's own `clearGhost()` on submit only bumps its local request
@@ -340,13 +344,14 @@ ipcMain.on("ask-input-ready", () => {
 // dispatched to the provider from the main process. Without this, that
 // request ran to completion and billed for an answer nobody was ever going
 // to read. Read before `hideAskInputWindow()`, same as the dismissal path.
-ipcMain.on("ask-input-submit", (_event, question: unknown) => {
+ipcMain.on("ask-input-submit", (_event, question) => {
   const handlers = currentHandlers;
   currentHandlers = null;
   abortWindowAutocomplete();
   hideAskInputWindow();
-  if (typeof question === "string" && handlers) {
-    handlers.onSubmit(question);
+  const submitted = AskQuestionSchema.safeParse(question);
+  if (submitted.success && handlers) {
+    handlers.onSubmit(submitted.data);
   }
 });
 

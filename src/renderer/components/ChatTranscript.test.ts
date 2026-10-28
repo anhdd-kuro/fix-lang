@@ -95,24 +95,27 @@ describe("ChatTranscript", () => {
   it.each([
     ["omitted, so the parameter default renders", {}],
     ["explicitly false", { unfoldSystemMessages: false }],
-  ])("keeps system messages folded when the prop is %s", async (_name, props) => {
-    await render({
-      messages: [
-        {
-          role: "system",
-          label: "System prompt",
-          content: "You are a careful editor.",
-          sectionId: "system",
-        },
-      ],
-      ...props,
-    });
+  ])(
+    "keeps system messages folded when the prop is %s",
+    async (_name, props) => {
+      await render({
+        messages: [
+          {
+            role: "system",
+            label: "System prompt",
+            content: "You are a careful editor.",
+            sectionId: "system",
+          },
+        ],
+        ...props,
+      });
 
-    expect(container.querySelector("details")).toBeTruthy();
-    expect(container.querySelector("summary")?.textContent).toBe(
-      "System prompt …",
-    );
-  });
+      expect(container.querySelector("details")).toBeTruthy();
+      expect(container.querySelector("summary")?.textContent).toBe(
+        "System prompt …",
+      );
+    },
+  );
 
   it("renders an unfolded system message as an open card with its label as a heading", async () => {
     await render({
@@ -293,9 +296,9 @@ describe("ChatTranscript", () => {
       "sr-only",
       "sr-only",
     ]);
-    expect([...list.querySelectorAll("dd")].map((dd) => dd.textContent)).toEqual(
-      ["Prompt tokens: 10", "Completion tokens: 2"],
-    );
+    expect(
+      [...list.querySelectorAll("dd")].map((dd) => dd.textContent),
+    ).toEqual(["Prompt tokens: 10", "Completion tokens: 2"]);
   });
 
   it("renders no meta strip when the caller has none — the Ask windows have no token counts", async () => {

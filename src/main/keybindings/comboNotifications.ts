@@ -45,13 +45,17 @@ export const buildComboStepFailedNotification = (params: {
  * `TKey` union) specifically so that file never depends on a key this one
  * adds to the catalog.
  */
-export const buildComboInvalidNotification = (comboName: string): NotificationPayload => ({
+export const buildComboInvalidNotification = (
+  comboName: string,
+): NotificationPayload => ({
   title: mainT("notifications.error.comboFailed.title"),
   body: mainT("notifications.error.comboInvalid.body", { name: comboName }),
 });
 
 /** C2 — a single Control+Escape press aborted the run; distinct from a failure. */
-export const buildComboCancelledNotification = (comboName: string): NotificationPayload => ({
+export const buildComboCancelledNotification = (
+  comboName: string,
+): NotificationPayload => ({
   title: mainT("notifications.combo.cancelled.title"),
   body: mainT("notifications.combo.cancelled.body", { name: comboName }),
 });

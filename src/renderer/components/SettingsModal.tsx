@@ -289,12 +289,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // clobbering a tab the user picks manually while it stays open.
   useEffect(() => {
     if (isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // oxlint-disable-next-line react/set-state-in-effect
       setActiveTab(Math.min(Math.max(initialTab, 0), tabs.length - 1));
     }
   }, [isOpen, initialTab, tabs.length]);
 
-  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+  const handleOverlayClick = (
+    e: React.MouseEvent<HTMLDivElement, MouseEvent>,
+  ) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
@@ -312,7 +314,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     >
       <div className="flex h-[85vh] min-h-120 max-h-250 w-[80%] max-w-250 flex-col overflow-hidden rounded-lg bg-card p-6 shadow-xl">
         <div className="mb-4 flex shrink-0 items-center justify-between">
-          <h2 className="text-xl font-semibold text-primary">{t("settings.modal.title")}</h2>
+          <h2 className="text-xl font-semibold text-primary">
+            {t("settings.modal.title")}
+          </h2>
           <Button
             type="button"
             variant="ghost"

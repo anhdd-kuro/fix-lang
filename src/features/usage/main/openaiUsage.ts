@@ -13,7 +13,7 @@
  * OpenRouter test for no gain.
  */
 import { ipcMain } from "electron";
-import { normalizeUsageRange } from "~/features/usage/shared/usage";
+import { UsageRangeSchema } from "~/features/usage/shared/usage";
 import { createOpenAIUsageClient } from "~/main/llm/providers/openai/usage.client";
 
 export const registerOpenAIUsageHandlers = (): void => {
@@ -21,8 +21,8 @@ export const registerOpenAIUsageHandlers = (): void => {
 
   ipcMain.handle(
     "openai-usage",
-    async (_event: Electron.IpcMainInvokeEvent, range: unknown) =>
+    async (_event: Electron.IpcMainInvokeEvent, range) =>
       // Re-validate the range at the boundary (preload also guards).
-      client.getUsage(normalizeUsageRange(range)),
+      client.getUsage(UsageRangeSchema.parse(range)),
   );
 };

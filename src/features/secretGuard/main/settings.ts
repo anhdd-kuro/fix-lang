@@ -13,37 +13,8 @@
  */
 import { ipcMain } from "electron";
 import { textLabel, type Label } from "~/features/i18n/shared/message";
-import { SECRET_GUARD_MODES } from "~/features/secretGuard/shared/secretGuardSettings";
+import { SecretGuardSettingsPayloadSchema } from "~/features/secretGuard/shared/secretGuardSettings";
 import { secretGuardStore } from "~/features/secretGuard/store/secretGuardStore";
-import type {
-  SecretGuardMode,
-  SecretGuardSettings,
-} from "~/features/secretGuard/shared/secretGuardSettings";
-
-/**
- * `isSecretGuardMode` is module-private in `secretGuardSettings.ts`, so this
- * boundary writes its own membership check against the exported
- * `SECRET_GUARD_MODES` — the same shape as `isAutocompleteSettings`, and the
- * reason the value set is exported at all: the two cannot drift.
- */
-const isSecretGuardMode = (value: unknown): value is SecretGuardMode =>
-  SECRET_GUARD_MODES.includes(value as SecretGuardMode);
-
-/**
- * Accepts exactly the values `normalizeSecretGuardSettings` leaves unchanged.
- * That equivalence is the point: a predicate that accepted something the
- * normalizer then rewrote would report a successful write of settings the user
- * never chose. `highEntropyRule` therefore requires a real boolean — the
- * normalizer's `=== true` would silently turn `1`, `"true"` or `null` into
- * `false`, i.e. into "off" — while `false` itself stays perfectly legal, since
- * it is the documented way to leave the opt-in rule alone. `mode: "off"` is
- * likewise legal: turning the guard off is a choice, not a malformed payload.
- */
-const isSecretGuardSettings = (value: unknown): value is SecretGuardSettings => {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  return isSecretGuardMode(record.mode) && typeof record.highEntropyRule === "boolean";
-};
 
 export const registerSecretGuardHandlers = (): void => {
   ipcMain.handle("get-secret-guard-settings", async () =>
@@ -54,9 +25,13 @@ export const registerSecretGuardHandlers = (): void => {
     "set-secret-guard-settings",
     async (
       _event: Electron.IpcMainInvokeEvent,
-      settings: unknown,
+      settings,
     ): Promise<{ success: boolean; error?: Label }> => {
-      if (!isSecretGuardSettings(settings)) {
+      // Accepts exactly what `normalizeSecretGuardSettings` leaves unchanged,
+      // so a buggy renderer cannot have junk coerced into "off" and reported
+      // as a successful write.
+      const payload = SecretGuardSettingsPayloadSchema.safeParse(settings);
+      if (!payload.success) {
         return {
           success: false,
           error: textLabel("Malformed secret guard settings"),
@@ -64,13 +39,15 @@ export const registerSecretGuardHandlers = (): void => {
       }
 
       try {
-        secretGuardStore.setSecretGuardSettings(settings);
+        secretGuardStore.setSecretGuardSettings(payload.data);
         return { success: true };
       } catch (error) {
         console.error("Error setting secret guard settings:", error);
         return {
           success: false,
-          error: textLabel(error instanceof Error ? error.message : "Unknown error"),
+          error: textLabel(
+            error instanceof Error ? error.message : "Unknown error",
+          ),
         };
       }
     },

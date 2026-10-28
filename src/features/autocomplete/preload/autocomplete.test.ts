@@ -111,22 +111,31 @@ describe("autocomplete preload boundary", () => {
 
   describe("requestAutocompleteSuggestion", () => {
     it("invokes autocomplete-suggest with the request and returns a valid reply", async () => {
-      electronMocks.invoke.mockResolvedValue({ requestId: 4, suggestion: "ghost text" });
+      electronMocks.invoke.mockResolvedValue({
+        requestId: 4,
+        suggestion: "ghost text",
+      });
 
       const reply = await autocompleteFeature.requestAutocompleteSuggestion({
         requestId: 4,
         prefix: "the quick brown fox",
       });
 
-      expect(electronMocks.invoke).toHaveBeenCalledWith("autocomplete-suggest", {
-        requestId: 4,
-        prefix: "the quick brown fox",
-      });
+      expect(electronMocks.invoke).toHaveBeenCalledWith(
+        "autocomplete-suggest",
+        {
+          requestId: 4,
+          prefix: "the quick brown fox",
+        },
+      );
       expect(reply).toEqual({ requestId: 4, suggestion: "ghost text" });
     });
 
     it("accepts a null suggestion", async () => {
-      electronMocks.invoke.mockResolvedValue({ requestId: 1, suggestion: null });
+      electronMocks.invoke.mockResolvedValue({
+        requestId: 1,
+        suggestion: null,
+      });
 
       const reply = await autocompleteFeature.requestAutocompleteSuggestion({
         requestId: 1,
@@ -166,7 +175,9 @@ describe("autocomplete preload boundary", () => {
      * honest outcome is simply no ghost text.
      */
     it("falls back to no suggestion when the invoke rejects", async () => {
-      electronMocks.invoke.mockRejectedValue(new Error("No handler registered"));
+      electronMocks.invoke.mockRejectedValue(
+        new Error("No handler registered"),
+      );
 
       const result = autocompleteFeature.requestAutocompleteSuggestion({
         requestId: 3,
@@ -198,17 +209,62 @@ describe("autocomplete preload boundary", () => {
       null,
       "a string",
       { today: validRollup, month: validRollup, days: [validRollup] }, // missing dailyCostCapUsd
-      { today: validRollup, month: validRollup, days: [validRollup], dailyCostCapUsd: "1500" }, // non-number dailyCostCapUsd
-      { today: { ...validRollup, requests: "3" }, month: validRollup, days: [], dailyCostCapUsd: 1500 }, // bad today field
-      { today: validRollup, month: { ...validRollup, date: 42 }, days: [], dailyCostCapUsd: 1500 }, // bad month field
-      { today: validRollup, month: validRollup, days: [{ ...validRollup, estimatedCostUsd: "0" }], dailyCostCapUsd: 1500 }, // bad day-series entry
-      { today: validRollup, month: validRollup, days: "not an array", dailyCostCapUsd: 1500 }, // days not an array
+      {
+        today: validRollup,
+        month: validRollup,
+        days: [validRollup],
+        dailyCostCapUsd: "1500",
+      }, // non-number dailyCostCapUsd
+      {
+        today: { ...validRollup, requests: "3" },
+        month: validRollup,
+        days: [],
+        dailyCostCapUsd: 1500,
+      }, // bad today field
+      {
+        today: validRollup,
+        month: { ...validRollup, date: 42 },
+        days: [],
+        dailyCostCapUsd: 1500,
+      }, // bad month field
+      {
+        today: validRollup,
+        month: validRollup,
+        days: [{ ...validRollup, estimatedCostUsd: "0" }],
+        dailyCostCapUsd: 1500,
+      }, // bad day-series entry
+      {
+        today: validRollup,
+        month: validRollup,
+        days: "not an array",
+        dailyCostCapUsd: 1500,
+      }, // days not an array
       // Token counts land in the renderer's arithmetic. A string or a null
       // there is not a display bug, it is NaN in a total.
-      { today: { ...validRollup, promptTokens: "40" }, month: validRollup, days: [], dailyCostCapUsd: 1500 },
-      { today: { ...validRollup, completionTokens: null }, month: validRollup, days: [], dailyCostCapUsd: 1500 },
-      { today: validRollup, month: { ...validRollup, promptTokens: null }, days: [], dailyCostCapUsd: 1500 },
-      { today: validRollup, month: { ...validRollup, completionTokens: "12" }, days: [], dailyCostCapUsd: 1500 },
+      {
+        today: { ...validRollup, promptTokens: "40" },
+        month: validRollup,
+        days: [],
+        dailyCostCapUsd: 1500,
+      },
+      {
+        today: { ...validRollup, completionTokens: null },
+        month: validRollup,
+        days: [],
+        dailyCostCapUsd: 1500,
+      },
+      {
+        today: validRollup,
+        month: { ...validRollup, promptTokens: null },
+        days: [],
+        dailyCostCapUsd: 1500,
+      },
+      {
+        today: validRollup,
+        month: { ...validRollup, completionTokens: "12" },
+        days: [],
+        dailyCostCapUsd: 1500,
+      },
       {
         today: validRollup,
         month: validRollup,
@@ -220,18 +276,58 @@ describe("autocomplete preload boundary", () => {
       // rejected promise instead of the zeroed fallback.
       { today: null, month: validRollup, days: [], dailyCostCapUsd: 1500 },
       { today: validRollup, month: null, days: [], dailyCostCapUsd: 1500 },
-      { today: validRollup, month: validRollup, days: [null], dailyCostCapUsd: 1500 },
-      { today: "2026-07-31", month: validRollup, days: [], dailyCostCapUsd: 1500 },
+      {
+        today: validRollup,
+        month: validRollup,
+        days: [null],
+        dailyCostCapUsd: 1500,
+      },
+      {
+        today: "2026-07-31",
+        month: validRollup,
+        days: [],
+        dailyCostCapUsd: 1500,
+      },
       // The coverage counters are the only thing standing between an
       // unpriceable day and a rendered "$0.00". A missing one reads as
       // `undefined`, every comparison against it is false, and the panel goes
       // back to fabricating the zero — so a rollup without them is malformed.
-      { today: { ...validRollup, responses: undefined }, month: validRollup, days: [], dailyCostCapUsd: 1500 },
-      { today: { ...validRollup, unpricedResponses: null }, month: validRollup, days: [], dailyCostCapUsd: 1500 },
-      { today: { ...validRollup, tokenlessResponses: "0" }, month: validRollup, days: [], dailyCostCapUsd: 1500 },
-      { today: validRollup, month: { ...validRollup, responses: "3" }, days: [], dailyCostCapUsd: 1500 },
-      { today: validRollup, month: { ...validRollup, unpricedResponses: undefined }, days: [], dailyCostCapUsd: 1500 },
-      { today: validRollup, month: { ...validRollup, tokenlessResponses: null }, days: [], dailyCostCapUsd: 1500 },
+      {
+        today: { ...validRollup, responses: undefined },
+        month: validRollup,
+        days: [],
+        dailyCostCapUsd: 1500,
+      },
+      {
+        today: { ...validRollup, unpricedResponses: null },
+        month: validRollup,
+        days: [],
+        dailyCostCapUsd: 1500,
+      },
+      {
+        today: { ...validRollup, tokenlessResponses: "0" },
+        month: validRollup,
+        days: [],
+        dailyCostCapUsd: 1500,
+      },
+      {
+        today: validRollup,
+        month: { ...validRollup, responses: "3" },
+        days: [],
+        dailyCostCapUsd: 1500,
+      },
+      {
+        today: validRollup,
+        month: { ...validRollup, unpricedResponses: undefined },
+        days: [],
+        dailyCostCapUsd: 1500,
+      },
+      {
+        today: validRollup,
+        month: { ...validRollup, tokenlessResponses: null },
+        days: [],
+        dailyCostCapUsd: 1500,
+      },
       {
         today: validRollup,
         month: validRollup,

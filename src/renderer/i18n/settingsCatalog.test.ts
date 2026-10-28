@@ -38,7 +38,9 @@ describe("settings.json: en/ja parity", () => {
   });
 
   it("every EN key (except *_one plural variants) has a JA translation", () => {
-    const missing = enKeys.filter((key) => !isEnOnlyPluralOne(key) && !jaKeys.has(key));
+    const missing = enKeys.filter(
+      (key) => !isEnOnlyPluralOne(key) && !jaKeys.has(key),
+    );
     expect(missing).toEqual([]);
   });
 
@@ -53,7 +55,9 @@ describe("settings.json: en/ja parity", () => {
       .filter((key) => {
         const enPlaceholders = placeholdersOf(en[key]);
         const jaPlaceholders = placeholdersOf(ja[key]);
-        return JSON.stringify(enPlaceholders) !== JSON.stringify(jaPlaceholders);
+        return (
+          JSON.stringify(enPlaceholders) !== JSON.stringify(jaPlaceholders)
+        );
       });
     expect(mismatches).toEqual([]);
   });
@@ -67,11 +71,15 @@ describe("settings.json: en/ja parity", () => {
   });
 
   it("keeps settings.general.* keys sorted alphabetically (diff-reviewable catalog)", () => {
-    const generalKeys = enKeys.filter((key) => key.startsWith("settings.general."));
+    const generalKeys = enKeys.filter((key) =>
+      key.startsWith("settings.general."),
+    );
     // why: plain ASCII ordering, not `localeCompare` — the latter is
     // locale-aware and can disagree with a simple byte-order sort for the
     // camelCase/dotted keys used here.
-    const sorted = [...generalKeys].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    const sorted = [...generalKeys].sort((a, b) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    );
     expect(generalKeys).toEqual(sorted);
   });
 });

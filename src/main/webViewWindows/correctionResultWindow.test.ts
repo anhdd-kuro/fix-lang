@@ -18,7 +18,8 @@ const windowTitlesMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./windowTitles", () => ({
-  buildCorrectionResultWindowTitle: windowTitlesMocks.buildCorrectionResultWindowTitle,
+  buildCorrectionResultWindowTitle:
+    windowTitlesMocks.buildCorrectionResultWindowTitle,
 }));
 
 vi.mock("./attachThemeSync", () => ({
@@ -89,7 +90,9 @@ describe("syncCorrectionResultWindowLocale", () => {
     const { showCorrectionResultWindow, syncCorrectionResultWindowLocale } =
       await loadModule();
     showCorrectionResultWindow(PAYLOAD as never);
-    windowTitlesMocks.buildCorrectionResultWindowTitle.mockReturnValue("FixLangの結果");
+    windowTitlesMocks.buildCorrectionResultWindowTitle.mockReturnValue(
+      "FixLangの結果",
+    );
 
     syncCorrectionResultWindowLocale();
 

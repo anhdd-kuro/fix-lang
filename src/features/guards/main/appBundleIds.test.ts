@@ -11,6 +11,7 @@
  * `~/Applications`.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ExecFileOptions } from "node:child_process";
 
 const { execFileMock, existsSyncMock } = vi.hoisted(() => ({
   execFileMock: vi.fn(),
@@ -20,9 +21,8 @@ const { execFileMock, existsSyncMock } = vi.hoisted(() => ({
 vi.mock("node:child_process", () => ({ execFile: execFileMock }));
 vi.mock("node:fs", () => ({ existsSync: existsSyncMock }));
 
-const { isExistingAppBundlePath, readAppBundleId, resolveAppBundleIds } = await import(
-  "./appBundleIds"
-);
+const { isExistingAppBundlePath, readAppBundleId, resolveAppBundleIds } =
+  await import("./appBundleIds");
 
 const SLACK = "/Applications/Slack.app";
 const SLACK_PLIST = "/Applications/Slack.app/Contents/Info.plist";
@@ -30,7 +30,9 @@ const SLACK_PLIST = "/Applications/Slack.app/Contents/Info.plist";
 /** Every path in `present` exists; everything else does not. */
 const filesystemHolding = (...present: string[]): void => {
   const entries = new Set(present);
-  existsSyncMock.mockImplementation((candidate: string) => entries.has(candidate));
+  existsSyncMock.mockImplementation((candidate: string) =>
+    entries.has(candidate),
+  );
 };
 
 /** Mimics `execFile`'s callback contract, which `promisify` wraps. */
@@ -39,8 +41,11 @@ const plistBuddyPrints = (stdout: string): void => {
     (
       _file: string,
       _args: readonly string[],
-      _options: unknown,
-      callback: (error: Error | null, result: { stdout: string; stderr: string }) => void,
+      _options: ExecFileOptions,
+      callback: (
+        error: Error | null,
+        result: { stdout: string; stderr: string },
+      ) => void,
     ) => {
       callback(null, { stdout, stderr: "" });
     },
@@ -52,10 +57,12 @@ const plistBuddyFails = (): void => {
     (
       _file: string,
       _args: readonly string[],
-      _options: unknown,
+      _options: ExecFileOptions,
       callback: (error: Error | null) => void,
     ) => {
-      callback(new Error("Print: Entry, \":CFBundleIdentifier\", Does Not Exist"));
+      callback(
+        new Error('Print: Entry, ":CFBundleIdentifier", Does Not Exist'),
+      );
     },
   );
 };
@@ -103,7 +110,9 @@ describe("readAppBundleId", () => {
     filesystemHolding(SLACK, SLACK_PLIST);
     plistBuddyPrints("  Com.TinySpeck.SlackMacGap  \n");
 
-    await expect(readAppBundleId(SLACK)).resolves.toBe("com.tinyspeck.slackmacgap");
+    await expect(readAppBundleId(SLACK)).resolves.toBe(
+      "com.tinyspeck.slackmacgap",
+    );
   });
 
   it("returns null instead of throwing when the bundle has no identifier", async () => {
@@ -136,25 +145,36 @@ describe("resolveAppBundleIds", () => {
   });
 
   it("treats an empty selection as a success with nothing to add", async () => {
-    await expect(resolveAppBundleIds([])).resolves.toEqual({ success: true, bundleIds: [] });
+    await expect(resolveAppBundleIds([])).resolves.toEqual({
+      success: true,
+      bundleIds: [],
+    });
   });
 
+  // Payloads as JSON: junk the parameter type cannot express arrives through
+  // the IPC boundary exactly like this, untyped.
   it.each([
-    ["a non-array payload", "/Applications/Slack.app"],
-    ["null", null],
-    ["a non-string entry", [42]],
-    ["a relative path", ["Applications/Slack.app"]],
-    ["a non-.app path", ["/etc/passwd"]],
-    ["a path that does not exist", ["/Applications/Ghost.app"]],
-  ])("rejects %s without spawning anything", async (_label, payload) => {
-    await expect(resolveAppBundleIds(payload)).resolves.toMatchObject({ success: false });
+    ["a non-array payload", '"/Applications/Slack.app"'],
+    ["null", "null"],
+    ["a non-string entry", "[42]"],
+    ["a relative path", '["Applications/Slack.app"]'],
+    ["a non-.app path", '["/etc/passwd"]'],
+    ["a path that does not exist", '["/Applications/Ghost.app"]'],
+  ])("rejects %s without spawning anything", async (_label, payloadJson) => {
+    await expect(
+      resolveAppBundleIds(JSON.parse(payloadJson)),
+    ).resolves.toMatchObject({
+      success: false,
+    });
     expect(execFileMock).not.toHaveBeenCalled();
   });
 
   it("rejects more paths than the deny-list could ever hold", async () => {
     const tooMany = Array.from({ length: 201 }, () => SLACK);
 
-    await expect(resolveAppBundleIds(tooMany)).resolves.toMatchObject({ success: false });
+    await expect(resolveAppBundleIds(tooMany)).resolves.toMatchObject({
+      success: false,
+    });
     expect(execFileMock).not.toHaveBeenCalled();
   });
 
@@ -165,6 +185,38 @@ describe("resolveAppBundleIds", () => {
   it("adds nothing when one bundle's identifier cannot be read", async () => {
     plistBuddyFails();
 
-    await expect(resolveAppBundleIds([SLACK])).resolves.toMatchObject({ success: false });
+    await expect(resolveAppBundleIds([SLACK])).resolves.toMatchObject({
+      success: false,
+    });
+  });
+
+  it("accepts exactly MAX_APP_BUNDLE_PATHS paths", async () => {
+    const atCap = Array.from({ length: 200 }, () => SLACK);
+
+    await expect(resolveAppBundleIds(atCap)).resolves.toMatchObject({
+      success: true,
+    });
+  });
+
+  it.each([
+    // `Object(string)` is a boxed String at runtime.
+    ["a boxed path", [Object(SLACK)]],
+    ["an upper-case suffix that does not exist", ["/Applications/SLACK.APP"]],
+  ])("rejects %s without spawning anything", async (_label, payload) => {
+    await expect(resolveAppBundleIds(payload)).resolves.toMatchObject({
+      success: false,
+    });
+    expect(execFileMock).not.toHaveBeenCalled();
+  });
+
+  // Documents current behavior rather than endorsing it: `every` skips the
+  // hole, then the read loop meets `undefined` and `path.join` throws, so the
+  // invoke rejects instead of resolving.
+  it("rejects (throws) on a path list with a hole", async () => {
+    const holey = [SLACK];
+    holey.length = 2;
+    holey.reverse();
+
+    await expect(resolveAppBundleIds(holey)).rejects.toThrow(TypeError);
   });
 });

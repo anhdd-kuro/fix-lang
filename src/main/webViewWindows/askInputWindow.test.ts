@@ -10,6 +10,7 @@
  * this never boots a real window.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { JsonValue } from "~/main/jsonValue";
 
 const windowTitlesMocks = vi.hoisted(() => ({
   buildAskInputWindowTitle: vi.fn(() => "Ask AI"),
@@ -103,7 +104,8 @@ const getIpcHandler = (channel: string) => {
     ([name]) => name === channel,
   );
   if (!call) throw new Error(`no ipcMain.on handler for "${channel}"`);
-  return call[1] as (event: unknown, arg?: unknown) => void;
+  // The handlers never read the event; the argument is whatever the renderer sent.
+  return call[1] as (event: undefined, arg?: JsonValue) => void;
 };
 
 describe("askInputWindow", () => {
@@ -497,21 +499,27 @@ describe("askInputWindow", () => {
       const { showAskInputWindow } = await loadModule();
 
       showAskInputWindow(
-        { presetId: "ask", context: "stale clipboard text", contextSource: "clipboard" },
+        {
+          presetId: "ask",
+          context: "stale clipboard text",
+          contextSource: "clipboard",
+        },
         { onSubmit: vi.fn(), onCancel: vi.fn() },
       );
 
-      expect(autocompleteServiceMocks.rememberAskSession).toHaveBeenLastCalledWith(
-        String(WEB_CONTENTS_ID),
-        { context: { text: "stale clipboard text", source: "clipboard" } },
-      );
+      expect(
+        autocompleteServiceMocks.rememberAskSession,
+      ).toHaveBeenLastCalledWith(String(WEB_CONTENTS_ID), {
+        context: { text: "stale clipboard text", source: "clipboard" },
+      });
 
       showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
 
-      expect(autocompleteServiceMocks.rememberAskSession).toHaveBeenLastCalledWith(
-        String(WEB_CONTENTS_ID),
-        { context: { text: "selected text", source: "selection" } },
-      );
+      expect(
+        autocompleteServiceMocks.rememberAskSession,
+      ).toHaveBeenLastCalledWith(String(WEB_CONTENTS_ID), {
+        context: { text: "selected text", source: "selection" },
+      });
     });
 
     it("replaces the context on a second press", async () => {
@@ -523,10 +531,11 @@ describe("askInputWindow", () => {
         { onSubmit: vi.fn(), onCancel: vi.fn() },
       );
 
-      expect(autocompleteServiceMocks.rememberAskSession).toHaveBeenLastCalledWith(
-        String(WEB_CONTENTS_ID),
-        { context: { text: "a different selection", source: "selection" } },
-      );
+      expect(
+        autocompleteServiceMocks.rememberAskSession,
+      ).toHaveBeenLastCalledWith(String(WEB_CONTENTS_ID), {
+        context: { text: "a different selection", source: "selection" },
+      });
     });
 
     /**
@@ -540,7 +549,10 @@ describe("askInputWindow", () => {
       const { showAskInputWindow } = await loadModule();
 
       showAskInputWindow(
-        { ...PAYLOAD, contextDirectives: "App locale: en\nKeyboard input source: ABC" },
+        {
+          ...PAYLOAD,
+          contextDirectives: "App locale: en\nKeyboard input source: ABC",
+        },
         { onSubmit: vi.fn(), onCancel: vi.fn() },
       );
 
@@ -592,7 +604,9 @@ describe("askInputWindow", () => {
         onCancel: vi.fn(),
       });
 
-      expect(autocompleteServiceMocks.rememberAskSession).not.toHaveBeenCalled();
+      expect(
+        autocompleteServiceMocks.rememberAskSession,
+      ).not.toHaveBeenCalled();
       expect(autocompleteServiceMocks.forgetAskSession).toHaveBeenCalledWith(
         String(WEB_CONTENTS_ID),
       );
@@ -607,22 +621,26 @@ describe("askInputWindow", () => {
         );
         closeCall?.[1]({ preventDefault: vi.fn() });
       },
-      "ask-input-cancel (ESC)": () => getIpcHandler("ask-input-cancel")(undefined),
+      "ask-input-cancel (ESC)": () =>
+        getIpcHandler("ask-input-cancel")(undefined),
       "a submitted question": () =>
         getIpcHandler("ask-input-submit")(undefined, "What is a monad?"),
     };
 
-    it.each(Object.entries(endTheAsk))("drops the context on %s", async (_description, end) => {
-      const { showAskInputWindow } = await loadModule();
-      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
-      autocompleteServiceMocks.forgetAskSession.mockClear();
+    it.each(Object.entries(endTheAsk))(
+      "drops the context on %s",
+      async (_description, end) => {
+        const { showAskInputWindow } = await loadModule();
+        showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+        autocompleteServiceMocks.forgetAskSession.mockClear();
 
-      end();
+        end();
 
-      expect(autocompleteServiceMocks.forgetAskSession).toHaveBeenCalledWith(
-        String(WEB_CONTENTS_ID),
-      );
-    });
+        expect(autocompleteServiceMocks.forgetAskSession).toHaveBeenCalledWith(
+          String(WEB_CONTENTS_ID),
+        );
+      },
+    );
 
     it("drops the context when a profile switch dismisses a pending ask", async () => {
       const { showAskInputWindow, dismissAskInputWindow } = await loadModule();

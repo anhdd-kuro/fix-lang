@@ -47,10 +47,12 @@ import { buildCorrectionGoodJobNotification } from "./correctionNotifications";
 import { deliverCorrectionOutput } from "./correctionOutput";
 import { runSecretGate } from "./secretGate";
 import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
-import { effectiveModelRef, resolveCorrectionPreset } from "../ai.request/correction";
+import {
+  effectiveModelRef,
+  resolveCorrectionPreset,
+} from "../ai.request/correction";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
-import * as clipboardChangeTracker from "../clipboard/clipboardChangeTracker";
 import { prewarmProviderConnection } from "../llm/prewarm";
 import {
   startLatencyTimer,
@@ -59,7 +61,10 @@ import {
 } from "../logging/latencyTimer";
 import { logger } from "../logging/logService";
 import { confirmSelectionGuard } from "../notifications/confirmSelectionGuard";
-import { LocalizedError, showNotificationWithFallback } from "../notifications/error";
+import {
+  LocalizedError,
+  showNotificationWithFallback,
+} from "../notifications/error";
 import {
   hideOverlaySpinner,
   showOverlaySpinner,
@@ -68,19 +73,24 @@ import {
 import { showAskInputWindow } from "../webViewWindows/askInputWindow";
 import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWindow";
 import type { BrowserWindow } from "electron";
-import type { ComboPreset, ComboStep } from "~/features/providers/store/apiStore";
+import type { LogContext } from "~/features/logs/shared/logging";
+import type {
+  ComboPreset,
+  ComboStep,
+} from "~/features/providers/store/apiStore";
 import type { ComboProgressView } from "~/main/webViewWindows/comboProgressView";
 
 /**
  * One decline outcome per confirm reason, so a latency line says which
- * dialog the user backed out of rather than collapsing three different
- * decisions into one number.
+ * dialog the user backed out of rather than collapsing different decisions
+ * into one number.
  */
 const SELECTION_GUARD_DECLINE_OUTCOME = {
   "large-selection": "declined-size",
-  "stale-clipboard": "declined-stale",
-  "unknown-clipboard-age": "declined-unknown-age",
-} as const satisfies Record<SelectionGuardConfirmVerdict["reason"], LatencyOutcome>;
+} as const satisfies Record<
+  SelectionGuardConfirmVerdict["reason"],
+  LatencyOutcome
+>;
 
 /**
  * Applies a selection-guard verdict to Ask AI's optional context, returning
@@ -129,8 +139,8 @@ const resolveAskContextUnderGuards = (
  * before `deliver` — rather than leaving `signal.throwIfAborted()`'s
  * `DOMException("AbortError")` to be recognized by `.name` string-sniffing.
  */
-const isComboCancelledError = (error: unknown): boolean =>
-  error instanceof ComboCancelledError;
+const isComboCancelledError = (cause: unknown): boolean =>
+  cause instanceof ComboCancelledError;
 
 /**
  * The abort check for the part of a combo run that happens OUTSIDE
@@ -244,45 +254,48 @@ const buildComboRunDependencies = (
  * user-initiated cancel. Anything else (a bug, not a modeled outcome) still
  * goes through `handleError` so it is never silently swallowed.
  */
-const handleComboError = (error: unknown, combo: ComboPreset): void => {
-  if (isComboCancelledError(error)) {
+const handleComboError = (cause: unknown, combo: ComboPreset): void => {
+  if (isComboCancelledError(cause)) {
     logger.info("correction.hotkey", "Combo cancelled", { comboId: combo.id });
     new Notification(buildComboCancelledNotification(combo.name)).show();
     return;
   }
 
-  if (error instanceof ComboValidationFailedError) {
-    logger.warn("correction.hotkey", "Combo failed validation before any request ran", {
-      comboId: combo.id,
-      errors: error.errors.map((validationError) => validationError.code),
-    });
+  if (cause instanceof ComboValidationFailedError) {
+    logger.warn(
+      "correction.hotkey",
+      "Combo failed validation before any request ran",
+      {
+        comboId: combo.id,
+        errors: cause.errors.map((validationError) => validationError.code),
+      },
+    );
     new Notification(buildComboInvalidNotification(combo.name)).show();
     return;
   }
 
-  if (error instanceof ComboStepError) {
-    logger.error("correction.hotkey", "Combo step failed", {
+  if (cause instanceof ComboStepError) {
+    const stepFailureContext: LogContext = {
       comboId: combo.id,
-      stepIndex: error.stepIndex,
-      code: error.code,
-      // Present only for `step-failed`, where the real reason (an API error,
-      // an auth failure, a network drop) is the wrapped cause — the notification
-      // deliberately shows only the step, so the diagnosis has to live here.
-      // Spread rather than an `undefined` value: `LogValue` has no undefined.
-      ...(error.cause === undefined
-        ? {}
-        : {
-            cause:
-              error.cause instanceof Error
-                ? error.cause.message
-                : String(error.cause),
-          }),
-    });
+      stepIndex: cause.stepIndex,
+      code: cause.code,
+    };
+    // Present only for `step-failed`, where the real reason (an API error,
+    // an auth failure, a network drop) is the wrapped cause — the notification
+    // deliberately shows only the step, so the diagnosis has to live here.
+    // Omitted rather than `undefined`: `LogValue` has no undefined.
+    if (cause.cause !== undefined) {
+      stepFailureContext.cause =
+        cause.cause instanceof Error
+          ? cause.cause.message
+          : String(cause.cause);
+    }
+    logger.error("correction.hotkey", "Combo step failed", stepFailureContext);
     new Notification(
       buildComboStepFailedNotification({
-        stepPosition: error.stepIndex + 1,
+        stepPosition: cause.stepIndex + 1,
         totalSteps: combo.steps.length,
-        presetName: presetNameForStep(error.step),
+        presetName: presetNameForStep(cause.step),
       }),
     ).show();
     return;
@@ -290,9 +303,9 @@ const handleComboError = (error: unknown, combo: ComboPreset): void => {
 
   logger.error("correction.hotkey", "Combo failed", {
     comboId: combo.id,
-    error: error instanceof Error ? error.message : String(error),
+    error: cause instanceof Error ? cause.message : String(cause),
   });
-  handleError(error);
+  handleError(cause);
 };
 
 /**
@@ -486,12 +499,11 @@ const runComboFromHotkey = async (
         const environmentPromise = resolveAskEnvironment({
           systemLocale: app.getSystemLocale(),
         });
-        const { text: selectedText, activeApp, changed } = await getHighlightedTextWithActiveApp(
-          () => {
+        const { text: selectedText, activeApp } =
+          await getHighlightedTextWithActiveApp(() => {
             latency.mark("keystrokeSent");
             showOverlaySpinner();
-          },
-        );
+          });
         latency.mark("selectionPoll");
 
         // Finding F2 (board, first branch) — the earliest point this handler can
@@ -510,9 +522,13 @@ const runComboFromHotkey = async (
 
         if (!selectedText || !selectedText.trim()) {
           hideOverlaySpinner();
-          logger.warn("correction.hotkey", "No text selected or clipboard is empty", {
-            comboId: combo.id,
-          });
+          logger.warn(
+            "correction.hotkey",
+            "No text selected or clipboard is empty",
+            {
+              comboId: combo.id,
+            },
+          );
           latency.finish({ outcome: "no-selection" });
           handleError(
             new LocalizedError(
@@ -531,21 +547,23 @@ const runComboFromHotkey = async (
         // "nothing selected" keeps its own, more basic message.
         const verdict = evaluateSelectionGuards({
           text: selectedText,
-          changed,
           activeApp,
-          age: clipboardChangeTracker.clipboardAge(),
           settings: guardStore.getSelectionGuardSettings(),
         });
 
         if (verdict.kind === "block") {
           hideOverlaySpinner();
           latency.finish({ outcome: verdict.reason });
-          logger.warn("correction.hotkey", "Combo blocked by a selection guard", {
-            comboId: combo.id,
-            guardEvent: "blocked",
-            guardReason: verdict.reason,
-            deniedBundleId: verdict.bundleId,
-          });
+          logger.warn(
+            "correction.hotkey",
+            "Combo blocked by a selection guard",
+            {
+              comboId: combo.id,
+              guardEvent: "blocked",
+              guardReason: verdict.reason,
+              deniedBundleId: verdict.bundleId,
+            },
+          );
           handleError(
             new LocalizedError(
               "Selection blocked: the frontmost app is on the deny-list.",
@@ -563,13 +581,19 @@ const runComboFromHotkey = async (
           latency.resume();
 
           if (!proceed) {
-            latency.finish({ outcome: SELECTION_GUARD_DECLINE_OUTCOME[verdict.reason] });
-            logger.info("correction.hotkey", "Combo declined at a selection-guard confirm", {
-              comboId: combo.id,
-              guardEvent: "declined",
-              guardReason: verdict.reason,
-              ...selectionGuardLogContext(verdict),
+            latency.finish({
+              outcome: SELECTION_GUARD_DECLINE_OUTCOME[verdict.reason],
             });
+            logger.info(
+              "correction.hotkey",
+              "Combo declined at a selection-guard confirm",
+              {
+                comboId: combo.id,
+                guardEvent: "declined",
+                guardReason: verdict.reason,
+                ...selectionGuardLogContext(verdict),
+              },
+            );
             // NO error notification — Cancel is a choice, not an error.
             return;
           }
@@ -605,10 +629,14 @@ const runComboFromHotkey = async (
         if (gate.gateDecision === "declined") {
           hideOverlaySpinner();
           latency.finish({ outcome: "secret-declined" });
-          logger.info("correction.hotkey", "Combo declined at the secret guard", {
-            comboId: combo.id,
-            appliedMode: gate.appliedMode,
-          });
+          logger.info(
+            "correction.hotkey",
+            "Combo declined at the secret guard",
+            {
+              comboId: combo.id,
+              appliedMode: gate.appliedMode,
+            },
+          );
           // NO error notification, same as the large-selection Cancel.
           return;
         }
@@ -629,13 +657,10 @@ const runComboFromHotkey = async (
             userMetadata: gate.sentCompanionText,
             signal,
           },
-          buildComboRunDependencies(
-            (view) => {
-              latestProgress = view;
-              updateComboProgress(view);
-            },
-            latency,
-          ),
+          buildComboRunDependencies((view) => {
+            latestProgress = view;
+            updateComboProgress(view);
+          }, latency),
         );
 
         logger.info("correction.hotkey", "Combo completed", {
@@ -657,7 +682,9 @@ const runComboFromHotkey = async (
         hideOverlaySpinner();
       },
       () => {
-        logger.info("correction.hotkey", "Combo cancelling", { comboId: combo.id });
+        logger.info("correction.hotkey", "Combo cancelling", {
+          comboId: combo.id,
+        });
         updateComboProgress({ ...latestProgress, state: "cancelling" });
       },
     );
@@ -697,8 +724,7 @@ const runComboFromHotkey = async (
 export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
   const correctionSettings = getProfileSetting("settingsCorrect");
   const registeredShortcuts = new Set<string>();
-  const { promptGen, profileSwitch } =
-    keybindingStore.getKeyBindings();
+  const { promptGen, profileSwitch } = keybindingStore.getKeyBindings();
   // The combo cancel accelerator is the migration path, not redundancy with the
   // pre-save gate: that gate never re-runs on an already-stored profile, so a
   // preset saved before the chord was reserved would register here and win the
@@ -718,16 +744,24 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
     }
 
     if (registeredShortcuts.has(shortcut)) {
-      logger.warn("correction.register", "Skipping duplicate correction shortcut", {
-        presetId: preset.id,
-      });
+      logger.warn(
+        "correction.register",
+        "Skipping duplicate correction shortcut",
+        {
+          presetId: preset.id,
+        },
+      );
       return;
     }
 
     if (reservedShortcuts.has(shortcut)) {
-      logger.warn("correction.register", "Skipping conflicting correction shortcut", {
-        presetId: preset.id,
-      });
+      logger.warn(
+        "correction.register",
+        "Skipping conflicting correction shortcut",
+        {
+          presetId: preset.id,
+        },
+      );
       return;
     }
 
@@ -736,467 +770,481 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
     const registered = globalShortcut.register(
       shortcut,
       withHotkeyThrottle(shortcut, async () => {
-      // Started before anything else in the handler, including the prewarm, so
-      // `totalMs` is the number the user actually feels: press → result in
-      // front of them. Everything after this line is inside the measurement.
-      const latency = startLatencyTimer({
-        scope: "correction.latency",
-        message: "Transform latency",
-        context: { presetId: preset.id },
-      });
-
-      logger.info("correction.hotkey", "Hotkey triggered", {
-        presetId: preset.id,
-      });
-
-      try {
-        // Fire-and-forget: starts the provider's TCP+TLS handshake now so it
-        // overlaps the AppleScript selection read below (and, for the
-        // `requiresInput` branch, the time the user spends typing into the Ask
-        // input window) instead of happening serially right before the real
-        // request. Never throws, never blocks, never surfaces an error — see
-        // `~/main/llm/prewarm.ts`'s own contract. Kept INSIDE the try so that
-        // nothing between starting the timer and delivering can return without
-        // finishing it, even if that contract is ever broken.
-        prewarmProviderConnection(effectiveModelRef(preset));
-
-        // ONCE PER PRESS for every preset, not just Ask. The same rendered
-        // string is what Autocomplete and `fixGrammar` inject into the system
-        // prompt (`withUserMetadata`) and what Ask appends to the submitted
-        // message / shows in the transparency row. Resolving it again
-        // downstream would let those surfaces drift. Started HERE so it
-        // overlaps the selection read on both branches — a `defaults` spawn
-        // bounded by `INPUT_SOURCE_TIMEOUT_MS` must not sit in front of the
-        // input window or the overlay spinner.
-        const environmentPromise = resolveAskEnvironment({
-          systemLocale: app.getSystemLocale(),
+        // Started before anything else in the handler, including the prewarm, so
+        // `totalMs` is the number the user actually feels: press → result in
+        // front of them. Everything after this line is inside the measurement.
+        const latency = startLatencyTimer({
+          scope: "correction.latency",
+          message: "Transform latency",
+          context: { presetId: preset.id },
         });
 
-        // Ask AI inverts the outbound-polish presets below: an empty
-        // selection is the normal case (the question can stand alone), so it
-        // must never hit the "no text selected" abort. The window itself
-        // owns the request from here — asking the user for a question, then
-        // handing the answer off to `runAskFlow`.
-        //
-        // Same clipboard contract as every other preset, including the
-        // fallback: where the text came from travels with it, so the input
-        // window can label a clipboard-sourced context instead of passing it
-        // off as the user's selection (see `~/utils.ts`).
-        //
-        // Ask AI still never puts a source app in its PROMPT (see askFlow.ts's
-        // own doc comment). It does now READ one: `getAskContext` goes through
-        // the combined reader so the frontmost app comes back with the text,
-        // because the deny-list is a rule about where text may be read FROM,
-        // and a rule covering every preset except the one with a free-text box
-        // would be a rule with a hole in the shape of its own purpose. It costs
-        // one extra AppleScript statement in a script this press already runs,
-        // not an extra spawn.
-        if (preset.requiresInput) {
-          const {
-            text: askText,
-            source: contextSource,
-            activeApp: askActiveApp,
-            changed: askChanged,
-          } = await getAskContext();
-          latency.mark("selectionRead");
+        logger.info("correction.hotkey", "Hotkey triggered", {
+          presetId: preset.id,
+        });
 
-          // Ask reaches the same guards as every other preset, and reaches
-          // them HERE — before the window opens — rather than at submit.
-          // The window is a consent surface for what it displays, not a
-          // substitute for the rules the user configured: a denied app, a
-          // clipboard of unknown age and a whole selected document are all
-          // things they asked to be stopped on, and none of them is answered
-          // by a label. Attaching nothing is a supported state for this
-          // preset, so a refusal here drops the CONTEXT and still opens the
-          // window — the question can stand alone, and killing the press
-          // outright would make the guard read as a broken hotkey.
+        try {
+          // Fire-and-forget: starts the provider's TCP+TLS handshake now so it
+          // overlaps the AppleScript selection read below (and, for the
+          // `requiresInput` branch, the time the user spends typing into the Ask
+          // input window) instead of happening serially right before the real
+          // request. Never throws, never blocks, never surfaces an error — see
+          // `~/main/llm/prewarm.ts`'s own contract. Kept INSIDE the try so that
+          // nothing between starting the timer and delivering can return without
+          // finishing it, even if that contract is ever broken.
+          prewarmProviderConnection(effectiveModelRef(preset));
+
+          // ONCE PER PRESS for every preset, not just Ask. The same rendered
+          // string is what Autocomplete and `fixGrammar` inject into the system
+          // prompt (`withUserMetadata`) and what Ask appends to the submitted
+          // message / shows in the transparency row. Resolving it again
+          // downstream would let those surfaces drift. Started HERE so it
+          // overlaps the selection read on both branches — a `defaults` spawn
+          // bounded by `INPUT_SOURCE_TIMEOUT_MS` must not sit in front of the
+          // input window or the overlay spinner.
+          const environmentPromise = resolveAskEnvironment({
+            systemLocale: app.getSystemLocale(),
+          });
+
+          // Ask AI inverts the outbound-polish presets below: an empty
+          // selection is the normal case (the question can stand alone), so it
+          // must never hit the "no text selected" abort. The window itself
+          // owns the request from here — asking the user for a question, then
+          // handing the answer off to `runAskFlow`.
           //
-          // Between the two awaits on purpose: it is synchronous, so it costs
-          // the overlap above nothing, and putting it after the environment
-          // await would leave a dropped context resolved a second later than
-          // it needs to be.
-          const askVerdict = evaluateSelectionGuards({
-            text: askText,
-            changed: askChanged,
-            activeApp: askActiveApp,
-            age: clipboardChangeTracker.clipboardAge(),
-            settings: guardStore.getSelectionGuardSettings(),
-          });
-          const context = resolveAskContextUnderGuards(askVerdict, askText, preset.id);
+          // Same clipboard contract as every other preset, including the
+          // fallback: where the text came from travels with it, so the input
+          // window can label a clipboard-sourced context instead of passing it
+          // off as the user's selection (see `~/utils.ts`).
+          //
+          // Ask AI still never puts a source app in its PROMPT (see askFlow.ts's
+          // own doc comment). It does now READ one: `getAskContext` goes through
+          // the combined reader so the frontmost app comes back with the text,
+          // because the deny-list is a rule about where text may be read FROM,
+          // and a rule covering every preset except the one with a free-text box
+          // would be a rule with a hole in the shape of its own purpose. It costs
+          // one extra AppleScript statement in a script this press already runs,
+          // not an extra spawn.
+          if (preset.requiresInput) {
+            const {
+              text: askText,
+              source: contextSource,
+              activeApp: askActiveApp,
+            } = await getAskContext();
+            latency.mark("selectionRead");
 
-          // The two reads above overlap, so this phase is what was LEFT of the
-          // environment read once the context read returned — ~0 whenever the
-          // clipboard poll was the slower half, which is the point of starting
-          // it first. It is still its own phase because the alternative is the
-          // `defaults` timeout landing in `totalMs` under no phase at all.
-          const askEnvironment = await environmentPromise;
-          latency.mark("environmentRead");
-          const contextDirectives = buildAskDirectives(askEnvironment);
-          // Re-resolved rather than read off the `preset` captured at hotkey
-          // registration: `fixGrammar` looks the preset up again at SUBMIT, and
-          // the row promises to show what will actually be sent.
-          const systemPrompt = resolveCorrectionPreset(preset.id).systemPrompt;
-          // The one line that says whether the selection made it, and which
-          // source it came from. Without it, "the user selected nothing" and
-          // "the copy produced nothing so this is their clipboard" both look
-          // like the same input window. Lengths only — the text itself never
-          // goes in a log, and neither does a directive line: those name the
-          // user's own presets and state the minute they pressed the hotkey.
-          logger.debug("correction.hotkey", "Ask context resolved", {
-            presetId: preset.id,
-            contextLength: context.length,
-            contextAttached: context.length > 0,
-            contextSource,
-            directivesLength: contextDirectives.length,
-            recentTransformCount: askEnvironment.recentTransforms.length,
-            keyboardInputSourceRead: askEnvironment.keyboardInputSource !== null,
-          });
-          showAskInputWindow(
-            {
-              presetId: preset.id,
-              context,
-              contextSource,
-              systemPrompt,
-              contextDirectives,
-            },
-            {
-              onSubmit: (question) => {
-                void runAskFlow({
-                  preset,
-                  context,
-                  question,
-                  directives: contextDirectives,
-                  mainWindow,
-                });
-              },
-              onCancel: () => {
-                logger.debug("correction.hotkey", "Ask input cancelled", {
-                  presetId: preset.id,
-                });
-              },
-            },
-          );
-          // Ask AI's clock stops here on purpose: past this point the elapsed
-          // time is the user typing a question, which is not latency. The
-          // request half is measured separately from submit, in `askFlow.ts`.
-          latency.finish({ outcome: "input-shown" });
-          return;
-        }
-
-        // One osascript invocation reads the frontmost app and THEN sends
-        // the Cmd-C keystroke (see getHighlightedTextWithActiveApp) instead
-        // of two separate spawns. The callback fires right after that script
-        // returns — before the clipboard-change poll — which is the
-        // earliest point it is still safe to show the overlay spinner: the
-        // frontmost-app read must precede any FixLang window becoming
-        // visible, since afterwards it would report FixLang and yield null.
-        const { text: selectedText, activeApp, changed } = await getHighlightedTextWithActiveApp(
-          () => {
-            // Splits the osascript spawn from the clipboard-change poll that
-            // follows it — the two fail slow for completely different reasons
-            // (System Events contention vs. a sluggish source app), so a
-            // single combined number would not say which one regressed.
-            latency.mark("keystrokeSent");
-            showOverlaySpinner();
-          },
-        );
-        latency.mark("selectionPoll");
-
-        if (!selectedText || !selectedText.trim()) {
-          // Safe even though the spinner may not have been shown yet
-          // (e.g. the combined read threw before the callback fired):
-          // hiding an overlay that was never shown is a no-op.
-          hideOverlaySpinner();
-          latency.finish({ outcome: "no-selection" });
-          logger.warn(
-            "correction.hotkey",
-            "No text selected or clipboard is empty",
-            { presetId: preset.id },
-          );
-          handleError(
-            new LocalizedError(
-              "No text selected or clipboard is empty.",
-              "notifications.error.noTextSelected.body",
-            ),
-          );
-          return;
-        }
-
-        // Read fresh on every press, not once at registerCorrectionShortcut
-        // time: a settings change must take effect on the very next hotkey
-        // press, not only after the next hotkey reload.
-        //
-        // This check runs on the resolved read result rather than inside
-        // `getHighlightedTextWithActiveApp`'s own `onFrontmostReadAndKeystrokeSent`
-        // callback: by the time this line runs, the Cmd-C keystroke has
-        // already fired inside that same osascript session, and returning
-        // early from inside the callback would skip the clipboard restore in
-        // its `finally`. So be honest about what this guards: it prevents
-        // TRANSMISSION, not reading — the selection is still copied and
-        // restored, it just never reaches a provider.
-        const verdict = evaluateSelectionGuards({
-          text: selectedText,
-          changed,
-          activeApp,
-          age: clipboardChangeTracker.clipboardAge(),
-          settings: guardStore.getSelectionGuardSettings(),
-        });
-
-        if (verdict.kind === "block") {
-          hideOverlaySpinner();
-          // `verdict.reason` doubles as the `LatencyOutcome` member, so no
-          // separate mapping table between guard reasons and log outcomes.
-          latency.finish({ outcome: verdict.reason });
-          logger.warn("correction.hotkey", "Transform blocked by a selection guard", {
-            presetId: preset.id,
-            guardEvent: "blocked",
-            guardReason: verdict.reason,
-            deniedBundleId: verdict.bundleId,
-          });
-          handleError(
-            new LocalizedError(
-              "Selection blocked: the frontmost app is on the deny-list.",
-              "notifications.error.appNotAllowed.body",
-              { app: activeApp?.name ?? verdict.bundleId },
-            ),
-          );
-          return;
-        }
-
-        if (verdict.kind === "confirm") {
-          hideOverlaySpinner();
-          latency.pause();
-          const proceed = await confirmSelectionGuard(verdict);
-          latency.resume();
-
-          if (!proceed) {
-            latency.finish({ outcome: SELECTION_GUARD_DECLINE_OUTCOME[verdict.reason] });
-            logger.info("correction.hotkey", "Transform declined at a selection-guard confirm", {
-              presetId: preset.id,
-              guardEvent: "declined",
-              guardReason: verdict.reason,
-              ...selectionGuardLogContext(verdict),
+            // Ask reaches the same guards as every other preset, and reaches
+            // them HERE — before the window opens — rather than at submit.
+            // The window is a consent surface for what it displays, not a
+            // substitute for the rules the user configured: a denied app and
+            // a whole selected document are both things they asked to be
+            // stopped on, and neither is answered by a label. Attaching nothing is a supported state for this
+            // preset, so a refusal here drops the CONTEXT and still opens the
+            // window — the question can stand alone, and killing the press
+            // outright would make the guard read as a broken hotkey.
+            //
+            // Between the two awaits on purpose: it is synchronous, so it costs
+            // the overlap above nothing, and putting it after the environment
+            // await would leave a dropped context resolved a second later than
+            // it needs to be.
+            const askVerdict = evaluateSelectionGuards({
+              text: askText,
+              activeApp: askActiveApp,
+              settings: guardStore.getSelectionGuardSettings(),
             });
-            // NO error notification — the user clicked Cancel, which is not
-            // an error. A toast here would train people to dismiss toasts.
+            const context = resolveAskContextUnderGuards(
+              askVerdict,
+              askText,
+              preset.id,
+            );
+
+            // The two reads above overlap, so this phase is what was LEFT of the
+            // environment read once the context read returned — ~0 whenever the
+            // clipboard poll was the slower half, which is the point of starting
+            // it first. It is still its own phase because the alternative is the
+            // `defaults` timeout landing in `totalMs` under no phase at all.
+            const askEnvironment = await environmentPromise;
+            latency.mark("environmentRead");
+            const contextDirectives = buildAskDirectives(askEnvironment);
+            // Re-resolved rather than read off the `preset` captured at hotkey
+            // registration: `fixGrammar` looks the preset up again at SUBMIT, and
+            // the row promises to show what will actually be sent.
+            const systemPrompt = resolveCorrectionPreset(
+              preset.id,
+            ).systemPrompt;
+            // The one line that says whether the selection made it, and which
+            // source it came from. Without it, "the user selected nothing" and
+            // "the copy produced nothing so this is their clipboard" both look
+            // like the same input window. Lengths only — the text itself never
+            // goes in a log, and neither does a directive line: those name the
+            // user's own presets and state the minute they pressed the hotkey.
+            logger.debug("correction.hotkey", "Ask context resolved", {
+              presetId: preset.id,
+              contextLength: context.length,
+              contextAttached: context.length > 0,
+              contextSource,
+              directivesLength: contextDirectives.length,
+              recentTransformCount: askEnvironment.recentTransforms.length,
+              keyboardInputSourceRead:
+                askEnvironment.keyboardInputSource !== null,
+            });
+            showAskInputWindow(
+              {
+                presetId: preset.id,
+                context,
+                contextSource,
+                systemPrompt,
+                contextDirectives,
+              },
+              {
+                onSubmit: (question) => {
+                  void runAskFlow({
+                    preset,
+                    context,
+                    question,
+                    directives: contextDirectives,
+                    mainWindow,
+                  });
+                },
+                onCancel: () => {
+                  logger.debug("correction.hotkey", "Ask input cancelled", {
+                    presetId: preset.id,
+                  });
+                },
+              },
+            );
+            // Ask AI's clock stops here on purpose: past this point the elapsed
+            // time is the user typing a question, which is not latency. The
+            // request half is measured separately from submit, in `askFlow.ts`.
+            latency.finish({ outcome: "input-shown" });
             return;
           }
 
-          showOverlaySpinner();
-        }
+          // One osascript invocation reads the frontmost app and THEN sends
+          // the Cmd-C keystroke (see getHighlightedTextWithActiveApp) instead
+          // of two separate spawns. The callback fires right after that script
+          // returns — before the clipboard-change poll — which is the
+          // earliest point it is still safe to show the overlay spinner: the
+          // frontmost-app read must precede any FixLang window becoming
+          // visible, since afterwards it would report FixLang and yield null.
+          const { text: selectedText, activeApp } =
+            await getHighlightedTextWithActiveApp(() => {
+              // Splits the osascript spawn from the clipboard-change poll that
+              // follows it — the two fail slow for completely different reasons
+              // (System Events contention vs. a sluggish source app), so a
+              // single combined number would not say which one regressed.
+              latency.mark("keystrokeSent");
+              showOverlaySpinner();
+            });
+          latency.mark("selectionPoll");
 
-        // Read fresh on every press, same reason as the selection guards
-        // above. `runSecretGate` is the ONLY entry point: the per-site policy
-        // lives in `SECRET_SEND_SITE_POLICY`, and re-deriving any part of it
-        // here is what that one table exists to prevent.
-        //
-        // Await the environment BEFORE the gate so recent preset names (user-
-        // editable) are scanned with the selection. One dialog covers both;
-        // companion masking is irreversible redaction, not restore placeholders.
-        const userMetadata = buildAskDirectives(await environmentPromise);
-        const gate = await runSecretGate({
-          site: "correction",
-          text: selectedText,
-          companionText: userMetadata,
-          settings: secretGuardStore.getSecretGuardSettings(),
-          // Wraps ONLY the modal, never the whole gate: bracketing the gate
-          // would hide and re-show the spinner on every transform in confirm
-          // mode, including the vast majority where nothing is detected and no
-          // dialog opens at all.
-          aroundDialog: async (showDialog) => {
+          if (!selectedText || !selectedText.trim()) {
+            // Safe even though the spinner may not have been shown yet
+            // (e.g. the combined read threw before the callback fired):
+            // hiding an overlay that was never shown is a no-op.
+            hideOverlaySpinner();
+            latency.finish({ outcome: "no-selection" });
+            logger.warn(
+              "correction.hotkey",
+              "No text selected or clipboard is empty",
+              { presetId: preset.id },
+            );
+            handleError(
+              new LocalizedError(
+                "No text selected or clipboard is empty.",
+                "notifications.error.noTextSelected.body",
+              ),
+            );
+            return;
+          }
+
+          // Read fresh on every press, not once at registerCorrectionShortcut
+          // time: a settings change must take effect on the very next hotkey
+          // press, not only after the next hotkey reload.
+          //
+          // This check runs on the resolved read result rather than inside
+          // `getHighlightedTextWithActiveApp`'s own `onFrontmostReadAndKeystrokeSent`
+          // callback: by the time this line runs, the Cmd-C keystroke has
+          // already fired inside that same osascript session, and returning
+          // early from inside the callback would skip the clipboard restore in
+          // its `finally`. So be honest about what this guards: it prevents
+          // TRANSMISSION, not reading — the selection is still copied and
+          // restored, it just never reaches a provider.
+          const verdict = evaluateSelectionGuards({
+            text: selectedText,
+            activeApp,
+            settings: guardStore.getSelectionGuardSettings(),
+          });
+
+          if (verdict.kind === "block") {
+            hideOverlaySpinner();
+            // `verdict.reason` doubles as the `LatencyOutcome` member, so no
+            // separate mapping table between guard reasons and log outcomes.
+            latency.finish({ outcome: verdict.reason });
+            logger.warn(
+              "correction.hotkey",
+              "Transform blocked by a selection guard",
+              {
+                presetId: preset.id,
+                guardEvent: "blocked",
+                guardReason: verdict.reason,
+                deniedBundleId: verdict.bundleId,
+              },
+            );
+            handleError(
+              new LocalizedError(
+                "Selection blocked: the frontmost app is on the deny-list.",
+                "notifications.error.appNotAllowed.body",
+                { app: activeApp?.name ?? verdict.bundleId },
+              ),
+            );
+            return;
+          }
+
+          if (verdict.kind === "confirm") {
             hideOverlaySpinner();
             latency.pause();
-            const answer = await showDialog();
-            // No `mark()` between pause and resume: the wait would land in the
-            // phase delta instead of `pausedMs`.
+            const proceed = await confirmSelectionGuard(verdict);
             latency.resume();
+
+            if (!proceed) {
+              latency.finish({
+                outcome: SELECTION_GUARD_DECLINE_OUTCOME[verdict.reason],
+              });
+              logger.info(
+                "correction.hotkey",
+                "Transform declined at a selection-guard confirm",
+                {
+                  presetId: preset.id,
+                  guardEvent: "declined",
+                  guardReason: verdict.reason,
+                  ...selectionGuardLogContext(verdict),
+                },
+              );
+              // NO error notification — the user clicked Cancel, which is not
+              // an error. A toast here would train people to dismiss toasts.
+              return;
+            }
+
             showOverlaySpinner();
-            return answer;
-          },
-        });
+          }
 
-        if (gate.gateDecision === "declined") {
-          hideOverlaySpinner();
-          latency.finish({ outcome: "secret-declined" });
-          logger.info(
-            "correction.hotkey",
-            "Transform declined at the secret guard",
-            { presetId: preset.id, appliedMode: gate.appliedMode },
+          // Read fresh on every press, same reason as the selection guards
+          // above. `runSecretGate` is the ONLY entry point: the per-site policy
+          // lives in `SECRET_SEND_SITE_POLICY`, and re-deriving any part of it
+          // here is what that one table exists to prevent.
+          //
+          // Await the environment BEFORE the gate so recent preset names (user-
+          // editable) are scanned with the selection. One dialog covers both;
+          // companion masking is irreversible redaction, not restore placeholders.
+          const userMetadata = buildAskDirectives(await environmentPromise);
+          const gate = await runSecretGate({
+            site: "correction",
+            text: selectedText,
+            companionText: userMetadata,
+            settings: secretGuardStore.getSecretGuardSettings(),
+            // Wraps ONLY the modal, never the whole gate: bracketing the gate
+            // would hide and re-show the spinner on every transform in confirm
+            // mode, including the vast majority where nothing is detected and no
+            // dialog opens at all.
+            aroundDialog: async (showDialog) => {
+              hideOverlaySpinner();
+              latency.pause();
+              const answer = await showDialog();
+              // No `mark()` between pause and resume: the wait would land in the
+              // phase delta instead of `pausedMs`.
+              latency.resume();
+              showOverlaySpinner();
+              return answer;
+            },
+          });
+
+          if (gate.gateDecision === "declined") {
+            hideOverlaySpinner();
+            latency.finish({ outcome: "secret-declined" });
+            logger.info(
+              "correction.hotkey",
+              "Transform declined at the secret guard",
+              { presetId: preset.id, appliedMode: gate.appliedMode },
+            );
+            // NO error notification, same as the large-selection Cancel. Usually
+            // that is because the user answered the dialog and a toast confirming
+            // their own Cancel would train people to dismiss toasts. It is NOT
+            // always a user choice: `confirmSecretSend` fails closed on a
+            // reentrant call and returns false without ever showing a dialog, so
+            // this branch also covers a decline nobody made. Staying silent is
+            // still right there — the transform simply did not happen, the
+            // selection is untouched, and the gate already logged why — but the
+            // reason is "there is nothing a toast could usefully say", not
+            // "the user decided".
+            return;
+          }
+
+          // What the model actually saw. Identity-equal to `selectedText` when
+          // masking is off or nothing matched, so comparing the reply against
+          // THIS rather than the selection is free in the common case and the
+          // only correct comparison once a mask is in play.
+          const sentText = gate.sentText;
+
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("start-loading");
+          }
+
+          const result = await fixGrammar(sentText, preset.id, {
+            activeAppName: activeApp?.name,
+            userMetadata: gate.sentCompanionText,
+          });
+          latency.mark("aiRequest");
+
+          // ONE branch: a masking mode always returns a `SecretMasking`, and an
+          // empty one restores cleanly.
+          const restore =
+            gate.restoreOnReply && gate.masking !== null
+              ? restoreSecrets(result.correctedText, gate.masking)
+              : ({ ok: true, text: result.correctedText } as const);
+
+          if (!restore.ok) {
+            logger.warn(
+              "secretGuard.mask",
+              "Could not restore masked values into the reply",
+              {
+                presetId: preset.id,
+                appliedMode: gate.appliedMode,
+                reason: restore.reason,
+                missingCount: restore.missingCount,
+                placeholderCount: gate.masking?.placeholderCount ?? 0,
+              },
+            );
+            // Not a bare `new Notification` — this warning is the ONLY thing
+            // explaining a popup full of placeholders, and a non-Developer-ID
+            // build can fail notification delivery on the async `failed` event.
+            showNotificationWithFallback({
+              title: mainT("notifications.secretGuard.restoreFailed.title"),
+              body: mainT("notifications.secretGuard.restoreFailed.body"),
+              urgency: "critical",
+            });
+          }
+
+          if (
+            restore.ok &&
+            result.correctedText === sentText &&
+            preset.id === DEFAULT_CORRECTION_PRESET_ID
+          ) {
+            new Notification(buildCorrectionGoodJobNotification()).show();
+          }
+
+          // Settings offers the per-preset output mode on EVERY preset, not just
+          // the `requiresInput` one, so resolve it here too — reading the global
+          // store directly would leave that control visible, writable, persisted
+          // and inert for all six polish presets.
+          //
+          // A failed restore then overrides that to the popup, carrying the
+          // MASKED reply: a partial restore mixes real secrets and placeholders
+          // indistinguishably, and the popup is copyable.
+          const delivery = await deliverCorrectionOutput(
+            resolveSecretGuardOutputMode(
+              resolvePresetOutputMode(
+                preset.outputMode,
+                outputModeStore.getCorrectionOutputMode(),
+              ),
+              restore.ok,
+            ),
+            {
+              presetName: preset.name,
+              text: restore.ok ? restore.text : result.correctedText,
+            },
+            {
+              paste: pasteText,
+              showPopup: showCorrectionResultWindow,
+            },
           );
-          // NO error notification, same as the large-selection Cancel. Usually
-          // that is because the user answered the dialog and a toast confirming
-          // their own Cancel would train people to dismiss toasts. It is NOT
-          // always a user choice: `confirmSecretSend` fails closed on a
-          // reentrant call and returns false without ever showing a dialog, so
-          // this branch also covers a decline nobody made. Staying silent is
-          // still right there — the transform simply did not happen, the
-          // selection is untouched, and the gate already logged why — but the
-          // reason is "there is nothing a toast could usefully say", not
-          // "the user decided".
-          return;
-        }
+          latency.mark("delivery");
+          // Finished here, NOT at the end of the handler: everything below is
+          // bookkeeping the user never waits for (cost snapshot, history write,
+          // IPC). Including it would inflate the number the user feels.
+          latency.finish({ outcome: "delivered", delivery });
 
-        // What the model actually saw. Identity-equal to `selectedText` when
-        // masking is off or nothing matched, so comparing the reply against
-        // THIS rather than the selection is free in the common case and the
-        // only correct comparison once a mask is in play.
-        const sentText = gate.sentText;
-
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send("start-loading");
-        }
-
-        const result = await fixGrammar(sentText, preset.id, {
-          activeAppName: activeApp?.name,
-          userMetadata: gate.sentCompanionText,
-        });
-        latency.mark("aiRequest");
-
-        // ONE branch: a masking mode always returns a `SecretMasking`, and an
-        // empty one restores cleanly.
-        const restore =
-          gate.restoreOnReply && gate.masking !== null
-            ? restoreSecrets(result.correctedText, gate.masking)
-            : ({ ok: true, text: result.correctedText } as const);
-
-        if (!restore.ok) {
-          logger.warn("secretGuard.mask", "Could not restore masked values into the reply", {
+          logger.info("correction.hotkey", "Correction completed", {
             presetId: preset.id,
             appliedMode: gate.appliedMode,
-            reason: restore.reason,
-            missingCount: restore.missingCount,
-            placeholderCount: gate.masking?.placeholderCount ?? 0,
+            gateDecision: gate.gateDecision,
+            textLength: selectedText.length,
+            model: result.model,
+            // `?? null` throughout: `LogValue` has no `undefined` member.
+            provider: result.provider ?? null,
+            resolvedModel: result.resolvedModel ?? null,
+            activeApp: activeApp?.name ?? null,
+            delivery,
           });
-          // Not a bare `new Notification` — this warning is the ONLY thing
-          // explaining a popup full of placeholders, and an unsigned build
-          // fails notification delivery on the async `failed` event.
-          showNotificationWithFallback({
-            title: mainT("notifications.secretGuard.restoreFailed.title"),
-            body: mainT("notifications.secretGuard.restoreFailed.body"),
-            urgency: "critical",
+
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            // Cost snapshot (#56): price the served model against the cached
+            // OpenRouter /models price map. Local (Ollama) → $0; no confident
+            // match → N/A. All logic is in the pure computeCost; this is glue.
+            const servedId = result.resolvedModel ?? result.model;
+            const cost = computeCost(
+              {
+                model: result.model,
+                resolvedModel: result.resolvedModel,
+                promptTokens: result.promptTokens ?? 0,
+                completionTokens: result.completionTokens ?? 0,
+                provider: result.provider,
+                isLocal: isLocalModelId(servedId, result.provider),
+              },
+              buildPriceMap(getCachedModels()),
+            );
+
+            syncHistory({
+              entry: {
+                // Both sides are what CROSSED the wire: masked when masking is
+                // on, raw when it is off (`sentText` is the selection itself
+                // then). The history DB is unencrypted under `userData` and the
+                // snapshot viewer has copy buttons, so storing the restored text
+                // here would recreate — durably — exactly the exposure masking
+                // removed. Raw history after a Send anyway is correct: the
+                // dialog said the real value would be included.
+                original: sentText,
+                corrected: result.correctedText,
+                promptTokens: result.promptTokens ?? 0,
+                completionTokens: result.completionTokens ?? 0,
+                timestamp: new Date().toISOString(),
+                model: result.model,
+                provider: result.provider,
+                resolvedModel: result.resolvedModel,
+                presetName: result.presetName,
+                // Spread the snapshot; undefined fields (N/A) round-trip to NULL.
+                estimatedCostUsd: cost.estimatedCostUsd ?? undefined,
+                pricePrompt: cost.pricePrompt ?? undefined,
+                priceCompletion: cost.priceCompletion ?? undefined,
+                costStatus: cost.status,
+                sessionJson: result.sessionJson,
+              },
+              type: "add",
+              // All preset outputs share the "corrections" bucket and are
+              // distinguished by presetName (drives the dynamic history filter).
+              featureId: "corrections",
+            });
+            mainWindow.webContents.send("stop-loading");
+          } else {
+            logger.warn(
+              "correction.hotkey",
+              "Cannot send IPC message: mainWindow is null or destroyed",
+            );
+          }
+
+          hideOverlaySpinner();
+        } catch (error) {
+          hideOverlaySpinner();
+          // No-op when delivery already finished the timer (first finish wins) —
+          // a post-delivery throw must not relabel a real measurement as failed.
+          latency.finish({ outcome: "failed" });
+          logger.error("correction.hotkey", "Correction failed", {
+            presetId: preset.id,
+            error: error instanceof Error ? error.message : String(error),
           });
+          handleError(error);
         }
-
-        if (
-          restore.ok &&
-          result.correctedText === sentText &&
-          preset.id === DEFAULT_CORRECTION_PRESET_ID
-        ) {
-          new Notification(buildCorrectionGoodJobNotification()).show();
-        }
-
-        // Settings offers the per-preset output mode on EVERY preset, not just
-        // the `requiresInput` one, so resolve it here too — reading the global
-        // store directly would leave that control visible, writable, persisted
-        // and inert for all six polish presets.
-        //
-        // A failed restore then overrides that to the popup, carrying the
-        // MASKED reply: a partial restore mixes real secrets and placeholders
-        // indistinguishably, and the popup is copyable.
-        const delivery = await deliverCorrectionOutput(
-          resolveSecretGuardOutputMode(
-            resolvePresetOutputMode(
-              preset.outputMode,
-              outputModeStore.getCorrectionOutputMode(),
-            ),
-            restore.ok,
-          ),
-          {
-            presetName: preset.name,
-            text: restore.ok ? restore.text : result.correctedText,
-          },
-          {
-            paste: pasteText,
-            showPopup: showCorrectionResultWindow,
-          },
-        );
-        latency.mark("delivery");
-        // Finished here, NOT at the end of the handler: everything below is
-        // bookkeeping the user never waits for (cost snapshot, history write,
-        // IPC). Including it would inflate the number the user feels.
-        latency.finish({ outcome: "delivered", delivery });
-
-        logger.info("correction.hotkey", "Correction completed", {
-          presetId: preset.id,
-          appliedMode: gate.appliedMode,
-          gateDecision: gate.gateDecision,
-          textLength: selectedText.length,
-          model: result.model,
-          // `?? null` throughout: `LogValue` has no `undefined` member.
-          provider: result.provider ?? null,
-          resolvedModel: result.resolvedModel ?? null,
-          activeApp: activeApp?.name ?? null,
-          delivery,
-        });
-
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          // Cost snapshot (#56): price the served model against the cached
-          // OpenRouter /models price map. Local (Ollama) → $0; no confident
-          // match → N/A. All logic is in the pure computeCost; this is glue.
-          const servedId = result.resolvedModel ?? result.model;
-          const cost = computeCost(
-            {
-              model: result.model,
-              resolvedModel: result.resolvedModel,
-              promptTokens: result.promptTokens ?? 0,
-              completionTokens: result.completionTokens ?? 0,
-              provider: result.provider,
-              isLocal: isLocalModelId(servedId, result.provider),
-            },
-            buildPriceMap(getCachedModels()),
-          );
-
-          syncHistory({
-            entry: {
-              // Both sides are what CROSSED the wire: masked when masking is
-              // on, raw when it is off (`sentText` is the selection itself
-              // then). The history DB is unencrypted under `userData` and the
-              // snapshot viewer has copy buttons, so storing the restored text
-              // here would recreate — durably — exactly the exposure masking
-              // removed. Raw history after a Send anyway is correct: the
-              // dialog said the real value would be included.
-              original: sentText,
-              corrected: result.correctedText,
-              promptTokens: result.promptTokens ?? 0,
-              completionTokens: result.completionTokens ?? 0,
-              timestamp: new Date().toISOString(),
-              model: result.model,
-              provider: result.provider,
-              resolvedModel: result.resolvedModel,
-              presetName: result.presetName,
-              // Spread the snapshot; undefined fields (N/A) round-trip to NULL.
-              estimatedCostUsd: cost.estimatedCostUsd ?? undefined,
-              pricePrompt: cost.pricePrompt ?? undefined,
-              priceCompletion: cost.priceCompletion ?? undefined,
-              costStatus: cost.status,
-              sessionJson: result.sessionJson,
-            },
-            type: "add",
-            // All preset outputs share the "corrections" bucket and are
-            // distinguished by presetName (drives the dynamic history filter).
-            featureId: "corrections",
-          });
-          mainWindow.webContents.send("stop-loading");
-        } else {
-          logger.warn(
-            "correction.hotkey",
-            "Cannot send IPC message: mainWindow is null or destroyed",
-          );
-        }
-
-        hideOverlaySpinner();
-      } catch (error) {
-        hideOverlaySpinner();
-        // No-op when delivery already finished the timer (first finish wins) —
-        // a post-delivery throw must not relabel a real measurement as failed.
-        latency.finish({ outcome: "failed" });
-        logger.error("correction.hotkey", "Correction failed", {
-          presetId: preset.id,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        handleError(error);
-      }
-    }),
+      }),
     );
 
     checkShortcut(registered);
@@ -1214,16 +1262,24 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
     }
 
     if (registeredShortcuts.has(shortcut)) {
-      logger.warn("correction.register", "Skipping duplicate correction shortcut", {
-        comboId: combo.id,
-      });
+      logger.warn(
+        "correction.register",
+        "Skipping duplicate correction shortcut",
+        {
+          comboId: combo.id,
+        },
+      );
       return;
     }
 
     if (reservedShortcuts.has(shortcut)) {
-      logger.warn("correction.register", "Skipping conflicting correction shortcut", {
-        comboId: combo.id,
-      });
+      logger.warn(
+        "correction.register",
+        "Skipping conflicting correction shortcut",
+        {
+          comboId: combo.id,
+        },
+      );
       return;
     }
 

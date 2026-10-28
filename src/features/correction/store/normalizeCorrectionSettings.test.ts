@@ -846,6 +846,24 @@ describe("normalizeCorrectionSettings — legacy standalone-Translate migration"
 
 const TRANSLATE_DEFAULT_HOTKEY = "Control+Shift+T";
 
+/** A raw value as electron-store hands it to `normalizeCorrectionSettings`. */
+type StoredJson =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | readonly StoredJson[]
+  | StoredRecord;
+
+type StoredRecord = { readonly [key: string]: StoredJson };
+
+type StoredCorrectionSettings = {
+  presets: readonly StoredJson[];
+  selectedPresetId: string;
+  combos?: StoredJson;
+};
+
 const storedCorrection = {
   id: "correction",
   name: "Correction",
@@ -873,7 +891,7 @@ const storedPromptOptimization = {
   isBuiltIn: true,
 };
 
-const storedCustom = (id: string, hotkey: string): Record<string, unknown> => ({
+const storedCustom = (id: string, hotkey: string) => ({
   id,
   name: `Custom ${id}`,
   hotkey,
@@ -1283,7 +1301,7 @@ describe("normalizeCorrectionSettings — an inherited default hotkey is not a s
  * bindings through that same parameter's default.
  */
 describe("normalizeCorrectionSettings — a materialized default gives up a reserved app accelerator", () => {
-  const storedOnly = (...presets: Record<string, unknown>[]) => ({
+  const storedOnly = (...presets: StoredRecord[]) => ({
     presets,
     selectedPresetId: "correction",
   });
@@ -1701,10 +1719,11 @@ describe("normalizeCorrectionSettings — Ask relinquishes its default hotkey on
   });
 
   it("blanks Ask on a reserved accelerator through the no-presets-array legacy path", () => {
-    const result = normalizeCorrectionSettings({ userInput: "Legacy." }, undefined, [
-      "Control+Shift+A",
-      "Control+Shift+P",
-    ]);
+    const result = normalizeCorrectionSettings(
+      { userInput: "Legacy." },
+      undefined,
+      ["Control+Shift+A", "Control+Shift+P"],
+    );
 
     expect(hotkeyOf(result, DEFAULT_ASK_PRESET_ID)).toBe("");
     expect(hotkeyOf(result, "correction")).toBe("Control+Shift+F");
@@ -1738,9 +1757,7 @@ describe("normalizeCorrectionSettings — Ask relinquishes its default hotkey on
 // Tests: Combo sanitizer
 // ---------------------------------------------------------------------------
 
-const storedCombo = (
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> => ({
+const storedCombo = (overrides: StoredRecord = {}) => ({
   id: "combo-1",
   name: "Polish and Translate",
   hotkey: "Control+Shift+K",
@@ -1898,7 +1915,10 @@ describe("normalizeCorrectionSettings — combo sanitizer drops malformed entrie
       }),
     );
 
-    expect(result[0].steps.map((step) => step.id)).toEqual(["step-1", "step-2"]);
+    expect(result[0].steps.map((step) => step.id)).toEqual([
+      "step-1",
+      "step-2",
+    ]);
   });
 
   it("keeps inlineInput verbatim, whitespace included", () => {
@@ -2001,7 +2021,7 @@ describe("normalizeCorrectionSettings — combo sanitizer keeps step ids unique 
 });
 
 describe("normalizeCorrectionSettings — combo outputMode / markdownOutput / schemaVersion", () => {
-  const comboFrom = (overrides: Record<string, unknown>) =>
+  const comboFrom = (overrides: StoredRecord) =>
     storedCombosOf(
       normalizeCorrectionSettings({
         presets: [storedCorrection],
@@ -2097,7 +2117,10 @@ describe("normalizeCorrectionSettings — combo hotkeys pass through untouched",
 
   it("keeps a hotkey sitting on a reserved app accelerator", () => {
     expect(
-      comboHotkeyWith("Control+Shift+P", ["Control+Shift+G", "Control+Shift+P"]),
+      comboHotkeyWith("Control+Shift+P", [
+        "Control+Shift+G",
+        "Control+Shift+P",
+      ]),
     ).toBe("Control+Shift+P");
   });
 
@@ -2108,8 +2131,7 @@ describe("normalizeCorrectionSettings — combo hotkeys pass through untouched",
   });
 
   it("leaves a combo with no hotkey field blank", () => {
-    const stored = storedCombo();
-    delete stored.hotkey;
+    const { hotkey: _omitted, ...stored } = storedCombo();
 
     const result = normalizeCorrectionSettings({
       presets: [storedCorrection],
@@ -2352,14 +2374,18 @@ describe("normalizeCorrectionSettings — preconditions the hotkey guard rests o
 });
 
 describe("normalizeCorrectionSettings — the built-in Perfect prompt combo", () => {
-  const comboFor = (stored?: unknown) =>
-    combosOf(
-      normalizeCorrectionSettings({
-        presets: [storedCorrection],
-        selectedPresetId: "correction",
-        ...(stored === undefined ? {} : { combos: stored }),
-      }),
-    ).find((combo) => combo.id === DEFAULT_PERFECT_PROMPT_COMBO_ID);
+  const comboFor = (stored?: StoredJson) => {
+    const settings: StoredCorrectionSettings = {
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+    };
+    if (stored !== undefined) {
+      settings.combos = stored;
+    }
+    return combosOf(normalizeCorrectionSettings(settings)).find(
+      (combo) => combo.id === DEFAULT_PERFECT_PROMPT_COMBO_ID,
+    );
+  };
 
   it("materializes into a profile that predates combos entirely", () => {
     // The whole reason the merge exists: an existing profile stores
@@ -2464,7 +2490,9 @@ describe("normalizeCorrectionSettings — the built-in Perfect prompt combo", ()
     );
 
     for (const step of comboFor()?.steps ?? []) {
-      expect(presetsById.get(step.presetId)?.requiresInput ?? false).toBe(false);
+      expect(presetsById.get(step.presetId)?.requiresInput ?? false).toBe(
+        false,
+      );
     }
   });
 });
@@ -2492,9 +2520,7 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
     },
   ];
 
-  const storedPerfectPrompt = (
-    overrides: Record<string, unknown> = {},
-  ): Record<string, unknown> => ({
+  const storedPerfectPrompt = (overrides: StoredRecord = {}) => ({
     id: DEFAULT_PERFECT_PROMPT_COMBO_ID,
     name: "Perfect prompt",
     hotkey: "",
@@ -2503,7 +2529,7 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
     ...overrides,
   });
 
-  const readBack = (stored: Record<string, unknown>) =>
+  const readBack = (stored: StoredRecord) =>
     combosOf(
       normalizeCorrectionSettings({
         presets: [storedCorrection],
@@ -2519,7 +2545,7 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
   // replaces a chain the user built. Each case below is one step away from
   // the legacy triple in a different direction; a matcher that only counts
   // steps, or only looks at the first one, rewrites all three.
-  const untouchedShapes: readonly (readonly [
+  const untouchedChains: readonly (readonly [
     string,
     readonly Record<string, string>[],
   ])[] = [
@@ -2553,7 +2579,7 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
     ],
   ];
 
-  for (const [label, steps] of untouchedShapes) {
+  for (const [label, steps] of untouchedChains) {
     it(`leaves ${label} byte-identical`, () => {
       const stored = storedPerfectPrompt({ steps: [...steps] });
 
@@ -2607,9 +2633,7 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
       normalizeCorrectionSettings({
         presets: [storedCorrection],
         selectedPresetId: "correction",
-        combos: [
-          storedPerfectPrompt({ id: "combo-1", name: "My own chain" }),
-        ],
+        combos: [storedPerfectPrompt({ id: "combo-1", name: "My own chain" })],
       }),
     ).find((combo) => combo.id === "combo-1");
 
@@ -2697,7 +2721,9 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
     const once = normalizeCorrectionSettings({
       presets: [storedCorrection],
       selectedPresetId: "correction",
-      combos: [storedPerfectPrompt({ name: "Mine", hotkey: "Control+Shift+K" })],
+      combos: [
+        storedPerfectPrompt({ name: "Mine", hotkey: "Control+Shift+K" }),
+      ],
     });
     const twice = normalizeCorrectionSettings(once);
 
@@ -2765,7 +2791,9 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
     const once = normalizeCorrectionSettings({
       presets: [storedCorrection],
       selectedPresetId: "correction",
-      combos: [storedPerfectPrompt({ steps: legacyTriple(), schemaVersion: 2 })],
+      combos: [
+        storedPerfectPrompt({ steps: legacyTriple(), schemaVersion: 2 }),
+      ],
     });
     const twice = normalizeCorrectionSettings(once);
 
@@ -2828,7 +2856,10 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
     // repointed at a different preset.
     const stored = storedPerfectPrompt({
       steps: [
-        { id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-1`, presetId: "correction" },
+        {
+          id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-1`,
+          presetId: "correction",
+        },
         {
           id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-2`,
           presetId: "structured-text",
@@ -2975,7 +3006,9 @@ describe("normalizeCorrectionSettings — no built-in but Caveman emits an extra
       selectedPresetId: "my-custom",
     });
 
-    const custom = normalized.presets.find((preset) => preset.id === "my-custom");
+    const custom = normalized.presets.find(
+      (preset) => preset.id === "my-custom",
+    );
     expect(custom).toBeDefined();
     expect(custom).not.toHaveProperty("extraOptions");
   });

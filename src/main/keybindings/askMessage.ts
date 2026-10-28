@@ -15,7 +15,7 @@ export type ComposeAskMessageInput = {
   question: string;
   /** The selection carried in as optional context; empty when nothing was selected. */
   context: string;
-}
+};
 
 /**
  * Returns `null` when `question` is empty or whitespace-only — the no-op case

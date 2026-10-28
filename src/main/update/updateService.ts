@@ -1,4 +1,6 @@
+import { z } from "zod";
 import { msg, type Message } from "~/features/i18n/shared/message";
+import type { JsonValue } from "~/main/jsonValue";
 import {
   BETA_CASK_TOKEN,
   STABLE_CASK_TOKEN,
@@ -113,12 +115,18 @@ type ValidatedRelease = Readonly<{
 // Locale-free descriptors: the renderer resolves them via `tm()`, so an open
 // Settings panel re-renders on a locale switch instead of freezing.
 const UPDATE_ERROR_MESSAGE: Message = msg("settings.updates.checkErrorMessage");
-const INSTALL_ERROR_MESSAGE: Message = msg("settings.updates.installErrorMessage");
+const INSTALL_ERROR_MESSAGE: Message = msg(
+  "settings.updates.installErrorMessage",
+);
 const INSTALL_INCOMPLETE_MESSAGE: Message = msg(
   "settings.updates.installIncompleteMessage",
 );
-const RESTART_ERROR_MESSAGE: Message = msg("settings.updates.restartErrorMessage");
-const DOWNLOAD_ERROR_MESSAGE: Message = msg("settings.updates.downloadErrorMessage");
+const RESTART_ERROR_MESSAGE: Message = msg(
+  "settings.updates.restartErrorMessage",
+);
+const DOWNLOAD_ERROR_MESSAGE: Message = msg(
+  "settings.updates.downloadErrorMessage",
+);
 
 const SWITCH_ERROR_MESSAGE: Message = msg("settings.updates.prerelease.switchErrorMessage");
 const SWITCH_CANCELLED_MESSAGE: Message = msg(
@@ -230,18 +238,18 @@ const SAFE_ERROR_NAMES = new Set([
   "TypeError",
 ]);
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const VersionTextSchema = z.string();
 
-const parseStableVersion = (value: unknown): StableVersion | null => {
-  if (typeof value !== "string") return null;
-  const match = STABLE_VERSION_PATTERN.exec(value);
+const parseStableVersion = (value: string | null): StableVersion | null => {
+  const text = VersionTextSchema.safeParse(value);
+  if (!text.success) return null;
+  const match = STABLE_VERSION_PATTERN.exec(text.data);
   if (!match) return null;
 
   const [major, minor, patch] = match.slice(1).map(Number);
   if (![major, minor, patch].every(Number.isSafeInteger)) return null;
 
-  return Object.freeze({ raw: value, major, minor, patch });
+  return Object.freeze({ raw: text.data, major, minor, patch });
 };
 
 /**
@@ -253,52 +261,64 @@ const parseCurrentVersion = (
 ): StableVersion | PrereleaseVersion | null =>
   parseStableVersion(value) ?? parsePrereleaseVersion(value);
 
+/** A fully uploaded asset with a positive, safe-integer byte size. */
+const UploadedAssetSchema = z.object({
+  name: z.string(),
+  state: z.literal("uploaded"),
+  size: z.number().int().positive(),
+});
+
+/** Size of the expected, fully uploaded DMG asset, or null when absent. */
 const expectedDmgSize = (
-  assets: unknown,
+  assets: JsonValue[],
   version: StableVersion,
 ): number | null => {
-  if (!Array.isArray(assets)) return null;
   const expectedName = `FixLang-${version.raw}-arm64.dmg`;
-
-  const asset = assets.find(
-    (candidate) =>
-      isRecord(candidate) &&
-      candidate.name === expectedName &&
-      candidate.state === "uploaded" &&
-      typeof candidate.size === "number" &&
-      Number.isSafeInteger(candidate.size) &&
-      candidate.size > 0,
-  );
-  return isRecord(asset) && typeof asset.size === "number" ? asset.size : null;
+  for (const candidate of assets) {
+    const asset = UploadedAssetSchema.safeParse(candidate);
+    if (asset.success && asset.data.name === expectedName) {
+      return asset.data.size;
+    }
+  }
+  return null;
 };
 
-const validateRelease = (value: unknown): ValidatedRelease | null => {
-  if (!isRecord(value) || value.draft !== false || value.prerelease !== false) {
-    return null;
-  }
-  if (typeof value.tag_name !== "string") return null;
-
-  const tagMatch = /^v(.+)$/.exec(value.tag_name);
-  const version = tagMatch ? parseStableVersion(tagMatch[1]) : null;
-  const dmgSize = version === null ? null : expectedDmgSize(value.assets, version);
-  if (!version || dmgSize === null) return null;
+/**
+ * The release fields the check trusts. `html_url` is deliberately absent: the
+ * release page URL is built from the validated tag, never taken from the API.
+ */
+const GitHubReleaseSchema = z.object({
+  draft: z.literal(false),
+  prerelease: z.literal(false),
+  tag_name: z.string(),
+  // A non-array `assets` cannot hold the DMG, which rejects the release below.
+  assets: z.array(z.json()).catch([]),
   // GitHub returns JSON null when a release has no notes.
-  if (value.body != null && typeof value.body !== "string") return null;
+  body: z.string().nullish(),
+});
+
+const validateRelease = (value: JsonValue): ValidatedRelease | null => {
+  const release = GitHubReleaseSchema.safeParse(value);
+  if (!release.success) return null;
+
+  const tagMatch = /^v(.+)$/.exec(release.data.tag_name);
+  const version = tagMatch ? parseStableVersion(tagMatch[1]) : null;
+  const dmgSize =
+    version === null ? null : expectedDmgSize(release.data.assets, version);
+  if (!version || dmgSize === null) return null;
 
   return Object.freeze({
     version,
     dmgSize,
-    releaseNotes: normalizeReleaseNotes(
-      typeof value.body === "string" ? value.body : undefined,
-    ),
+    releaseNotes: normalizeReleaseNotes(release.data.body ?? undefined),
   });
 };
 
-const safeErrorName = (error: unknown): string => {
-  if (!(error instanceof Error) || !SAFE_ERROR_NAMES.has(error.name)) {
+const safeErrorName = (cause: unknown): string => {
+  if (!(cause instanceof Error) || !SAFE_ERROR_NAMES.has(cause.name)) {
     return "UnknownError";
   }
-  return error.name;
+  return cause.name;
 };
 
 const freezeState = (state: UpdateState): UpdateState =>
@@ -316,7 +336,9 @@ export const createUpdateService = (
 ): UpdateService => {
   const currentVersion = options.getCurrentVersion();
   const supported =
-    options.isPackaged && options.platform === "darwin" && options.arch === "arm64";
+    options.isPackaged &&
+    options.platform === "darwin" &&
+    options.arch === "arm64";
   /**
    * The ordinary flow upgrades the STABLE cask in place, so it requires exactly
    * that channel: a beta install has no stable Caskroom entry and `startUpgrade`
@@ -347,13 +369,15 @@ export const createUpdateService = (
   const withCanInstall = (next: Omit<UpdateState, "canInstall">): UpdateState =>
     freezeState({ ...next, canInstall });
 
-  let state = withCanInstall({
-    phase: supported ? "idle" : "unsupported",
-    currentVersion,
-    ...(supported
-      ? {}
-      : { message: msg("settings.updates.unsupported") }),
-  });
+  let state = withCanInstall(
+    supported
+      ? { phase: "idle", currentVersion }
+      : {
+          phase: "unsupported",
+          currentVersion,
+          message: msg("settings.updates.unsupported"),
+        },
+  );
 
   const publish = (next: Omit<UpdateState, "canInstall">): void => {
     state = withCanInstall(next);
@@ -697,9 +721,12 @@ export const createUpdateService = (
     }
   };
 
-  const fail = (error: unknown): void => {
+  const fail = (cause: unknown): void => {
     checking = false;
-    options.onLog?.("warn", `App update check failed (${safeErrorName(error)})`);
+    options.onLog?.(
+      "warn",
+      `App update check failed (${safeErrorName(cause)})`,
+    );
     publish({
       phase: "error",
       currentVersion,
@@ -1174,7 +1201,8 @@ export const createUpdateService = (
           return;
         }
 
-        const pendingRelease = newerOnGitHub && release !== null ? release : null;
+        const pendingRelease =
+          newerOnGitHub && release !== null ? release : null;
         // A release exists but is not installable yet: point at its exact tag
         // rather than the generic /releases/latest fallback.
         releaseUrl =
@@ -1182,16 +1210,18 @@ export const createUpdateService = (
             ? null
             : `${RELEASES_URL}/tag/v${pendingRelease.version.raw}`;
         availableDmgSize = null;
-        publish({
-          phase: "up-to-date",
-          currentVersion,
-          ...(pendingRelease === null
-            ? {}
+        publish(
+          pendingRelease === null
+            ? { phase: "up-to-date", currentVersion }
             : {
+                phase: "up-to-date",
+                currentVersion,
+                // Notes are safe to show here: unlike the size, they describe
+                // the release the message names, not some other version.
                 message: tapPendingMessage(pendingRelease.version.raw),
                 releaseNotes: pendingRelease.releaseNotes,
-              }),
-        });
+              },
+        );
       } catch (error) {
         // Unreachable today but kept: any `await` added ahead of a throw
         // would let a failed check publish `error` over a live operation.

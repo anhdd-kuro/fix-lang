@@ -8,7 +8,12 @@
  */
 import { describe, expect, it } from "vitest";
 import { scanForSecrets } from "./detectSecrets";
-import { IRREVERSIBLE_SECRET_REDACTION, maskSecrets, redactSecretsIrreversibly, restoreSecrets } from "./maskSecrets";
+import {
+  IRREVERSIBLE_SECRET_REDACTION,
+  maskSecrets,
+  redactSecretsIrreversibly,
+  restoreSecrets,
+} from "./maskSecrets";
 
 const FIXED_SALT = () => "A1B2C3";
 const ENTROPY_ON = { highEntropyRule: true, salt: FIXED_SALT } as const;
@@ -19,7 +24,8 @@ const ENTROPY_ON = { highEntropyRule: true, salt: FIXED_SALT } as const;
  * literals; every value below is fabricated, but the scanner cannot know that.
  * The joined value is byte-identical to what it replaced.
  */
-const credentialFixture = (...parts: readonly string[]): string => parts.join("");
+const credentialFixture = (...parts: readonly string[]): string =>
+  parts.join("");
 
 const AWS_DOC_ACCESS_KEY_ID = credentialFixture("AKIA", "IOSFODNN7EXAMPLE");
 const AWS_DOC_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
@@ -35,16 +41,21 @@ describe("maskSecrets", () => {
   });
 
   it("uses the pinned placeholder shape", () => {
-    const masking = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, { salt: FIXED_SALT });
+    const masking = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, {
+      salt: FIXED_SALT,
+    });
     expect(masking.maskedText).toBe("id [[FIXLANG_SECRET_A1B2C3_01]] end");
     expect(masking.placeholderCount).toBe(1);
     expect(masking.ruleIds).toEqual(["aws-access-key-id"]);
   });
 
   it("keeps the shape a model needs around a masked connection-string password", () => {
-    const masking = maskSecrets("postgres://svc:s3cr3tP4ss@db.internal:5432/app", {
-      salt: FIXED_SALT,
-    });
+    const masking = maskSecrets(
+      "postgres://svc:s3cr3tP4ss@db.internal:5432/app",
+      {
+        salt: FIXED_SALT,
+      },
+    );
     expect(masking.maskedText).toBe(
       "postgres://svc:[[FIXLANG_SECRET_A1B2C3_01]]@db.internal:5432/app",
     );
@@ -63,8 +74,10 @@ describe("maskSecrets", () => {
   });
 
   it("zero-pads the index so `_1` is never a prefix of `_10`", () => {
-    const ids = Array.from({ length: 12 }, (_unused, index) =>
-      `${credentialFixture("AKIA", "EXAMPLEIDAAAA")}${String(index + 1).padStart(3, "0")}`,
+    const ids = Array.from(
+      { length: 12 },
+      (_unused, index) =>
+        `${credentialFixture("AKIA", "EXAMPLEIDAAAA")}${String(index + 1).padStart(3, "0")}`,
     );
     const text = ids.join("\n");
     const masking = maskSecrets(text, { salt: FIXED_SALT });
@@ -73,7 +86,10 @@ describe("maskSecrets", () => {
     expect(masking.maskedText).toContain("[[FIXLANG_SECRET_A1B2C3_01]]");
     expect(masking.maskedText).toContain("[[FIXLANG_SECRET_A1B2C3_10]]");
     expect(masking.maskedText).not.toContain("[[FIXLANG_SECRET_A1B2C3_1]]");
-    expect(restoreSecrets(masking.maskedText, masking)).toEqual({ ok: true, text });
+    expect(restoreSecrets(masking.maskedText, masking)).toEqual({
+      ok: true,
+      text,
+    });
   });
 
   // A masked selection must be safe to scan again — the password slot of a
@@ -89,7 +105,9 @@ describe("maskSecrets", () => {
     const masking = maskSecrets(text, ENTROPY_ON);
 
     expect(masking.placeholderCount).toBeGreaterThan(0);
-    expect(scanForSecrets(masking.maskedText, { highEntropyRule: true })).toEqual({
+    expect(
+      scanForSecrets(masking.maskedText, { highEntropyRule: true }),
+    ).toEqual({
       matches: [],
       ruleIds: [],
     });
@@ -102,8 +120,12 @@ describe("maskSecrets", () => {
    */
   it("leaves no tail of a long credential beside the placeholder", () => {
     const longValue = "a1B2".repeat(70);
-    const masking = maskSecrets(`SESSION_TOKEN=${longValue} trailing text`, { salt: FIXED_SALT });
-    expect(masking.maskedText).toBe("SESSION_TOKEN=[[FIXLANG_SECRET_A1B2C3_01]] trailing text");
+    const masking = maskSecrets(`SESSION_TOKEN=${longValue} trailing text`, {
+      salt: FIXED_SALT,
+    });
+    expect(masking.maskedText).toBe(
+      "SESSION_TOKEN=[[FIXLANG_SECRET_A1B2C3_01]] trailing text",
+    );
     expect(masking.maskedText).not.toContain(longValue.slice(-40));
     expect(restoreSecrets(masking.maskedText, masking)).toEqual({
       ok: true,
@@ -115,10 +137,18 @@ describe("maskSecrets", () => {
     const value = `${"a1B2c3D4".repeat(24)}abcdefg\u{1F600}trailingSecretBits1234`;
     const text = `SESSION_TOKEN=${value} end`;
     const masking = maskSecrets(text, { salt: FIXED_SALT });
-    const loneSurrogate = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+    const loneSurrogate =
+      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
     expect(masking.maskedText).not.toMatch(loneSurrogate);
-    expect([...masking.replacements.values()].some((kept) => loneSurrogate.test(kept))).toBe(false);
-    expect(restoreSecrets(masking.maskedText, masking)).toEqual({ ok: true, text });
+    expect(
+      [...masking.replacements.values()].some((kept) =>
+        loneSurrogate.test(kept),
+      ),
+    ).toBe(false);
+    expect(restoreSecrets(masking.maskedText, masking)).toEqual({
+      ok: true,
+      text,
+    });
   });
 
   /**
@@ -162,19 +192,24 @@ describe("maskSecrets", () => {
      * were, so the ambiguity resolves this way.
      */
     it("misses an ASCII credential written hard against Japanese prose", () => {
-      const text = "api_key=s3cr3tV4lu3XYZお問い合わせは管理者までご連絡ください。";
+      const text =
+        "api_key=s3cr3tV4lu3XYZお問い合わせは管理者までご連絡ください。";
       const masking = maskSecrets(text, { salt: FIXED_SALT });
       expect(masking.maskedText).toBe(text);
       expect(masking.matchCount).toBe(0);
     });
 
     it("still masks the same credential when a space separates it from the prose", () => {
-      const text = "api_key=s3cr3tV4lu3XYZ お問い合わせは管理者までご連絡ください。";
+      const text =
+        "api_key=s3cr3tV4lu3XYZ お問い合わせは管理者までご連絡ください。";
       const masking = maskSecrets(text, { salt: FIXED_SALT });
       expect(masking.maskedText).toBe(
         "api_key=[[FIXLANG_SECRET_A1B2C3_01]] お問い合わせは管理者までご連絡ください。",
       );
-      expect(restoreSecrets(masking.maskedText, masking)).toEqual({ ok: true, text });
+      expect(restoreSecrets(masking.maskedText, masking)).toEqual({
+        ok: true,
+        text,
+      });
     });
   });
 
@@ -203,20 +238,27 @@ describe("maskSecrets", () => {
       );
       expect(masking.maskedText).not.toContain("Hunter2Winter");
       expect(masking.maskedText).not.toContain("s3cr3tV4lu3XYZ");
-      expect(restoreSecrets(masking.maskedText, masking)).toEqual({ ok: true, text });
+      expect(restoreSecrets(masking.maskedText, masking)).toEqual({
+        ok: true,
+        text,
+      });
     });
 
     it("keeps an `&` that is part of the password", () => {
       const text = "db_password=Tr0ub4dor&3xyz";
       const masking = maskSecrets(text, { salt: FIXED_SALT });
-      expect(masking.maskedText).toBe("db_password=[[FIXLANG_SECRET_A1B2C3_01]]");
+      expect(masking.maskedText).toBe(
+        "db_password=[[FIXLANG_SECRET_A1B2C3_01]]",
+      );
       expect([...masking.replacements.values()]).toEqual(["Tr0ub4dor&3xyz"]);
     });
 
     it("keeps an `&` that is part of the password when a query parameter follows it", () => {
       const text = "db_password=Tr0ub4dor&Xyz=99";
       const masking = maskSecrets(text, { salt: FIXED_SALT });
-      expect(masking.maskedText).toBe("db_password=[[FIXLANG_SECRET_A1B2C3_01]]");
+      expect(masking.maskedText).toBe(
+        "db_password=[[FIXLANG_SECRET_A1B2C3_01]]",
+      );
       expect([...masking.replacements.values()]).toEqual(["Tr0ub4dor&Xyz=99"]);
     });
   });
@@ -279,7 +321,9 @@ describe("maskSecrets", () => {
         expect(masked).toBe(text);
         return;
       }
-      expect(masked).toBe("use db_password=[[FIXLANG_SECRET_A1B2C3_01]] for staging");
+      expect(masked).toBe(
+        "use db_password=[[FIXLANG_SECRET_A1B2C3_01]] for staging",
+      );
       expect(restoreSecrets(masked, masking)).toEqual({ ok: true, text });
     });
   });
@@ -321,8 +365,13 @@ describe("maskSecrets", () => {
     it("still masks a quoted value with no space in it, quotes included", () => {
       const text = 'db_password: "CorrectHorseBattery"';
       const masking = maskSecrets(text, { salt: FIXED_SALT });
-      expect(masking.maskedText).toBe("db_password: [[FIXLANG_SECRET_A1B2C3_01]]");
-      expect(restoreSecrets(masking.maskedText, masking)).toEqual({ ok: true, text });
+      expect(masking.maskedText).toBe(
+        "db_password: [[FIXLANG_SECRET_A1B2C3_01]]",
+      );
+      expect(restoreSecrets(masking.maskedText, masking)).toEqual({
+        ok: true,
+        text,
+      });
     });
 
     /**
@@ -348,7 +397,9 @@ describe("maskSecrets", () => {
     });
 
     it("reports a text with nothing to mask as fully maskable", () => {
-      expect(maskSecrets("nothing here", { salt: FIXED_SALT }).fullyMaskable).toBe(true);
+      expect(
+        maskSecrets("nothing here", { salt: FIXED_SALT }).fullyMaskable,
+      ).toBe(true);
     });
   });
 
@@ -360,12 +411,16 @@ describe("maskSecrets", () => {
    */
   describe("a value that stops at a quote it did not open", () => {
     it("masks a credential inside a quoted JSON string", () => {
-      const text = '{"callback": "https://a.example.com/cb?password=Hunter2Winter"}';
+      const text =
+        '{"callback": "https://a.example.com/cb?password=Hunter2Winter"}';
       const masking = maskSecrets(text, { salt: FIXED_SALT });
       expect(masking.maskedText).toBe(
         '{"callback": "https://a.example.com/cb?password=[[FIXLANG_SECRET_A1B2C3_01]]"}',
       );
-      expect(restoreSecrets(masking.maskedText, masking)).toEqual({ ok: true, text });
+      expect(restoreSecrets(masking.maskedText, masking)).toEqual({
+        ok: true,
+        text,
+      });
     });
 
     it("masks nothing when the quote is followed by more of the value", () => {
@@ -378,8 +433,12 @@ describe("maskSecrets", () => {
 
   it("draws a fresh salt per request", () => {
     const salts = ["AAAAAA", "BBBBBB"];
-    const first = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID}`, { salt: () => salts[0] });
-    const second = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID}`, { salt: () => salts[1] });
+    const first = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID}`, {
+      salt: () => salts[0],
+    });
+    const second = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID}`, {
+      salt: () => salts[1],
+    });
     expect(first.maskedText).not.toBe(second.maskedText);
     // A stale placeholder from an earlier request can never match this one.
     expect(restoreSecrets(first.maskedText, second)).toEqual({
@@ -417,12 +476,18 @@ describe("restoreSecrets", () => {
     expect(masking.maskedText).toBe(
       "DSN postgres://svc:[[FIXLANG_SECRET_A1B2C3_01]]@db.example.com/app end",
     );
-    expect(restoreSecrets(masking.maskedText, masking)).toEqual({ ok: true, text });
+    expect(restoreSecrets(masking.maskedText, masking)).toEqual({
+      ok: true,
+      text,
+    });
   });
 
   it("restores a placeholder the model moved and re-worded around", () => {
-    const masking = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, { salt: FIXED_SALT });
-    const reply = "The identifier [[FIXLANG_SECRET_A1B2C3_01]] appears at the end.";
+    const masking = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, {
+      salt: FIXED_SALT,
+    });
+    const reply =
+      "The identifier [[FIXLANG_SECRET_A1B2C3_01]] appears at the end.";
     expect(restoreSecrets(reply, masking)).toEqual({
       ok: true,
       text: `The identifier ${AWS_DOC_ACCESS_KEY_ID} appears at the end.`,
@@ -439,8 +504,11 @@ describe("restoreSecrets", () => {
    * text never had one.
    */
   it("refuses a reply that repeated a placeholder rather than materializing the secret twice", () => {
-    const masking = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, { salt: FIXED_SALT });
-    const reply = "[[FIXLANG_SECRET_A1B2C3_01]] then [[FIXLANG_SECRET_A1B2C3_01]]";
+    const masking = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, {
+      salt: FIXED_SALT,
+    });
+    const reply =
+      "[[FIXLANG_SECRET_A1B2C3_01]] then [[FIXLANG_SECRET_A1B2C3_01]]";
     expect(restoreSecrets(reply, masking)).toEqual({
       ok: false,
       reason: "placeholder-multiplicity",
@@ -453,7 +521,8 @@ describe("restoreSecrets", () => {
       `first ${AWS_DOC_ACCESS_KEY_ID} then ${AWS_DOC_ACCESS_KEY_ID}`,
       { salt: FIXED_SALT },
     );
-    const reply = "[[FIXLANG_SECRET_A1B2C3_01]] and again [[FIXLANG_SECRET_A1B2C3_01]].";
+    const reply =
+      "[[FIXLANG_SECRET_A1B2C3_01]] and again [[FIXLANG_SECRET_A1B2C3_01]].";
     expect(restoreSecrets(reply, masking)).toEqual({
       ok: true,
       text: `${AWS_DOC_ACCESS_KEY_ID} and again ${AWS_DOC_ACCESS_KEY_ID}.`,
@@ -466,14 +535,22 @@ describe("restoreSecrets", () => {
    * credential lands somewhere the receiving app will unfurl or fetch.
    */
   it("refuses a reply that moved a placeholder into a link", () => {
-    const masking = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, { salt: FIXED_SALT });
+    const masking = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, {
+      salt: FIXED_SALT,
+    });
 
     expect(
-      restoreSecrets("See https://attacker.example/?k=[[FIXLANG_SECRET_A1B2C3_01]]", masking),
+      restoreSecrets(
+        "See https://attacker.example/?k=[[FIXLANG_SECRET_A1B2C3_01]]",
+        masking,
+      ),
     ).toEqual({ ok: false, reason: "placeholder-relocated", missingCount: 1 });
 
     expect(
-      restoreSecrets("See [details](https://x.example/[[FIXLANG_SECRET_A1B2C3_01]])", masking),
+      restoreSecrets(
+        "See [details](https://x.example/[[FIXLANG_SECRET_A1B2C3_01]])",
+        masking,
+      ),
     ).toEqual({ ok: false, reason: "placeholder-relocated", missingCount: 1 });
   });
 
@@ -485,11 +562,15 @@ describe("restoreSecrets", () => {
    * could never round-trip at all.
    */
   it("allows a placeholder that was already inside a link in the sent text", () => {
-    const text = "DSN postgres://svc:hunter2horsebattery@db.example.com/app end";
+    const text =
+      "DSN postgres://svc:hunter2horsebattery@db.example.com/app end";
     const masking = maskSecrets(text, { salt: FIXED_SALT });
     expect(masking.maskedText).toContain("://");
 
-    expect(restoreSecrets(masking.maskedText, masking)).toEqual({ ok: true, text });
+    expect(restoreSecrets(masking.maskedText, masking)).toEqual({
+      ok: true,
+      text,
+    });
   });
 
   it("is a no-op when nothing was masked", () => {
@@ -506,7 +587,9 @@ describe("restoreSecrets", () => {
       `${AWS_DOC_ACCESS_KEY_ID}\nAWS_SECRET_ACCESS_KEY=${AWS_DOC_SECRET_ACCESS_KEY}`,
       { salt: FIXED_SALT },
     );
-    expect(restoreSecrets("only [[FIXLANG_SECRET_A1B2C3_01]] survived", masking)).toEqual({
+    expect(
+      restoreSecrets("only [[FIXLANG_SECRET_A1B2C3_01]] survived", masking),
+    ).toEqual({
       ok: false,
       reason: "placeholder-missing",
       missingCount: 1,
@@ -519,16 +602,21 @@ describe("restoreSecrets", () => {
    * restoring what it can.
    */
   describe("a mangled placeholder is a missing placeholder", () => {
-    const MANGLED_REPLIES: readonly { shape: string; reply: string }[] = [
-      { shape: "absent", reply: "The identifier did not come back at all." },
-      { shape: "lowercased", reply: "id [[fixlang_secret_a1b2c3_01]] end" },
-      { shape: "spaced", reply: "id [[ FIXLANG_SECRET_A1B2C3_01 ]] end" },
-      { shape: "re-bracketed into 「」", reply: "id 「FIXLANG_SECRET_A1B2C3_01」 end" },
-      { shape: "truncated", reply: "id [[FIXLANG_SECRET_A1B2C3_0 end" },
+    const MANGLED_REPLIES: readonly { mangling: string; reply: string }[] = [
+      { mangling: "absent", reply: "The identifier did not come back at all." },
+      { mangling: "lowercased", reply: "id [[fixlang_secret_a1b2c3_01]] end" },
+      { mangling: "spaced", reply: "id [[ FIXLANG_SECRET_A1B2C3_01 ]] end" },
+      {
+        mangling: "re-bracketed into 「」",
+        reply: "id 「FIXLANG_SECRET_A1B2C3_01」 end",
+      },
+      { mangling: "truncated", reply: "id [[FIXLANG_SECRET_A1B2C3_0 end" },
     ];
 
-    it.each(MANGLED_REPLIES)("$shape → ok:false", ({ reply }) => {
-      const masking = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, { salt: FIXED_SALT });
+    it.each(MANGLED_REPLIES)("$mangling → ok:false", ({ reply }) => {
+      const masking = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, {
+        salt: FIXED_SALT,
+      });
       expect(restoreSecrets(reply, masking)).toEqual({
         ok: false,
         reason: "placeholder-missing",
@@ -543,7 +631,8 @@ describe("restoreSecrets", () => {
    * an "all-or-nothing succeeded" verdict.
    */
   describe("the residue check", () => {
-    const maskOne = () => maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, { salt: FIXED_SALT });
+    const maskOne = () =>
+      maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, { salt: FIXED_SALT });
 
     it("refuses a hallucinated index alongside an intact placeholder", () => {
       expect(
@@ -567,7 +656,10 @@ describe("restoreSecrets", () => {
 
     it("refuses a marker the model re-bracketed but did not otherwise change", () => {
       expect(
-        restoreSecrets("[[FIXLANG_SECRET_A1B2C3_01]] and 「FIXLANG_SECRET_A1B2C3_02」", maskOne()),
+        restoreSecrets(
+          "[[FIXLANG_SECRET_A1B2C3_01]] and 「FIXLANG_SECRET_A1B2C3_02」",
+          maskOne(),
+        ),
       ).toEqual({ ok: false, reason: "placeholder-residue", missingCount: 0 });
     });
   });
@@ -586,6 +678,8 @@ describe("redactSecretsIrreversibly", () => {
     expect(redacted).not.toContain(AWS_DOC_ACCESS_KEY_ID);
     expect(redacted).toContain(IRREVERSIBLE_SECRET_REDACTION);
     expect(redacted).not.toContain("FIXLANG_SECRET_");
-    expect(redacted).toBe(`- ${IRREVERSIBLE_SECRET_REDACTION} (2026-08-11T05:28:00.000Z)`);
+    expect(redacted).toBe(
+      `- ${IRREVERSIBLE_SECRET_REDACTION} (2026-08-11T05:28:00.000Z)`,
+    );
   });
 });

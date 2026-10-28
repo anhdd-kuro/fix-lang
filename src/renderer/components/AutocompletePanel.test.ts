@@ -51,7 +51,9 @@ describe("AutocompletePanel", () => {
   let getAutocompleteUsage: ReturnType<typeof vi.fn>;
 
   const render = async (
-    getAutocompleteUsageImpl: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(emptySnapshot()),
+    getAutocompleteUsageImpl: ReturnType<typeof vi.fn> = vi
+      .fn()
+      .mockResolvedValue(emptySnapshot()),
   ) => {
     getAutocompleteUsage = getAutocompleteUsageImpl;
     const api = {
@@ -63,13 +65,18 @@ describe("AutocompletePanel", () => {
         return vi.fn();
       }),
     };
-    Object.defineProperty(window, "electronAPI", { configurable: true, value: api });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: api,
+    });
 
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(createElement(I18nProvider, null, createElement(AutocompletePanel)));
+      root.render(
+        createElement(I18nProvider, null, createElement(AutocompletePanel)),
+      );
     });
     // `<I18nProvider>` renders null until its initial `getLocale()` resolves,
     // and the panel's own `getAutocompleteUsage()` needs a further tick.
@@ -90,7 +97,9 @@ describe("AutocompletePanel", () => {
 
   it("renders the empty state without throwing when nothing has been recorded", async () => {
     await expect(render()).resolves.not.toThrow();
-    expect(container.textContent).toContain("No autocomplete requests recorded yet.");
+    expect(container.textContent).toContain(
+      "No autocomplete requests recorded yet.",
+    );
     // Zero-request/zero-response rollups are a real zero, not N/A.
     expect(container.textContent).not.toContain("N/A");
   });
@@ -99,7 +108,9 @@ describe("AutocompletePanel", () => {
     await expect(
       render(vi.fn().mockRejectedValue(new Error("ipc failed"))),
     ).resolves.not.toThrow();
-    expect(container.textContent).toContain("Could not load autocomplete usage.");
+    expect(container.textContent).toContain(
+      "Could not load autocomplete usage.",
+    );
   });
 
   it("reports cost as N/A — never a fabricated $0.00 — for a direct-OpenAI-style day with known tokens but no knowable price", async () => {

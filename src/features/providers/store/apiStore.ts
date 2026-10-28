@@ -3,6 +3,7 @@
  * @description Electron Store schema, types, and initialization for settings and key bindings.
  */
 import Store from "electron-store";
+import { z } from "zod";
 import { DEFAULT_LANGUAGE, resolveDefaultModel } from "~/const";
 import {
   AUTOCOMPLETE_INHERIT_ASK_MODEL,
@@ -26,17 +27,25 @@ import {
 } from "~/features/correction/shared/reasoningEffort";
 import { keybindingStore } from "~/features/correction/store/keybindingStore";
 import { migrateProfileForModelRefs } from "~/features/profiles/store/profileMigration";
-import { sanitizeBedrockRegion } from "~/features/providers/shared/bedrockEndpoint";
+import { StoredBedrockRegionSchema } from "~/features/providers/shared/bedrockEndpoint";
 import {
-  sanitizeProviderEndpoint,
+  ProviderEndpointSchema,
   type ProviderEndpoint,
 } from "~/features/providers/shared/lmstudioEndpoint";
-import { modelRefForModel, parseModelRef } from "~/features/providers/shared/modelRef";
+import {
+  modelRefForModel,
+  parseModelRef,
+} from "~/features/providers/shared/modelRef";
+import {
+  strippingObjectLike,
+  ObjectLikeSchema,
+} from "~/features/providers/shared/strippingObjectLike";
 import { sanitizeOpenAIProjectId } from "~/features/providers/shared/openaiProject";
 import {
   isModelForProvider,
   isProviderId,
   PROVIDER_IDS,
+  ProviderIdSchema,
   sanitizeEnabledProviders,
   type Model,
   type ProviderId,
@@ -68,40 +77,50 @@ import type { Schema } from "electron-store";
 export { isModelForProvider, isProviderId, PROVIDER_IDS };
 export type { Model, ProviderId };
 
-export type ProviderEndpointMap = Partial<Record<ProviderId, { host: string; port: number }>>;
+export type ProviderEndpointMap = Partial<
+  Record<ProviderId, { host: string; port: number }>
+>;
 
-
-
-export const sanitizeProviderEndpoints = (raw: unknown): ProviderEndpointMap => {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-  const result: ProviderEndpointMap = {};
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (!isProviderId(key)) continue;
-    // Local OpenAI-compatible / Ollama daemons persist host:port.
-    if (key === "bedrock") {
-      const region = sanitizeBedrockRegion(
-        typeof value === "object" && value !== null && "host" in value
-          ? (value as { host: unknown }).host
-          : value,
-      );
-      if (region) result[key] = { host: region, port: 0 };
-      continue;
-    }
-    if (key !== "lmstudio" && key !== "ollama") continue;
-    const endpoint = sanitizeProviderEndpoint(value);
-    if (endpoint) result[key] = endpoint;
+/**
+ * Re-validates the per-provider endpoint map at runtime even though it is
+ * typed: it is read straight off a profile's stored JSON, so each entry's type
+ * is a claim. Keeps only parseable entries for the providers that persist one.
+ */
+export const sanitizeProviderEndpoints = (
+  raw: ProviderEndpointMap | undefined,
+): ProviderEndpointMap => {
+  if (!raw || !ObjectLikeSchema.safeParse(raw).success || Array.isArray(raw)) {
+    return {};
   }
-  return result;
+  const entries = Object.entries(raw).flatMap(
+    ([key, value]): [ProviderId, ProviderEndpoint][] => {
+      const provider = ProviderIdSchema.safeParse(key);
+      if (!provider.success) return [];
+      // Bedrock persists its region in `host`; the port is unused.
+      if (provider.data === "bedrock") {
+        const region = StoredBedrockRegionSchema.safeParse(value);
+        return region.success
+          ? [[provider.data, { host: region.data, port: 0 }]]
+          : [];
+      }
+      // Local OpenAI-compatible / Ollama daemons persist host:port.
+      if (provider.data !== "lmstudio" && provider.data !== "ollama") return [];
+      const endpoint = ProviderEndpointSchema.safeParse(value);
+      return endpoint.success ? [[provider.data, endpoint.data]] : [];
+    },
+  );
+  return Object.fromEntries(entries);
 };
 
 export const getProviderEndpoint = (
   provider: ProviderId,
   endpoints?: ProviderEndpointMap | null,
 ): ProviderEndpoint | undefined => {
-  const map = endpoints ?? sanitizeProviderEndpoints(getProfileSetting("providerEndpoints"));
+  const map =
+    endpoints ??
+    sanitizeProviderEndpoints(getProfileSetting("providerEndpoints"));
   return map[provider];
 };
-
 
 export type KeyBindings = {
   promptGen: string; // generate a new prompt based on current selection
@@ -150,13 +169,17 @@ export type CorrectionPreset = {
   extraOptions?: Record<string, string>;
 };
 
-const sanitizePresetOutputMode = (
-  raw: unknown,
-): CorrectionPreset["outputMode"] =>
-  raw === "inherit" || raw === "paste" || raw === "popup" ? raw : undefined;
+/** A stored output mode; anything unrecognized reads as absent. */
+const StoredOutputModeSchema = z
+  .enum(["inherit", "paste", "popup"])
+  .optional()
+  .catch(undefined);
 
-const sanitizeBoolean = (raw: unknown): boolean | undefined =>
-  typeof raw === "boolean" ? raw : undefined;
+/** A stored flag; anything but a real boolean reads as absent. */
+const StoredOptionalBooleanSchema = z.boolean().optional().catch(undefined);
+
+/** A stored string field, trimmed; anything but a string reads as `""`. */
+const StoredTrimmedStringSchema = z.string().trim().catch("");
 
 /** One node in a Combo chain. Text in, text out — always. */
 export type ComboStep = {
@@ -221,7 +244,10 @@ export type CorrectionSettings = {
 // `seenIds` dedup `sanitizeCombos` already does across combos, and record
 // the winner so later steps see it as taken too. A collision must resolve
 // to a distinct id, never a dropped step.
-const resolveUniqueStepId = (candidateId: string, seenStepIds: Set<string>): string => {
+const resolveUniqueStepId = (
+  candidateId: string,
+  seenStepIds: Set<string>,
+): string => {
   if (!seenStepIds.has(candidateId)) return candidateId;
 
   let suffix = 2;
@@ -233,79 +259,86 @@ const resolveUniqueStepId = (candidateId: string, seenStepIds: Set<string>): str
   return bumped;
 };
 
+/** A stored combo step's fields; whether the step is usable is decided below. */
+const StoredComboStepSchema = strippingObjectLike({
+  presetId: StoredTrimmedStringSchema,
+  id: StoredTrimmedStringSchema,
+  // Kept verbatim: it is free text the model receives. Whitespace-only is a
+  // validation error (`validateCombo`), not something to silently rewrite.
+  inlineInput: z.string().optional().catch(undefined),
+});
+type StoredComboStep = z.output<typeof StoredComboStepSchema>;
+
 const sanitizeComboStep = (
-  raw: unknown,
+  stored: StoredComboStep,
   index: number,
   seenStepIds: Set<string>,
 ): ComboStep | null => {
-  if (!raw || typeof raw !== "object") return null;
+  if (!stored.presetId) return null;
 
-  const candidate = raw as Record<string, unknown>;
-  const presetId =
-    typeof candidate.presetId === "string" ? candidate.presetId.trim() : "";
-  if (!presetId) return null;
-
-  const storedId = typeof candidate.id === "string" ? candidate.id.trim() : "";
-  // Kept verbatim: it is free text the model receives. Whitespace-only is a
-  // validation error (`validateCombo`), not something to silently rewrite.
-  const inlineInput =
-    typeof candidate.inlineInput === "string" ? candidate.inlineInput : undefined;
-
-  const id = resolveUniqueStepId(storedId || `step-${index + 1}`, seenStepIds);
+  const id = resolveUniqueStepId(stored.id || `step-${index + 1}`, seenStepIds);
   seenStepIds.add(id);
 
-  return {
-    id,
-    presetId,
-    ...(inlineInput !== undefined ? { inlineInput } : {}),
-  };
+  const step: ComboStep = { id, presetId: stored.presetId };
+  if (stored.inlineInput !== undefined) step.inlineInput = stored.inlineInput;
+  return step;
 };
 
-const sanitizeComboSchemaVersion = (raw: unknown): ComboSchemaVersion =>
-  raw === COMBO_SCHEMA_VERSION_RESEQUENCED
-    ? COMBO_SCHEMA_VERSION_RESEQUENCED
-    : 1;
+/**
+ * A stored combo's fields. A step that is not even object-like reads as `null`
+ * and a `steps` that is not an array reads as `null`; both cost the combo.
+ */
+const StoredComboSchema = strippingObjectLike({
+  id: StoredTrimmedStringSchema,
+  name: StoredTrimmedStringSchema,
+  // Never rewritten here, not even onto a hotkey some preset or app binding
+  // already holds: every accelerator in the app shares one registration
+  // space, and resolving a collision across all of them is the pre-save
+  // `validateHotkeys` gate's job, not the sanitizer's.
+  hotkey: StoredTrimmedStringSchema,
+  steps: z
+    .array(StoredComboStepSchema.nullable().catch(null))
+    .nullable()
+    .catch(null),
+  outputMode: StoredOutputModeSchema,
+  markdownOutput: StoredOptionalBooleanSchema,
+  // A stored `2` MUST survive: it is the record that this combo has already
+  // been offered the resequencing, and downgrading it here would re-arm the
+  // migration and rewrite a chain the user rebuilt on purpose. Absent or
+  // unrecognized falls to `1` — "written before versioning" is exactly the
+  // state that still needs the migration — rather than costing the user the
+  // whole combo.
+  schemaVersion: z.literal([1, COMBO_SCHEMA_VERSION_RESEQUENCED]).catch(1),
+});
+type StoredCombo = z.output<typeof StoredComboSchema>;
 
-const sanitizeCombo = (raw: unknown): ComboPreset | null => {
-  if (!raw || typeof raw !== "object") return null;
-
-  const candidate = raw as Record<string, unknown>;
-  const id = typeof candidate.id === "string" ? candidate.id.trim() : "";
-  const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
-  if (!id || !name || !Array.isArray(candidate.steps)) return null;
+const sanitizeCombo = (stored: StoredCombo): ComboPreset | null => {
+  if (!stored.id || !stored.name || stored.steps === null) return null;
 
   // One unusable step invalidates the whole chain: dropping just that step
   // would run a SHORTER combo than the user configured, silently.
   const steps: ComboStep[] = [];
   const seenStepIds = new Set<string>();
-  for (const [index, rawStep] of candidate.steps.entries()) {
-    const step = sanitizeComboStep(rawStep, index, seenStepIds);
+  for (const [index, storedStep] of stored.steps.entries()) {
+    const step =
+      storedStep === null
+        ? null
+        : sanitizeComboStep(storedStep, index, seenStepIds);
     if (!step) return null;
     steps.push(step);
   }
 
-  const outputMode = sanitizePresetOutputMode(candidate.outputMode);
-  const markdownOutput = sanitizeBoolean(candidate.markdownOutput);
-
-  return {
-    id,
-    name,
-    // Never rewritten here, not even onto a hotkey some preset or app binding
-    // already holds: every accelerator in the app shares one registration
-    // space, and resolving a collision across all of them is the pre-save
-    // `validateHotkeys` gate's job, not the sanitizer's.
-    hotkey: typeof candidate.hotkey === "string" ? candidate.hotkey.trim() : "",
+  const combo: Omit<ComboPreset, "schemaVersion"> = {
+    id: stored.id,
+    name: stored.name,
+    hotkey: stored.hotkey,
     steps,
-    ...(outputMode !== undefined ? { outputMode } : {}),
-    ...(markdownOutput !== undefined ? { markdownOutput } : {}),
-    // A stored `2` MUST survive: it is the record that this combo has already
-    // been offered the resequencing, and downgrading it here would re-arm the
-    // migration and rewrite a chain the user rebuilt on purpose. Absent or
-    // unrecognized falls to `1` — "written before versioning" is exactly the
-    // state that still needs the migration — rather than costing the user the
-    // whole combo.
-    schemaVersion: sanitizeComboSchemaVersion(candidate.schemaVersion),
   };
+  if (stored.outputMode !== undefined) combo.outputMode = stored.outputMode;
+  if (stored.markdownOutput !== undefined) {
+    combo.markdownOutput = stored.markdownOutput;
+  }
+  return { ...combo, schemaVersion: stored.schemaVersion };
 };
 
 /**
@@ -337,12 +370,17 @@ const withDefaultCombos = (stored: ComboPreset[]): ComboPreset[] => {
   ];
 };
 
-const sanitizeCombos = (raw: unknown): ComboPreset[] => {
-  if (!Array.isArray(raw)) return [];
+/** A stored combo list: not an array reads as `[]`, a non-object entry as `null`. */
+const StoredCombosSchema = z
+  .array(StoredComboSchema.nullable().catch(null))
+  .catch([]);
 
+const sanitizeCombos = (
+  stored: z.output<typeof StoredCombosSchema>,
+): ComboPreset[] => {
   const seenIds = new Set<string>();
-  return raw.flatMap((entry) => {
-    const combo = sanitizeCombo(entry);
+  return stored.flatMap((entry) => {
+    const combo = entry === null ? null : sanitizeCombo(entry);
     if (!combo || seenIds.has(combo.id)) return [];
     seenIds.add(combo.id);
     return [combo];
@@ -747,8 +785,37 @@ export const readReservedAppAccelerators = (): readonly string[] => {
   return [promptGen, profileSwitch, COMBO_CANCEL_ACCELERATOR];
 };
 
-export const normalizeCorrectionSettings = (
-  value: unknown,
+/**
+ * The collection fields of stored correction settings. Each reads as absent
+ * (or `[]` for combos) when it is not the expected kind of value; the legacy
+ * pre-preset fields are read separately, below.
+ */
+const StoredCorrectionSettingsSchema = strippingObjectLike({
+  presets: z.array(z.unknown()).optional().catch(undefined),
+  combos: StoredCombosSchema,
+  selectedPresetId: z.string().optional().catch(undefined),
+});
+
+/** Only the id, to tell whether a stored Translate preset already exists. */
+const StoredTranslatePresetSchema = strippingObjectLike({
+  id: z.literal(DEFAULT_TRANSLATE_PRESET_ID),
+});
+
+/**
+ * The preset fields that are parsed rather than read as-typed. `reasoning` and
+ * `extraOptions` stay raw: their own sanitizers decide what they mean.
+ */
+const StoredPresetFieldsSchema = strippingObjectLike({
+  hotkey: z.string().optional().catch(undefined),
+  reasoning: z.unknown().optional(),
+  requiresInput: StoredOptionalBooleanSchema,
+  outputMode: StoredOutputModeSchema,
+  markdownOutput: StoredOptionalBooleanSchema,
+  extraOptions: z.unknown().optional(),
+});
+
+export const normalizeCorrectionSettings = <Input>(
+  value: Input,
   legacyTranslate?: LegacyTranslateSettings,
   reservedAppAccelerators: readonly string[] = readReservedAppAccelerators(),
 ): CorrectionSettings => {
@@ -773,7 +840,7 @@ export const normalizeCorrectionSettings = (
       ? { ...preset, hotkey: "" }
       : preset;
 
-  if (!value || typeof value !== "object") {
+  if (!ObjectLikeSchema.safeParse(value).success) {
     return {
       ...defaults,
       presets: applyLegacyTranslateMigration(
@@ -784,9 +851,14 @@ export const normalizeCorrectionSettings = (
     };
   }
 
-  const raw = value as Partial<CorrectionSettings> & LegacyCorrectionSettings;
+  const stored = StoredCorrectionSettingsSchema.parse(value);
+  // SAFETY: only object-ness is established (above). The legacy string fields
+  // are optional-chained but not re-typed: a stored non-string throws on
+  // `.trim()`, which has always surfaced as a load error rather than being
+  // repaired here.
+  const legacy = value as LegacyCorrectionSettings;
 
-  const storedCombos = sanitizeCombos(raw.combos);
+  const storedCombos = sanitizeCombos(stored.combos);
   // Before the merge or after it is EQUIVALENT, not a correctness choice:
   // `withDefaultCombos` returns the stored entry BY REFERENCE when the id
   // matches, so a post-merge map would reach the same object, and the
@@ -827,23 +899,16 @@ export const normalizeCorrectionSettings = (
       : withoutReservedHotkey(preset);
 
   const storedHadTranslatePreset =
-    Array.isArray(raw.presets) &&
-    raw.presets.some(
-      (preset) =>
-        !!preset &&
-        typeof preset === "object" &&
-        (preset as Partial<CorrectionPreset>).id === DEFAULT_TRANSLATE_PRESET_ID,
+    stored.presets !== undefined &&
+    stored.presets.some(
+      (preset) => StoredTranslatePresetSchema.safeParse(preset).success,
     );
 
-  const getTrimmedString = (candidate: unknown): string | undefined => {
-    return typeof candidate === "string" ? candidate.trim() : undefined;
-  };
-
-  if (!Array.isArray(raw.presets)) {
+  if (stored.presets === undefined) {
     const migratedCorrectionPreset = {
       ...defaults.presets[0],
-      systemPrompt: buildLegacyCorrectionPrompt(raw),
-      model: raw.model?.trim() || defaults.presets[0].model,
+      systemPrompt: buildLegacyCorrectionPrompt(legacy),
+      model: legacy.model?.trim() || defaults.presets[0].model,
     } satisfies CorrectionPreset;
 
     // Return all built-in defaults; only the correction preset gets the migrated prompt.
@@ -862,12 +927,18 @@ export const normalizeCorrectionSettings = (
   }
 
   const seenIds = new Set<string>();
-  const normalizedEntries = raw.presets.flatMap((preset, index) => {
-    if (!preset || typeof preset !== "object") {
+  const normalizedEntries = stored.presets.flatMap((preset, index) => {
+    if (!ObjectLikeSchema.safeParse(preset).success) {
       return [];
     }
 
+    // SAFETY: only object-ness is established (above). `id`, `name`,
+    // `systemPrompt` and `model` are optional-chained but not re-typed: a
+    // stored non-string throws on `.trim()`, which has always surfaced as a
+    // load error rather than being repaired here. Every other field is parsed
+    // through `StoredPresetFieldsSchema`.
     const candidate = preset as Partial<CorrectionPreset>;
+    const fields = StoredPresetFieldsSchema.parse(preset);
     const fallback = defaultById.get(candidate.id?.trim() || "");
     const id = candidate.id?.trim() || `preset-${index + 1}`;
 
@@ -880,14 +951,13 @@ export const normalizeCorrectionSettings = (
     // Existing profiles predate the two built-in Low defaults. Migrate
     // only those recognized built-ins when the field is absent; explicit
     // stored values still win, and unknown values are still dropped.
-    const rawCandidate = candidate as Record<string, unknown>;
     const reasoning =
-      rawCandidate.reasoning === undefined &&
+      fields.reasoning === undefined &&
       fallback !== undefined &&
       (id === DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID ||
         id === DEFAULT_BUSINESS_WRITING_PRESET_ID)
         ? "low"
-        : sanitizeReasoningEffort(rawCandidate.reasoning);
+        : sanitizeReasoningEffort(fields.reasoning);
 
     // `requiresInput` is structural, not a preference: it decides whether the
     // hotkey opens an input window or aborts on an empty selection, and no UI
@@ -897,17 +967,15 @@ export const normalizeCorrectionSettings = (
     // Only a non-built-in falls back to whatever boolean was stored.
     const requiresInput = fallback
       ? fallback.requiresInput
-      : sanitizeBoolean(rawCandidate.requiresInput);
+      : fields.requiresInput;
 
     // These two ARE user preferences, so a recognized stored value wins. An
     // unrecognized or absent one falls back to the built-in default — the same
     // rule `name`/`hotkey`/`systemPrompt`/`model` follow above — which is what
     // keeps a legacy or corrupted value from silently turning Ask's markdown
     // popup into a plain-text paste.
-    const outputMode =
-      sanitizePresetOutputMode(rawCandidate.outputMode) ?? fallback?.outputMode;
-    const markdownOutput =
-      sanitizeBoolean(rawCandidate.markdownOutput) ?? fallback?.markdownOutput;
+    const outputMode = fields.outputMode ?? fallback?.outputMode;
+    const markdownOutput = fields.markdownOutput ?? fallback?.markdownOutput;
 
     // No `?? fallback?.extraOptions`, unlike the two above: which options exist
     // is keyed off the preset ID inside the sanitizer, so a stored value that
@@ -915,34 +983,39 @@ export const normalizeCorrectionSettings = (
     // the built-in's own value would be just as unrecognized. Absent means
     // "use the registry default", which `resolvePresetOptionValue` supplies at
     // read time, so nothing has to be materialized here.
-    const extraOptions = sanitizePresetOptions(id, rawCandidate.extraOptions);
+    const extraOptions = sanitizePresetOptions(id, fields.extraOptions);
+
+    const normalizedPreset: CorrectionPreset = {
+      id,
+      name: candidate.name?.trim() || fallback?.name || `Preset ${index + 1}`,
+      hotkey: fields.hotkey?.trim() ?? fallback?.hotkey ?? "",
+      systemPrompt:
+        candidate.systemPrompt?.trim() ||
+        fallback?.systemPrompt ||
+        DEFAULT_CUSTOM_PROMPT.trim(),
+      // Empty stays empty (inherit global). A stored explicit model is kept
+      // as-is; only the built-in fallback is consulted, never the const.
+      model: candidate.model?.trim() || fallback?.model || INHERIT_GLOBAL_MODEL,
+      isBuiltIn: fallback ? true : Boolean(candidate.isBuiltIn),
+    };
+    if (reasoning !== undefined) normalizedPreset.reasoning = reasoning;
+    if (requiresInput !== undefined) {
+      normalizedPreset.requiresInput = requiresInput;
+    }
+    if (outputMode !== undefined) normalizedPreset.outputMode = outputMode;
+    if (markdownOutput !== undefined) {
+      normalizedPreset.markdownOutput = markdownOutput;
+    }
+    if (extraOptions !== undefined)
+      normalizedPreset.extraOptions = extraOptions;
 
     return [
       {
-        preset: {
-          id,
-          name:
-            candidate.name?.trim() || fallback?.name || `Preset ${index + 1}`,
-          hotkey: getTrimmedString(candidate.hotkey) ?? fallback?.hotkey ?? "",
-          systemPrompt:
-            candidate.systemPrompt?.trim() ||
-            fallback?.systemPrompt ||
-            DEFAULT_CUSTOM_PROMPT.trim(),
-          // Empty stays empty (inherit global). A stored explicit model is kept
-          // as-is; only the built-in fallback is consulted, never the const.
-          model:
-            candidate.model?.trim() || fallback?.model || INHERIT_GLOBAL_MODEL,
-          isBuiltIn: fallback ? true : Boolean(candidate.isBuiltIn),
-          ...(reasoning !== undefined ? { reasoning } : {}),
-          ...(requiresInput !== undefined ? { requiresInput } : {}),
-          ...(outputMode !== undefined ? { outputMode } : {}),
-          ...(markdownOutput !== undefined ? { markdownOutput } : {}),
-          ...(extraOptions !== undefined ? { extraOptions } : {}),
-        } satisfies CorrectionPreset,
+        preset: normalizedPreset,
         // A missing or non-string `hotkey` above inherits the built-in default.
         // That injected value is not the user's choice, so it neither counts as
         // a claim nor survives colliding with one.
-        hotkeyWasStored: typeof candidate.hotkey === "string",
+        hotkeyWasStored: fields.hotkey !== undefined,
       },
     ];
   });
@@ -1003,10 +1076,11 @@ export const normalizeCorrectionSettings = (
     storedHadTranslatePreset,
   );
 
+  const storedSelectedPresetId = stored.selectedPresetId;
   const selectedPresetId =
-    typeof raw.selectedPresetId === "string" &&
-    migratedPresets.some((preset) => preset.id === raw.selectedPresetId)
-      ? raw.selectedPresetId
+    storedSelectedPresetId !== undefined &&
+    migratedPresets.some((preset) => preset.id === storedSelectedPresetId)
+      ? storedSelectedPresetId
       : migratedPresets[0]?.id || DEFAULT_CORRECTION_PRESET_ID;
 
   return {
@@ -1035,7 +1109,7 @@ type TypedSchemaFor<T> = T extends Model[]
         items?: TypedSchemaFor<Item>;
         default?: T;
       }
-    : T extends Record<string, unknown>
+    : T extends object
       ? Omit<ValueSchemaObject, "properties" | "required" | "default"> & {
           properties?: { [K in keyof T]?: TypedSchemaFor<T[K]> };
           required?: readonly (keyof T & string)[];
@@ -1078,7 +1152,11 @@ export const apiStoreSchema = {
              * wipes the ENTIRE config — every profile, preset, and key reference.
              * Validity is enforced in code by `sanitizeEnabledProviders`.
              */
-            enabledProviders: { type: "array", items: { type: "string" }, default: [] },
+            enabledProviders: {
+              type: "array",
+              items: { type: "string" },
+              default: [],
+            },
             providerEndpoints: { type: "object", default: {} },
             openaiProjectId: { type: "string", default: "" },
             models: {
@@ -1226,7 +1304,10 @@ export const apiStoreSchema = {
                 // stored value outside the range must be CLAMPED by
                 // `normalizeDailyCostCapUsd`, not fail validation and wipe the
                 // whole config.
-                dailyCostCapUsd: { type: "number", default: DEFAULT_DAILY_COST_CAP_USD },
+                dailyCostCapUsd: {
+                  type: "number",
+                  default: DEFAULT_DAILY_COST_CAP_USD,
+                },
               },
               // Belt and braces for the whole-node-absent case only.
               // `useDefaults` injects an *object* default, so a stored object
@@ -1266,12 +1347,19 @@ export const apiStore = new Store<{ profiles: Profile[] }>({
  * (`"configVresion"`) type-checks even if `configVersion` is added to the store
  * generic. This narrower view has no such fallback, so tsc rejects the typo.
  */
-type ConfigVersionShape = { configVersion: number };
+type ConfigVersionCarrier = { configVersion: number };
 type ConfigVersionStore = {
-  get(key: keyof ConfigVersionShape, defaultValue: number): number;
-  set(key: keyof ConfigVersionShape, value: number): void;
+  get(key: keyof ConfigVersionCarrier, defaultValue: number): number;
+  set(key: keyof ConfigVersionCarrier, value: number): void;
 };
-const configVersionStore = apiStore as unknown as ConfigVersionStore;
+const configVersionStore: ConfigVersionStore = apiStore;
+
+/**
+ * Same kind of view, for removing a retired top-level key the typed generic no
+ * longer names (`conf`'s `.delete` is typed `keyof T` only, but deletes any key).
+ */
+type RetiredKeyStore = { delete(key: "selectedModel"): void };
+const retiredKeyStore: RetiredKeyStore = apiStore;
 
 export const getOpenAIKey = () => {
   const apiKey = apiStore.get("apiKey");
@@ -1354,14 +1442,15 @@ export const connectProviderToProfile = (
   );
 
   const providerEndpoints =
-    options?.endpoint && (provider === "lmstudio" || provider === "ollama" || provider === "bedrock")
+    options?.endpoint &&
+    (provider === "lmstudio" || provider === "ollama" || provider === "bedrock")
       ? {
           ...sanitizeProviderEndpoints(settings.providerEndpoints),
           [provider]: options.endpoint,
         }
       : sanitizeProviderEndpoints(settings.providerEndpoints);
 
-  return commitProfileAt(profiles, index, {
+  const nextSettings: SettingsStore = {
     ...settings,
     enabledProviders: sanitizeEnabledProviders([
       ...(settings.enabledProviders ?? []),
@@ -1375,12 +1464,14 @@ export const connectProviderToProfile = (
       })),
     ],
     providerEndpoints,
-    // Absent means "leave what is stored"; `""` is a deliberate clear, so the
-    // key must only be written when the caller actually supplied a value.
-    ...(options?.openaiProjectId !== undefined
-      ? { openaiProjectId: sanitizeOpenAIProjectId(options.openaiProjectId) ?? "" }
-      : {}),
-  });
+  };
+  // Absent means "leave what is stored"; `""` is a deliberate clear, so the
+  // key must only be written when the caller actually supplied a value.
+  if (options?.openaiProjectId !== undefined) {
+    nextSettings.openaiProjectId =
+      sanitizeOpenAIProjectId(options.openaiProjectId) ?? "";
+  }
+  return commitProfileAt(profiles, index, nextSettings);
 };
 
 export const connectProviderToActiveProfile = (
@@ -1428,18 +1519,21 @@ export const disconnectProviderFromProfile = (
   const promptGenModel = settings.settingsPromptGen?.model ?? "";
   const summarizeModel = settings.settingsSummarize?.model ?? "";
   const autocompleteModel = settings.settingsAutocomplete?.model ?? "";
-  if (refBelongsToProvider(promptGenModel, provider)) clearedFeatures.push("promptGen");
-  if (refBelongsToProvider(summarizeModel, provider)) clearedFeatures.push("summarize");
+  if (refBelongsToProvider(promptGenModel, provider))
+    clearedFeatures.push("promptGen");
+  if (refBelongsToProvider(summarizeModel, provider))
+    clearedFeatures.push("summarize");
   // Without this the feature keeps firing at a provider whose key is gone —
   // one failed request per keystroke rather than a single visible error.
-  if (refBelongsToProvider(autocompleteModel, provider)) clearedFeatures.push("autocomplete");
+  if (refBelongsToProvider(autocompleteModel, provider))
+    clearedFeatures.push("autocomplete");
 
   const clearedSelectedModel = refBelongsToProvider(
     settings.selectedModel ?? "",
     provider,
   );
 
-  const profile = commitProfileAt(profiles, index, {
+  const nextSettings: SettingsStore = {
     ...settings,
     enabledProviders: enabledProviders.filter((entry) => entry !== provider),
     models: (settings.models || []).filter(
@@ -1448,10 +1542,13 @@ export const disconnectProviderFromProfile = (
     selectedModel: clearedSelectedModel
       ? INHERIT_GLOBAL_MODEL
       : (settings.selectedModel ?? ""),
-    // The project belongs to the organization the admin key names, so it does not
-    // survive the connection. Reconnecting with a key for a DIFFERENT org would
-    // otherwise keep attributing spend to a project that org has never heard of.
-    ...(provider === "openai" ? { openaiProjectId: "" } : {}),
+  };
+  // The project belongs to the organization the admin key names, so it does not
+  // survive the connection. Reconnecting with a key for a DIFFERENT org would
+  // otherwise keep attributing spend to a project that org has never heard of.
+  if (provider === "openai") nextSettings.openaiProjectId = "";
+  const profile = commitProfileAt(profiles, index, {
+    ...nextSettings,
     settingsCorrect: { ...correct, presets },
     settingsPromptGen: {
       ...settings.settingsPromptGen,
@@ -1499,7 +1596,8 @@ export const migrateStoredProfilesForModelRefs = (): void => {
   if (configVersionStore.get("configVersion", 0) >= 1) {
     return;
   }
-  const raw = apiStore.get("profiles", []) as unknown[];
+  // Typed as unknown on purpose: on-disk entries predate the `Profile` shape.
+  const raw: readonly unknown[] = apiStore.get("profiles", []);
   const next = raw.map(migrateProfileForModelRefs);
   apiStore.set("profiles", next);
   configVersionStore.set("configVersion", 1);
@@ -1530,7 +1628,7 @@ export const createProfile = (
   } satisfies Profile;
 
   // Add to profiles array
-  const profiles = apiStore.get("profiles", []) as Profile[];
+  const profiles = apiStore.get("profiles", []);
   profiles.push(profile);
   apiStore.set("profiles", profiles);
 
@@ -1545,7 +1643,7 @@ export const createProfile = (
  * @returns Array of saved profiles
  */
 export const getProfiles = (): Profile[] => {
-  return apiStore.get("profiles", []) as Profile[];
+  return apiStore.get("profiles", []);
 };
 
 /**
@@ -1553,7 +1651,7 @@ export const getProfiles = (): Profile[] => {
  * @returns Current profile ID or empty string if none
  */
 export const getCurrentProfileId = (): string => {
-  return apiStore.get("currentProfileId", "") as string;
+  return apiStore.get("currentProfileId", "");
 };
 
 /**
@@ -1570,14 +1668,24 @@ export const getProfileById = (profileId: string): Profile | null => {
  * Gets all settings from the current profile
  * @returns All settings from the current profile (or creates a default profile if none active)
  */
+/**
+ * The pre-profile build's single top-level `settings` object, or `{}`. Reached
+ * only while no profile is active — `initializeDefaultProfile` selects or
+ * creates one at startup.
+ */
+const readPreProfileSettings = (): SettingsStore =>
+  // SAFETY: NOT validated — `settings` is outside `apiStoreSchema`. The claim
+  // rests on the pre-profile build having written this key whole as its
+  // `SettingsStore`, and `{}` stands in for every field being absent; both are
+  // the long-standing fallback this read has always returned.
+  (apiStore.get("settings") as SettingsStore) || ({} as SettingsStore);
+
 export const getCurrentProfileSettings = (): SettingsStore => {
   const currentProfileId = apiStore.get("currentProfileId", "");
 
   // If no current profile, return the default settings object
   if (!currentProfileId) {
-    const defaultSettings =
-      (apiStore.get("settings") as SettingsStore) || ({} as SettingsStore);
-    return defaultSettings;
+    return readPreProfileSettings();
   }
 
   const profiles = getProfiles();
@@ -1585,33 +1693,36 @@ export const getCurrentProfileSettings = (): SettingsStore => {
 
   // If profile not found, return default settings
   if (!currentProfile) {
-    return (apiStore.get("settings") as SettingsStore) || ({} as SettingsStore);
+    return readPreProfileSettings();
   }
 
   return currentProfile.settings;
 };
 
 /**
- * Pull the retired standalone-Translate settings out of a raw profile settings
- * object. The field was removed from SettingsStore, so it is read defensively
- * via an unknown cast — upgrading users still have it in the persisted JSON.
+ * The retired standalone-Translate settings, still present in the persisted
+ * JSON of upgrading users but no longer on `SettingsStore`. A field of the
+ * wrong type reads as absent; a non-object node means there is nothing to
+ * carry over.
  */
+const StoredLegacyTranslateCarrierSchema = z.object({
+  settingsTranslate: strippingObjectLike({
+    destinationLang: z.string().optional().catch(undefined),
+    includeExplanation: z.boolean().optional().catch(undefined),
+    model: z.string().optional().catch(undefined),
+  }),
+});
+
 const extractLegacyTranslateSettings = (
   settings: SettingsStore,
 ): LegacyTranslateSettings | undefined => {
-  const legacy = (settings as { settingsTranslate?: unknown }).settingsTranslate;
-  if (!legacy || typeof legacy !== "object") {
-    return undefined;
-  }
-  const t = legacy as Record<string, unknown>;
+  const parsed = StoredLegacyTranslateCarrierSchema.safeParse(settings);
+  if (!parsed.success) return undefined;
+  const legacy = parsed.data.settingsTranslate;
   return {
-    destinationLang:
-      typeof t.destinationLang === "string" ? t.destinationLang : undefined,
-    includeExplanation:
-      typeof t.includeExplanation === "boolean"
-        ? t.includeExplanation
-        : undefined,
-    model: typeof t.model === "string" ? t.model : undefined,
+    destinationLang: legacy.destinationLang,
+    includeExplanation: legacy.includeExplanation,
+    model: legacy.model,
   };
 };
 
@@ -1620,45 +1731,53 @@ const extractLegacyTranslateSettings = (
  * @param settingType The type of setting to retrieve
  * @returns The requested setting from the current profile
  */
+/**
+ * Per-setting read normalizers, keyed by setting so each one is typed against
+ * its own `SettingsStore[K]`. A setting absent here reads back as stored.
+ */
+type SettingReaders = {
+  [K in keyof SettingsStore]?: (settings: SettingsStore) => SettingsStore[K];
+};
+
+const SETTING_READERS: SettingReaders = {
+  settingsCorrect: (settings) =>
+    normalizeCorrectionSettings(
+      settings.settingsCorrect,
+      // Carry over the retired standalone-Translate settings (still present in
+      // the raw store for upgrading users; no longer on the SettingsStore type).
+      extractLegacyTranslateSettings(settings),
+    ),
+  providerEndpoints: (settings) =>
+    sanitizeProviderEndpoints(settings.providerEndpoints),
+  openaiProjectId: (settings) =>
+    sanitizeOpenAIProjectId(settings.openaiProjectId),
+  // Reading through the normalizer is what keeps the feature off for a profile
+  // that predates it: the stored node is absent, and absent reads as disabled.
+  settingsAutocomplete: (settings) =>
+    normalizeAutocompleteSettings(settings.settingsAutocomplete),
+};
+
 export const getProfileSetting = <K extends keyof SettingsStore>(
   settingType: K,
 ): SettingsStore[K] => {
   const settings = getCurrentProfileSettings();
-
-  if (settingType === "settingsCorrect") {
-    return normalizeCorrectionSettings(
-      settings[settingType],
-      // Carry over the retired standalone-Translate settings (still present in
-      // the raw store for upgrading users; no longer on the SettingsStore type).
-      extractLegacyTranslateSettings(settings),
-    ) as SettingsStore[K];
-  }
-
-  if (settingType === "providerEndpoints") {
-    return sanitizeProviderEndpoints(settings.providerEndpoints) as SettingsStore[K];
-  }
-
-  if (settingType === "openaiProjectId") {
-    return sanitizeOpenAIProjectId(settings.openaiProjectId) as SettingsStore[K];
-  }
-
-  // Reading through the normalizer is what keeps the feature off for a profile
-  // that predates it: the stored node is absent, and absent reads as disabled.
-  if (settingType === "settingsAutocomplete") {
-    return normalizeAutocompleteSettings(settings.settingsAutocomplete) as SettingsStore[K];
-  }
-
-  return settings[settingType];
+  // Own keys only: an inherited name such as "constructor" must read as stored,
+  // exactly as the setting-by-setting comparison this table replaced did.
+  const read = Object.hasOwn(SETTING_READERS, settingType)
+    ? SETTING_READERS[settingType]
+    : undefined;
+  return read ? read(settings) : settings[settingType];
 };
+
+/** Outcome of a profile write; `error` is store-authored English, wrapped by the IPC layer. */
+export type ProfileWriteResult = { success: boolean; error?: string };
 
 /**
  * Applies settings from a profile
  * @param profileId Profile ID to apply
  * @returns Success status and error message if applicable
  */
-export const applyProfile = (
-  profileId: string,
-): { success: boolean; error?: string } => {
+export const applyProfile = (profileId: string): ProfileWriteResult => {
   try {
     const profile = getProfileById(profileId);
     if (!profile) {
@@ -1686,23 +1805,30 @@ export const applyProfile = (
  * @param value The new value for the setting
  * @returns Success status and error message if applicable
  */
+/** Per-setting write normalizers; a setting absent here is stored as given. */
+type SettingWriters = {
+  [K in keyof SettingsStore]?: (value: SettingsStore[K]) => SettingsStore[K];
+};
+
+const SETTING_WRITERS: SettingWriters = {
+  settingsCorrect: (value) => normalizeCorrectionSettings(value),
+  providerEndpoints: (value) => sanitizeProviderEndpoints(value),
+  // "" rather than undefined: the schema types this as a string, and a
+  // deleted key would read back as the ajv default anyway.
+  openaiProjectId: (value) => sanitizeOpenAIProjectId(value) ?? "",
+  settingsAutocomplete: (value) => normalizeAutocompleteSettings(value),
+};
+
 export const updateProfileSetting = <K extends keyof SettingsStore>(
   settingType: K,
   value: SettingsStore[K],
-): { success: boolean; error?: string } => {
+): ProfileWriteResult => {
   try {
-    const normalizedValue =
-      settingType === "settingsCorrect"
-        ? (normalizeCorrectionSettings(value) as SettingsStore[K])
-        : settingType === "providerEndpoints"
-          ? (sanitizeProviderEndpoints(value) as SettingsStore[K])
-          : settingType === "openaiProjectId"
-            ? // "" rather than undefined: the schema types this as a string, and a
-              // deleted key would read back as the ajv default anyway.
-              ((sanitizeOpenAIProjectId(value) ?? "") as SettingsStore[K])
-            : settingType === "settingsAutocomplete"
-              ? (normalizeAutocompleteSettings(value) as SettingsStore[K])
-              : value;
+    // Own keys only, for the same reason as `getProfileSetting`.
+    const write = Object.hasOwn(SETTING_WRITERS, settingType)
+      ? SETTING_WRITERS[settingType]
+      : undefined;
+    const normalizedValue = write ? write(value) : value;
 
     const currentProfileId = apiStore.get("currentProfileId", "");
 
@@ -1759,6 +1885,9 @@ export const updateProfileSetting = <K extends keyof SettingsStore>(
  * preserve them (e.g. profile reset) overwrite those fields afterwards.
  */
 const buildDefaultProfileSettings = (): SettingsStore =>
+  // SAFETY: the only `SettingsStore` fields left out are `profiles` and
+  // `currentProfileId`, which belong to the top-level store, are absent from
+  // the per-profile schema node, and are never read off a profile's settings.
   ({
     apiKey: "",
     models: [],
@@ -1797,10 +1926,7 @@ const buildDefaultProfileSettings = (): SettingsStore =>
  * `models` and `enabledProviders` — dropping `enabledProviders` leaves the
  * Settings page showing Connected provider cards with zero models.
  */
-export const resetCurrentProfileSettings = (): {
-  success: boolean;
-  error?: string;
-} => {
+export const resetCurrentProfileSettings = (): ProfileWriteResult => {
   try {
     const currentProfileId = getCurrentProfileId();
     if (!currentProfileId) {
@@ -1824,16 +1950,16 @@ export const resetCurrentProfileSettings = (): {
         apiKey: existing.apiKey ?? "",
         models: existing.models ?? [],
         enabledProviders: existing.enabledProviders ?? [],
-        providerEndpoints: sanitizeProviderEndpoints(existing.providerEndpoints),
+        providerEndpoints: sanitizeProviderEndpoints(
+          existing.providerEndpoints,
+        ),
       },
     };
     apiStore.set("profiles", profiles);
 
     // Clear the legacy top-level selected model (not part of the typed schema)
     // so get-selected-model falls back to the dynamic default after reset.
-    (apiStore as unknown as { delete: (key: string) => void }).delete(
-      "selectedModel",
-    );
+    retiredKeyStore.delete("selectedModel");
 
     return { success: true };
   } catch (error) {
@@ -1857,12 +1983,15 @@ export const resetCurrentProfileSettings = (): {
  * {@link toExportableProfile}.
  */
 export const withoutProfileSecrets = (profile: Profile): Profile => {
-  const settings = { ...profile.settings } as SettingsStore;
-  delete (settings as Partial<SettingsStore>).apiKey;
+  const settings: Partial<SettingsStore> = { ...profile.settings };
+  delete settings.apiKey;
   return {
     ...profile,
-    settings,
-  } as Profile;
+    // SAFETY: only the deprecated `apiKey` is missing. Written back to disk it
+    // reads as "" (its schema node's `default`); in memory every reader of it
+    // falls back with `??`/`||`.
+    settings: settings as SettingsStore,
+  };
 };
 
 /**
@@ -1908,7 +2037,7 @@ export const toExportableProfile = (profile: Profile): Profile => {
         model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
       },
     },
-  } as Profile;
+  };
 };
 
 /** An imported profile is untrusted: its plaintext key and model state both go. */

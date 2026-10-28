@@ -8,12 +8,16 @@
  * OpenRouter credit balance, an OpenAI line-item breakdown) stay in that
  * provider's own module — only what is genuinely common lives here.
  */
+import { z } from "zod";
+import { schemaParser } from "~/features/core/shared/schemaGuard";
 
 export type UsageRange = "7d" | "30d";
 
+/** Exactly `"30d"` or `"7d"`; anything else (IPC junk, stale preference) is 7d. */
+export const UsageRangeSchema = z.enum(["7d", "30d"]).catch("7d");
+
 /** Coerce an untrusted value (IPC payload, stored preference) to the union. */
-export const normalizeUsageRange = (raw: unknown): UsageRange =>
-  raw === "30d" ? "30d" : "7d";
+export const normalizeUsageRange = schemaParser<UsageRange>(UsageRangeSchema);
 
 export const usageRangeDays = (range: UsageRange): number =>
   range === "30d" ? 30 : 7;
@@ -49,7 +53,8 @@ export type UsageCostSlice = {
 };
 
 /** UTC day key for a Date — the grain every provider's buckets are keyed by. */
-export const utcDayKey = (date: Date): string => date.toISOString().slice(0, 10);
+export const utcDayKey = (date: Date): string =>
+  date.toISOString().slice(0, 10);
 
 /**
  * Inclusive UTC-midnight start of the range, as unix seconds (what OpenAI's

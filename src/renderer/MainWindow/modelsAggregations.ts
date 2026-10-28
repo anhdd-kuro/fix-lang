@@ -7,7 +7,11 @@
  * range filter + cost-sum from `../analytics/shared` (no duplication). No
  * electron/sqlite/DOM dependency — unit-tested directly.
  */
-import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/message";
+import {
+  messageLabel,
+  textLabel,
+  type Label,
+} from "~/features/i18n/shared/message";
 import {
   denseDayKeys,
   dayKeyOfIso,
@@ -43,7 +47,9 @@ export const groupKeyForEntry = (entry: HistoryEntry): string => {
 
 /** Display label for a grouping key: real ids are user data (verbatim); the sentinel is UI chrome (translated). */
 const modelLabelFor = (model: string): Label =>
-  model === UNKNOWN_MODEL_ID ? messageLabel("models.unknown") : textLabel(model);
+  model === UNKNOWN_MODEL_ID
+    ? messageLabel("models.unknown")
+    : textLabel(model);
 
 export type ModelRow = {
   model: string;
@@ -88,18 +94,16 @@ export const perModelBreakdown = (entries: HistoryEntry[]): ModelRow[] => {
 
   for (const e of entries) {
     const key = groupKeyForEntry(e);
-    const acc =
-      groups.get(key) ??
-      {
-        model: key,
-        usageCount: 0,
-        totalTokens: 0,
-        inputTokens: 0,
-        outputTokens: 0,
-        costUsd: 0,
-        pricedCount: 0,
-        hasNa: false,
-      };
+    const acc = groups.get(key) ?? {
+      model: key,
+      usageCount: 0,
+      totalTokens: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      costUsd: 0,
+      pricedCount: 0,
+      hasNa: false,
+    };
     const input = e.promptTokens ?? 0;
     const output = e.completionTokens ?? 0;
     acc.usageCount += 1;
@@ -107,7 +111,7 @@ export const perModelBreakdown = (entries: HistoryEntry[]): ModelRow[] => {
     acc.inputTokens += input;
     acc.outputTokens += output;
     if (isPricedEntry(e)) {
-      acc.costUsd += e.estimatedCostUsd as number;
+      acc.costUsd += e.estimatedCostUsd;
       acc.pricedCount += 1;
     } else {
       acc.hasNa = true;
@@ -121,8 +125,7 @@ export const perModelBreakdown = (entries: HistoryEntry[]): ModelRow[] => {
       modelLabel: modelLabelFor(acc.model),
       usageCount: acc.usageCount,
       // Guard divide-by-zero: empty set yields no rows, but keep it explicit.
-      usageSharePct:
-        totalUsage > 0 ? (acc.usageCount / totalUsage) * 100 : 0,
+      usageSharePct: totalUsage > 0 ? (acc.usageCount / totalUsage) * 100 : 0,
       totalTokens: acc.totalTokens,
       inputTokens: acc.inputTokens,
       outputTokens: acc.outputTokens,
@@ -144,7 +147,7 @@ export type TokenDayBar = { date: string; tokens: number };
 export const tokensPerDay = (
   entries: HistoryEntry[],
   range: AnalyticsRange,
-  now: Date
+  now: Date,
 ): TokenDayBar[] => {
   const perDay = new Map<string, number>();
   for (const e of entries) {

@@ -111,11 +111,11 @@ export const uiFeature = {
    * Registers a callback for the 'tray-open' event with view and initialTab.
    */
   onTrayOpen: (
-    callback: (args: { view: string; initialTab?: number }) => void
+    callback: (args: { view: string; initialTab?: number }) => void,
   ) => {
     const listener = (
       _event: Electron.IpcRendererEvent,
-      args: { view: string; initialTab?: number }
+      args: { view: string; initialTab?: number },
     ) => callback(args);
     ipcRenderer.on("tray-open", listener);
     return () => {
@@ -127,12 +127,12 @@ export const uiFeature = {
    * Registers a callback for opening a dashboard tab in the main window.
    */
   onOpenDashboardTab: (
-    callback: (tabId: DashboardTabId, subTabId?: ProviderId) => void
+    callback: (tabId: DashboardTabId, subTabId?: ProviderId) => void,
   ) => {
     const listener = (
       _event: Electron.IpcRendererEvent,
       tabId: DashboardTabId,
-      subTabId?: ProviderId
+      subTabId?: ProviderId,
     ) => callback(tabId, subTabId);
     ipcRenderer.on("open-dashboard-tab", listener);
     return () => {
@@ -158,7 +158,7 @@ export const uiFeature = {
    * Shows a native message box anchored to the calling window.
    */
   showMessageBox: (
-    options: Electron.MessageBoxOptions
+    options: Electron.MessageBoxOptions,
   ): Promise<Electron.MessageBoxReturnValue> => {
     return ipcRenderer.invoke("show-message-box", options);
   },
@@ -201,7 +201,7 @@ export const uiFeature = {
    * scheme (http/https only) before delegating to shell.openExternal.
    */
   openExternalLink: (
-    url: string
+    url: string,
   ): Promise<{ success: boolean; error?: string }> => {
     return ipcRenderer.invoke("open-external-link", url);
   },

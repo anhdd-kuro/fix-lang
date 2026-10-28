@@ -30,7 +30,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import {
   MAX_APP_BUNDLE_PATHS,
-  hasAppBundlePathShape,
+  looksLikeAppBundlePath,
   type AppBundleIdsResult,
 } from "~/features/guards/shared/appBundleIds";
 import { normalizeBundleId } from "~/features/guards/shared/guardSettings";
@@ -45,11 +45,11 @@ const PLIST_BUDDY_MAX_BUFFER = 64 * 1024;
 
 /**
  * Shape check plus the existence check main is the only process allowed to
- * make. Kept separate from `hasAppBundlePathShape` (shared, pure) so the
+ * make. Kept separate from `looksLikeAppBundlePath` (shared, pure) so the
  * renderer can pre-filter a drop without pretending to know the filesystem.
  */
-export const isExistingAppBundlePath = (value: unknown): value is string =>
-  hasAppBundlePathShape(value) && existsSync(value);
+export const isExistingAppBundlePath = (value: string): boolean =>
+  looksLikeAppBundlePath(value) && existsSync(value);
 
 /**
  * Reads one bundle's `CFBundleIdentifier`, returning `null` when the bundle
@@ -58,7 +58,9 @@ export const isExistingAppBundlePath = (value: unknown): value is string =>
  * it into one failure `Label` for the whole call, so the user is told nothing
  * was added rather than silently getting a shorter list than they dropped.
  */
-export const readAppBundleId = async (appPath: string): Promise<string | null> => {
+export const readAppBundleId = async (
+  appPath: string,
+): Promise<string | null> => {
   const plistPath = path.join(appPath, "Contents", "Info.plist");
   if (!existsSync(plistPath)) return null;
   try {
@@ -82,21 +84,27 @@ export const readAppBundleId = async (appPath: string): Promise<string | null> =
  * deny-list, whereas "nothing was added, here is why" is.
  */
 export const resolveAppBundleIds = async (
-  paths: unknown,
+  paths: readonly string[],
 ): Promise<AppBundleIdsResult> => {
   if (
     !Array.isArray(paths) ||
     paths.length > MAX_APP_BUNDLE_PATHS ||
     !paths.every(isExistingAppBundlePath)
   ) {
-    return { success: false, error: messageLabel("security.deniedApps.dropInvalid") };
+    return {
+      success: false,
+      error: messageLabel("security.deniedApps.dropInvalid"),
+    };
   }
 
   const bundleIds: string[] = [];
   for (const appPath of paths) {
     const bundleId = await readAppBundleId(appPath);
     if (bundleId === null) {
-      return { success: false, error: messageLabel("security.deniedApps.dropError") };
+      return {
+        success: false,
+        error: messageLabel("security.deniedApps.dropError"),
+      };
     }
     bundleIds.push(bundleId);
   }

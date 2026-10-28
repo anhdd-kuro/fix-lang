@@ -94,7 +94,7 @@ export function showPromptGenWindow(payload: PromptGenPayload) {
 
   win.setPosition(posX, posY, false);
   const html = path.join(__dirname, "../renderer/PromptGenWindow/index.html");
-  win.loadFile(html);
+  void win.loadFile(html);
   win.once("ready-to-show", () => {
     win.show();
 

@@ -1,7 +1,10 @@
 import { BrowserWindow, app, screen } from "electron";
 import { appearanceStore } from "~/features/appearance/store/appearanceStore";
 import { themeStore } from "~/features/theme/store/themeStore";
-import { buildComboProgressStyle, type ComboProgressView } from "./comboProgressView";
+import {
+  buildComboProgressStyle,
+  type ComboProgressView,
+} from "./comboProgressView";
 import { applyExternalNavigationGuard } from "./externalNavigationGuard";
 import spinnerOverlayHtml from "./overlay.html?asset";
 import { applyStandaloneTypography } from "./syncStandaloneTypography";
@@ -48,7 +51,11 @@ export const showOverlaySpinner = () => {
   spinnerTrackingInterval = setInterval(() => {
     if (!overlayWindow || !overlayWindow.isVisible()) return;
     const { x, y } = screen.getCursorScreenPoint();
-    overlayWindow.setPosition(x + OVERLAY_CURSOR_OFFSET, y + OVERLAY_CURSOR_OFFSET, false);
+    overlayWindow.setPosition(
+      x + OVERLAY_CURSOR_OFFSET,
+      y + OVERLAY_CURSOR_OFFSET,
+      false,
+    );
   }, 1000 / 60); // 60Hz polling
 };
 
@@ -91,7 +98,7 @@ export const createOverlayWindow = (): BrowserWindow => {
   applyExternalNavigationGuard(overlayWindow);
   // Enable click-through so overlay never blocks mouse events (production)
   overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-  overlayWindow.loadFile(spinnerOverlayHtml);
+  void overlayWindow.loadFile(spinnerOverlayHtml);
 
   overlayWindow.webContents.on("did-finish-load", () => {
     overlayReady = true;
@@ -110,7 +117,7 @@ export const createOverlayWindow = (): BrowserWindow => {
  * Ensures the overlay window is created when the app is ready (hidden by default).
  */
 export const initializeOverlayWindow = () => {
-  app.whenReady().then(() => {
+  void app.whenReady().then(() => {
     createOverlayWindow();
   });
   app.on("will-quit", () => {
@@ -179,7 +186,7 @@ export const updateComboProgress = (view: ComboProgressView): void => {
   const style = buildComboProgressStyle(view);
   overlayWindow.webContents
     .executeJavaScript(`window.__setComboProgress(${JSON.stringify(style)})`)
-    .catch((error: unknown) => {
-      console.debug("Dropped combo progress update:", error);
+    .catch((cause: unknown) => {
+      console.debug("Dropped combo progress update:", cause);
     });
 };

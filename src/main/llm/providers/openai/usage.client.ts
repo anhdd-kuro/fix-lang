@@ -12,9 +12,19 @@
  * network or need electron. All I/O is async with a 5s AbortController timeout,
  * mirroring the OpenRouter client.
  */
-import { describeKeyShape, findKeyShapeMismatch } from "~/features/providers/shared/providerKeyShapes";
+import {
+  describeKeyFamily,
+  findKeyFamilyMismatch,
+  KEY_FAMILY_LOG_FIELD,
+} from "~/features/providers/shared/providerKeyFamilies";
 import { getProvisioningKey } from "~/features/providers/store/provisioningKeyStore";
-import { usageRangeDays, usageRangeStartUnix, type UsageRange } from "~/features/usage/shared/usage";
+import {
+  usageRangeDays,
+  usageRangeStartUnix,
+  type UsageRange,
+} from "~/features/usage/shared/usage";
+import type { LogContext } from "~/features/logs/shared/logging";
+import { jsonField, type JsonValue } from "~/main/jsonValue";
 import { logger } from "~/main/logging/logService";
 import {
   nextAfterCursor,
@@ -28,6 +38,7 @@ import {
   type OpenAICompletionsUsage,
   type OpenAICosts,
   type OpenAIProjectCosts,
+  type OpenAIProjectNames,
 } from "./usage.parsers";
 
 /** Adds the `no_key` reason (admin key not configured) to the per-card result. */
@@ -45,7 +56,7 @@ export type OpenAIUsage = {
 type FetchLike = (
   url: string,
   init: { headers: Record<string, string>; signal: AbortSignal },
-) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
+) => Promise<{ ok: boolean; status: number; json: () => Promise<JsonValue> }>;
 
 type ClientDeps = {
   fetch?: FetchLike;
@@ -68,15 +79,15 @@ const logAdminRequest = (
   key: string,
   outcome: { ok: boolean; status?: number; reason?: string },
 ): void => {
-  const foreign = findKeyShapeMismatch("openai", "provisioning", key) !== null;
-  const context = {
+  const foreign = findKeyFamilyMismatch("openai", "provisioning", key) !== null;
+  const context: LogContext = {
     endpoint: path,
-    keyShape: describeKeyShape(key),
-    ...(outcome.status !== undefined ? { status: outcome.status } : {}),
-    ...(outcome.reason !== undefined ? { reason: outcome.reason } : {}),
-    // Only ever true for a key stored before the write-time shape guard existed.
-    ...(foreign ? { storedKeyBelongsToAnotherSlot: true } : {}),
+    [KEY_FAMILY_LOG_FIELD]: describeKeyFamily(key),
   };
+  if (outcome.status !== undefined) context.status = outcome.status;
+  if (outcome.reason !== undefined) context.reason = outcome.reason;
+  // Only ever true for a key stored before the write-time shape guard existed.
+  if (foreign) context.storedKeyBelongsToAnotherSlot = true;
 
   if (outcome.ok) {
     logger.debug(LOG_SCOPE, "OpenAI admin request succeeded", context);
@@ -109,13 +120,13 @@ export type OpenAIUsageClient = {
 
 /** One request's outcome, before any endpoint-specific parsing. */
 type FetchOutcome =
-  | { ok: true; json: unknown }
+  | { ok: true; json: JsonValue }
   | { ok: false; reason: "unauthorized" | "unavailable" };
 
 export const createOpenAIUsageClient = (
   deps: ClientDeps = {},
 ): OpenAIUsageClient => {
-  const doFetch = (deps.fetch ?? (globalThis.fetch as unknown)) as FetchLike;
+  const doFetch: FetchLike = deps.fetch ?? globalThis.fetch;
   const getKey = deps.getKey ?? (() => getProvisioningKey("openai"));
   const now = deps.now ?? (() => new Date());
 
@@ -138,7 +149,11 @@ export const createOpenAIUsageClient = (
       });
       if (!response.ok) {
         const reason = reasonForStatus(response.status);
-        logAdminRequest(path, key, { ok: false, status: response.status, reason });
+        logAdminRequest(path, key, {
+          ok: false,
+          status: response.status,
+          reason,
+        });
         return { ok: false, reason };
       }
       return { ok: true, json: await response.json() };
@@ -160,7 +175,7 @@ export const createOpenAIUsageClient = (
   const call = async <T>(
     path: string,
     range: UsageRange,
-    parse: (json: unknown) => CardResult<T>,
+    parse: (json: JsonValue) => CardResult<T>,
     groupBy?: string,
   ): Promise<ClientCardResult<T>> => {
     const key = await getKey();
@@ -182,7 +197,7 @@ export const createOpenAIUsageClient = (
     // ungrouped buckets, which both parsers already tolerate.
     if (groupBy !== undefined) params.append("group_by", groupBy);
 
-    const buckets: unknown[] = [];
+    const buckets: JsonValue[] = [];
     let page: string | null = null;
 
     for (let fetched = 0; fetched < MAX_PAGES; fetched += 1) {
@@ -199,16 +214,17 @@ export const createOpenAIUsageClient = (
         return parsedPage;
       }
 
-      const data = (json as { data?: unknown }).data;
+      const data = jsonField(json, "data");
       if (Array.isArray(data)) buckets.push(...data);
 
       page = nextPageCursor(json);
       if (page === null) {
         const result = parse({ object: "page", data: buckets });
-        logAdminRequest(path, key, {
-          ok: result.ok,
-          ...(result.ok ? {} : { reason: result.reason }),
-        });
+        logAdminRequest(
+          path,
+          key,
+          result.ok ? { ok: true } : { ok: false, reason: result.reason },
+        );
         return result;
       }
     }
@@ -233,11 +249,11 @@ export const createOpenAIUsageClient = (
    * gathered so far rather than a reason — an unresolved name only degrades a row
    * to its raw `proj_…` id, and must never sink the spend card itself.
    */
-  const getProjectNames = async (): Promise<Record<string, string>> => {
+  const getProjectNames = async (): Promise<OpenAIProjectNames> => {
     const key = await getKey();
     if (!key) return {};
 
-    let names: Record<string, string> = {};
+    let names: OpenAIProjectNames = {};
     let after: string | null = null;
 
     for (let fetched = 0; fetched < MAX_PAGES; fetched += 1) {

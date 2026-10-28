@@ -6,10 +6,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { app, BrowserWindow } from "electron";
+import { z } from "zod";
 import { isPromptGenEnabled } from "~/features/core/shared/features";
-import { guardStore } from "~/features/guards/store/guardStore";
 import { initializeLocaleFromSystem } from "~/features/i18n/store/localeStore";
-import * as clipboardChangeTracker from "~/main/clipboard/clipboardChangeTracker";
 import { showErrorNotification } from "~/main/notifications/error";
 import {
   isMacOSAccessibilityGranted,
@@ -36,7 +35,11 @@ import {
   registerUiHandlers,
   registerUpdateHandlers,
 } from "./ipc";
-import { registerHotkeys, reloadHotkeys, unregisterHotkeys } from "./keybindings";
+import {
+  registerHotkeys,
+  reloadHotkeys,
+  unregisterHotkeys,
+} from "./keybindings";
 import { startModelMonitoring } from "./llm/models/monitor";
 import { initializeUpdateService, type UpdateService } from "./update";
 import { shouldCheckForUpdatesOnLaunch } from "./update/installationPath";
@@ -57,25 +60,30 @@ const LOG_FILE = path.join(
 );
 const UPDATE_CHECK_DELAY_MS = 1_500;
 
-const serializeLogArg = (arg: unknown): string => {
-  if (arg instanceof Error) {
-    return `${arg.name}: ${arg.message}\n${arg.stack || ""}`;
-  }
-  if (typeof arg === "string") return arg;
-  try {
-    return JSON.stringify(arg);
-  } catch {
-    return String(arg);
-  }
-};
+const LogTextArgSchema = z.string();
+
+/** One console call's arguments, each rendered the way it reads best in a file. */
+const serializeLogArgs = (args: readonly unknown[]): string =>
+  args
+    .map((arg) => {
+      if (arg instanceof Error) {
+        return `${arg.name}: ${arg.message}\n${arg.stack || ""}`;
+      }
+      const text = LogTextArgSchema.safeParse(arg);
+      if (text.success) return text.data;
+      try {
+        return JSON.stringify(arg);
+      } catch {
+        return String(arg);
+      }
+    })
+    .join(" ");
 
 const appendRuntimeLog = (level: string, ...args: unknown[]): void => {
   try {
     fs.mkdirSync(LOG_DIR, { recursive: true });
     const timestamp = new Date().toISOString();
-    const line = `[${timestamp}] [${level}] ${args
-      .map((arg) => serializeLogArg(arg))
-      .join(" ")}\n`;
+    const line = `[${timestamp}] [${level}] ${serializeLogArgs(args)}\n`;
     fs.appendFileSync(LOG_FILE, line);
   } catch {
     // no-op
@@ -142,7 +150,7 @@ const registerIpcHandlers = (): UpdateService => {
   // Register centralized history handler first (dependency for feature handlers)
   setupHistoryManagerHandlers();
 
-  // Selection guards (stale-clipboard age, size cap, app deny-list) — before
+  // Selection guards (size cap, app deny-list) — before
   // correction so its hotkey handler can read guardStore from the first press.
   registerSelectionGuardHandlers();
 
@@ -194,7 +202,7 @@ function initializeApp() {
   // This method will be called when Electron has finished
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
-  app.whenReady().then(() => {
+  void app.whenReady().then(() => {
     // Register all IPC handlers
     const updateService = registerIpcHandlers();
 
@@ -227,14 +235,9 @@ function initializeApp() {
         // run immediately, same as before.
         void promptAccessibilityPermission();
       }
-      app.dock?.show();
+      void app.dock?.show();
       setupTray();
     }
-
-    // Starts (or leaves off) the 1 Hz stale-clipboard poll to match whatever
-    // was persisted from a previous launch — `guardStore`'s own writes keep
-    // this in sync afterward, this call only covers app start.
-    clipboardChangeTracker.applySettings(guardStore.getSelectionGuardSettings());
 
     registerHotkeys(mainWindow); // Register global shortcuts, passing the window
   });
@@ -272,7 +275,6 @@ function initializeApp() {
   app.on("will-quit", () => {
     // Unregister all shortcuts on quit to be safe
     unregisterHotkeys();
-    clipboardChangeTracker.stop();
   });
 }
 

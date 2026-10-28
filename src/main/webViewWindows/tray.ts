@@ -42,10 +42,10 @@ export function createTrayWindow(): BrowserWindow {
 
   const trayWindowHtml = path.join(
     __dirname,
-    "../renderer/TrayWindow/index.html"
+    "../renderer/TrayWindow/index.html",
   );
   // Load standalone HTML for tray tray
-  trayWindow.loadFile(trayWindowHtml);
+  void trayWindow.loadFile(trayWindowHtml);
   attachThemeSync(trayWindow);
   applyExternalNavigationGuard(trayWindow);
   trayWindow.on("blur", hideTrayWindow);
@@ -87,7 +87,7 @@ export function hideTrayWindow(): void {
  * Initializes the tray window on app ready and sets up IPC handlers.
  */
 export function initializeTrayWindow(): void {
-  app.whenReady().then(() => {
+  void app.whenReady().then(() => {
     createTrayWindow();
     ipcMain.on("hide-tray", () => {
       hideTrayWindow();

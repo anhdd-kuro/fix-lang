@@ -27,6 +27,7 @@ vi.mock("./attachThemeSync", () => ({
 let nextWindowId = 1;
 
 class BrowserWindowMock {
+  // oxlint-disable-next-line no-useless-assignment -- false positive: the post-increment is read by the next constructed mock
   id = nextWindowId++;
   setTitle = vi.fn();
   setVisibleOnAllWorkspaces = vi.fn();
@@ -93,12 +94,15 @@ const loadModule = async () => {
   return import("./askResultWindow");
 };
 
+/** The one field of `IpcMainEvent` the handlers read. */
+type IpcEventFake = { sender: BrowserWindowMock["webContents"] };
+
 const getIpcHandler = (channel: string) => {
   const call = electronMocks.ipcMainOn.mock.calls.find(
     ([name]) => name === channel,
   );
   if (!call) throw new Error(`no ipcMain.on handler for "${channel}"`);
-  return call[1] as (event: unknown) => void;
+  return call[1] as (event: IpcEventFake) => void;
 };
 
 /** Simulates the renderer inside `win` announcing readiness. */
@@ -250,12 +254,15 @@ describe("askResultWindow", () => {
   });
 
   it("retitles every open window to the freshly-built locale title, skipping destroyed ones", async () => {
-    const { showAskResultWindow, syncAskResultWindowLocale } = await loadModule();
+    const { showAskResultWindow, syncAskResultWindowLocale } =
+      await loadModule();
     showAskResultWindow(PAYLOAD_A as never);
     showAskResultWindow(PAYLOAD_B as never);
     const [winA, winB] = createdWindows;
     winB.isDestroyed.mockReturnValue(true);
-    windowTitlesMocks.buildAskResultWindowTitle.mockReturnValue("AIへの質問の結果");
+    windowTitlesMocks.buildAskResultWindowTitle.mockReturnValue(
+      "AIへの質問の結果",
+    );
 
     syncAskResultWindowLocale();
 

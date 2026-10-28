@@ -34,10 +34,16 @@ describe("usage range", () => {
     const morning = new Date("2026-07-28T06:00:00.000Z");
     const evening = new Date("2026-07-28T23:59:59.000Z");
 
-    expect(usageRangeStartUnix("7d", morning)).toBe(usageRangeStartUnix("7d", evening));
+    expect(usageRangeStartUnix("7d", morning)).toBe(
+      usageRangeStartUnix("7d", evening),
+    );
     // Inclusive window: 7 days ending today means it starts 6 days back.
-    expect(usageRangeStartUnix("7d", morning)).toBe(Date.UTC(2026, 6, 22) / 1000);
-    expect(usageRangeStartUnix("30d", morning)).toBe(Date.UTC(2026, 5, 29) / 1000);
+    expect(usageRangeStartUnix("7d", morning)).toBe(
+      Date.UTC(2026, 6, 22) / 1000,
+    );
+    expect(usageRangeStartUnix("30d", morning)).toBe(
+      Date.UTC(2026, 5, 29) / 1000,
+    );
   });
 
   it("keys a date by its UTC day", () => {

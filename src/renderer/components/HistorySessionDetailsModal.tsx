@@ -1,9 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
 import { Button } from "./Button";
-import {
-  ChatTranscript,
-  type ChatTranscriptMetaItem,
-} from "./ChatTranscript";
+import { ChatTranscript, type ChatTranscriptMetaItem } from "./ChatTranscript";
 import CopyButton from "./CopyButton";
 import {
   displayHistoryMessageContent,
@@ -24,22 +21,22 @@ type HistorySessionDetailsModalProps = {
   onClose: () => void;
 };
 
-const ROLE_LABEL_KEYS: Record<string, TKey> = {
-  assistant: "history.details.role.assistant",
-  reasoning: "history.details.role.reasoning",
-  system: "history.details.role.system",
-  tool: "history.details.role.tool",
-  user: "history.details.role.user",
-};
+const ROLE_LABEL_KEYS = new Map<string, TKey>([
+  ["assistant", "history.details.role.assistant"],
+  ["reasoning", "history.details.role.reasoning"],
+  ["system", "history.details.role.system"],
+  ["tool", "history.details.role.tool"],
+  ["user", "history.details.role.user"],
+]);
 
 export const HistorySessionDetailsModal: React.FC<
   HistorySessionDetailsModalProps
 > = ({ isOpen, sessionJson, onClose }) => {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<HistorySessionDetailsTab>("json");
-  const tabRefs = useRef<Partial<Record<HistorySessionDetailsTab, HTMLButtonElement>>>(
-    {},
-  );
+  const tabRefs = useRef<
+    Partial<Record<HistorySessionDetailsTab, HTMLButtonElement>>
+  >({});
   const closeModal = useCallback(() => {
     setActiveTab("json");
     onClose();
@@ -94,13 +91,13 @@ export const HistorySessionDetailsModal: React.FC<
       (tab) => tab.id === activeTab,
     );
     const lastIndex = HISTORY_SESSION_DETAILS_TABS.length - 1;
-    const indexByKey: Partial<Record<string, number>> = {
-      ArrowLeft: currentIndex === 0 ? lastIndex : currentIndex - 1,
-      ArrowRight: currentIndex === lastIndex ? 0 : currentIndex + 1,
-      End: lastIndex,
-      Home: 0,
-    };
-    const nextIndex = indexByKey[event.key];
+    const indexByKey = new Map<string, number>([
+      ["ArrowLeft", currentIndex === 0 ? lastIndex : currentIndex - 1],
+      ["ArrowRight", currentIndex === lastIndex ? 0 : currentIndex + 1],
+      ["End", lastIndex],
+      ["Home", 0],
+    ]);
+    const nextIndex = indexByKey.get(event.key);
     if (nextIndex === undefined) return;
 
     event.preventDefault();
@@ -127,7 +124,7 @@ export const HistorySessionDetailsModal: React.FC<
             />
           ) : null}
         </div>
-        <nav
+        <div
           className="mb-3 flex gap-1"
           role="tablist"
           aria-label={t("history.details.tabsAriaLabel")}
@@ -155,7 +152,7 @@ export const HistorySessionDetailsModal: React.FC<
               </Button>
             );
           })}
-        </nav>
+        </div>
         <div
           className="min-h-0 flex-1 overflow-auto rounded-md bg-secondary p-3"
           role="tabpanel"
@@ -165,7 +162,7 @@ export const HistorySessionDetailsModal: React.FC<
         >
           {activeTab === "json" ? (
             <pre
-              className="text-xs text-foreground whitespace-pre-wrap break-words"
+              className="text-xs text-foreground whitespace-pre-wrap wrap-break-word"
               aria-label={t("history.details.ariaLabel")}
             >
               {pretty}
@@ -174,13 +171,14 @@ export const HistorySessionDetailsModal: React.FC<
             <ChatTranscript
               ariaLabel={t("history.details.chatAriaLabel")}
               meta={chatMeta ? metaItems : undefined}
-              messages={chatMessages.map((message) => ({
-                role: message.role,
-                label: ROLE_LABEL_KEYS[message.role]
-                  ? t(ROLE_LABEL_KEYS[message.role])
-                  : message.role,
-                content: displayHistoryMessageContent(message.content),
-              }))}
+              messages={chatMessages.map((message) => {
+                const roleLabelKey = ROLE_LABEL_KEYS.get(message.role);
+                return {
+                  role: message.role,
+                  label: roleLabelKey ? t(roleLabelKey) : message.role,
+                  content: displayHistoryMessageContent(message),
+                };
+              })}
             />
           ) : (
             <p className="text-sm text-muted-foreground">

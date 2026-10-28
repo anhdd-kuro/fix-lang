@@ -18,7 +18,12 @@
  * file — see `docs/plan.i18n.md` "Adding a third language later".
  */
 
-import { DEFAULT_LOCALE, LOCALE_CODES, LOCALE_META, type Locale } from "./registry";
+import {
+  DEFAULT_LOCALE,
+  LOCALE_CODES,
+  LOCALE_META,
+  type Locale,
+} from "./registry";
 
 /** A parsed namespace catalog: dotted key → translated string. */
 export type Catalog = Record<string, string>;
@@ -72,16 +77,19 @@ const placeholdersOf = (value: string): string[] =>
 // why: plain ASCII ordering, not `localeCompare` — the latter is locale-aware
 // and can disagree with a simple byte-order sort for the dotted/camelCase
 // keys used here (matches the convention in the per-namespace parity tests).
-const asciiCompare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+const asciiCompare = (a: string, b: string): number =>
+  a < b ? -1 : a > b ? 1 : 0;
 
 /**
  * The CLDR plural categories a locale's `Intl.PluralRules` can select,
  * driven entirely by its registered `intlTag` — never a hardcoded list.
  */
-export const pluralCategoriesForLocale = (locale: Locale): ReadonlySet<CldrPluralCategory> =>
+export const pluralCategoriesForLocale = (
+  locale: Locale,
+): ReadonlySet<CldrPluralCategory> =>
   new Set(
     new Intl.PluralRules(LOCALE_META[locale].intlTag).resolvedOptions()
-      .pluralCategories as CldrPluralCategory[],
+      .pluralCategories,
   );
 
 const pluralSuffixOf = (key: string): CldrPluralCategory | undefined =>
@@ -90,12 +98,14 @@ const pluralSuffixOf = (key: string): CldrPluralCategory | undefined =>
 /**
  * Parses a namespace file's raw text into a `Catalog`.
  *
- * why: the catalog files are flat dotted-key → string maps by construction
- * (enforced by the per-namespace parity tests and `checkNoEmptyOr...` below);
- * asserting that known shape here keeps every pure check in this module
- * working with `Catalog` instead of threading `unknown` through all of them.
+ * Asserted rather than validated so a malformed file still reaches the
+ * checks below and is REPORTED as a violation instead of crashing the run.
  */
-export const parseCatalog = (rawText: string): Catalog => JSON.parse(rawText) as Catalog;
+export const parseCatalog = (rawText: string): Catalog =>
+  // SAFETY: these are the same namespace files `locales/index.ts` imports,
+  // where `CATALOGS satisfies Record<Locale, Partial<Record<TranslationKey,
+  // string>>>` type-checks every value as a string under a flat dotted key.
+  JSON.parse(rawText) as Catalog;
 
 /**
  * Key parity: every key in `source` must exist in `target`, **except** a
@@ -164,7 +174,9 @@ export const checkPlaceholderParity = (
     }
     const sourcePlaceholders = placeholdersOf(sourceValue);
     const targetPlaceholders = placeholdersOf(targetValue);
-    if (JSON.stringify(sourcePlaceholders) !== JSON.stringify(targetPlaceholders)) {
+    if (
+      JSON.stringify(sourcePlaceholders) !== JSON.stringify(targetPlaceholders)
+    ) {
       violations.push({
         rule: "placeholder-parity",
         namespace,
@@ -278,7 +290,14 @@ export const checkPluralFamilyResolution = (
     for (const locale of locales) {
       const localeCatalog = catalogsByLocale[locale] ?? {};
       for (const category of pluralCategoriesForLocale(locale)) {
-        if (!resolvesPluralCategory(base, category, localeCatalog, fallbackCatalog)) {
+        if (
+          !resolvesPluralCategory(
+            base,
+            category,
+            localeCatalog,
+            fallbackCatalog,
+          )
+        ) {
           violations.push({
             rule: "plural-family-unresolved",
             namespace,
@@ -307,7 +326,9 @@ export const checkPluralSuffixHygiene = (
 ): IntegrityViolation[] => {
   const keys = Object.keys(catalog);
   const familyBases = new Set(
-    keys.filter((key) => key.endsWith("_other")).map((key) => key.slice(0, -"_other".length)),
+    keys
+      .filter((key) => key.endsWith("_other"))
+      .map((key) => key.slice(0, -"_other".length)),
   );
   const violations: IntegrityViolation[] = [];
 
@@ -316,7 +337,7 @@ export const checkPluralSuffixHygiene = (
     if (suffix === undefined) {
       continue;
     }
-    const base = key.slice(0, -(`_${suffix}`.length));
+    const base = key.slice(0, -`_${suffix}`.length);
     if (!familyBases.has(base)) {
       violations.push({
         rule: "plural-suffix-hygiene",
@@ -532,12 +553,12 @@ export const VERBATIM_ALLOWED_WORDS: ReadonlySet<string> = new Set([
  * into {@link VERBATIM_ALLOWED_WORDS} so "legitimate" and "owed a fix" stay
  * distinct. Remove an entry once its value is actually translated.
  */
-export const KNOWN_PREEXISTING_VERBATIM_GAPS: ReadonlySet<string> = new Set([
-]);
+export const KNOWN_PREEXISTING_VERBATIM_GAPS: ReadonlySet<string> = new Set([]);
 
 const WORD_TOKEN_PATTERN = /[A-Za-z]+/g;
 
-const withoutPlaceholders = (value: string): string => value.replace(PLACEHOLDER_PATTERN, "");
+const withoutPlaceholders = (value: string): string =>
+  value.replace(PLACEHOLDER_PATTERN, "");
 
 /**
  * A value with no Latin letters at all (pure symbols, digits, or interpolation
@@ -650,7 +671,9 @@ export const checkCatalogIntegrity = (
 
       violations.push(...checkNoDuplicateKeysInFile(raw, namespace, locale));
       violations.push(...checkKeysSorted(raw, namespace, locale));
-      violations.push(...checkNoEmptyOrSelfReferentialValues(catalog, locale, namespace));
+      violations.push(
+        ...checkNoEmptyOrSelfReferentialValues(catalog, locale, namespace),
+      );
       violations.push(...checkPluralSiblings(catalog, locale, namespace));
       violations.push(...checkPluralSuffixHygiene(catalog, namespace));
     }
@@ -667,8 +690,12 @@ export const checkCatalogIntegrity = (
         }
         violations.push(...checkKeyParity(source, target, locale, namespace));
         violations.push(...checkOrphanKeys(source, target, locale, namespace));
-        violations.push(...checkPlaceholderParity(source, target, locale, namespace));
-        violations.push(...checkNoVerbatimSourceValues(source, target, locale, namespace));
+        violations.push(
+          ...checkPlaceholderParity(source, target, locale, namespace),
+        );
+        violations.push(
+          ...checkNoVerbatimSourceValues(source, target, locale, namespace),
+        );
       }
       violations.push(
         ...checkPluralFamilyResolution(
@@ -679,12 +706,16 @@ export const checkCatalogIntegrity = (
           namespace,
         ),
       );
-      violations.push(...checkSourceLocalePluralCompleteness(source, sourceLocale, namespace));
+      violations.push(
+        ...checkSourceLocalePluralCompleteness(source, sourceLocale, namespace),
+      );
     }
   }
 
   for (const locale of locales) {
-    violations.push(...checkGlobalUniqueness(namespaceCatalogsByLocale[locale] ?? [], locale));
+    violations.push(
+      ...checkGlobalUniqueness(namespaceCatalogsByLocale[locale] ?? [], locale),
+    );
   }
 
   return violations;

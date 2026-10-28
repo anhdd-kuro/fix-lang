@@ -2,7 +2,10 @@
 // reword cannot silently pass.
 import { describe, expect, it } from "vitest";
 import { createTranslator } from "~/features/i18n/shared/translate";
-import { PROVIDER_ORDER, type Model } from "~/features/providers/shared/providers";
+import {
+  PROVIDER_ORDER,
+  type Model,
+} from "~/features/providers/shared/providers";
 import {
   buildModelOptionGroups,
   EMPTY_GROUP_OPTION_PREFIX,
@@ -25,7 +28,11 @@ const tJa = createTranslator("ja");
 const formatCurrency = (value: number): string => `$${value.toFixed(2)}`;
 const deps = { t, formatCurrency };
 
-const cloud = (id: string, provider: Model["provider"], prompt = "0.0000012"): Model => ({
+const cloud = (
+  id: string,
+  provider: Model["provider"],
+  prompt = "0.0000012",
+): Model => ({
   id,
   name: id,
   created: 1_700_000_000,
@@ -42,13 +49,17 @@ const cloud = (id: string, provider: Model["provider"], prompt = "0.0000012"): M
   },
 });
 
-const local = (id: string, size?: number): Model => ({
-  id,
-  name: id,
-  created: 1_700_000_000_000,
-  provider: "ollama",
-  local: { path: `/models/${id}`, ...(size === undefined ? {} : { size }) },
-});
+const local = (id: string, size?: number): Model => {
+  const localInfo: NonNullable<Model["local"]> = { path: `/models/${id}` };
+  if (size !== undefined) localInfo.size = size;
+  return {
+    id,
+    name: id,
+    created: 1_700_000_000_000,
+    provider: "ollama",
+    local: localInfo,
+  };
+};
 
 const MODELS: Model[] = [
   cloud("gpt-5-mini", "openai"),
@@ -108,7 +119,9 @@ describe("buildModelOptionGroups — grouping, ordering and the value/label cont
       "anthropic/claude-opus-4.5",
       "llama3.2:3b",
     ]);
-    expect(modelOptions.every((option) => option.label === option.modelId)).toBe(true);
+    expect(
+      modelOptions.every((option) => option.label === option.modelId),
+    ).toBe(true);
   });
 
   it("refers each row to ITS OWN group's provider when a model is served by two", () => {
@@ -116,7 +129,9 @@ describe("buildModelOptionGroups — grouping, ordering and the value/label cont
     // PROVIDER_ORDER) would label the openrouter row "openai::…".
     const shared: Model = { id: "shared-1", name: "shared-1", created: 1 };
     const groups = build([shared]);
-    const openrouterGroup = groups.find((group) => group.provider === "openrouter");
+    const openrouterGroup = groups.find(
+      (group) => group.provider === "openrouter",
+    );
     expect(openrouterGroup?.options[0]?.value).toBe("openrouter::shared-1");
   });
 
@@ -178,9 +193,13 @@ describe("an empty but connected provider keeps its heading", () => {
     expect(ollama).toBeDefined();
     expect(ollama?.options).toHaveLength(1);
     expect(ollama?.options[0]?.isDisabled).toBe(true);
-    expect(ollama?.options[0]?.value).toBe(`${EMPTY_GROUP_OPTION_PREFIX}ollama`);
+    expect(ollama?.options[0]?.value).toBe(
+      `${EMPTY_GROUP_OPTION_PREFIX}ollama`,
+    );
     expect(modelOptionText(ollama?.options[0] ?? never(), t)).toBe(
-      t("models.select.group.empty", { provider: t("models.select.provider.ollama") }),
+      t("models.select.group.empty", {
+        provider: t("models.select.provider.ollama"),
+      }),
     );
   });
 });
@@ -244,7 +263,7 @@ describe("withUnavailableOption — surfaces a stored ref that no longer resolve
   });
 });
 
-describe("withInheritOption — adds a selectable \"\" row naming the resolved default", () => {
+describe('withInheritOption — adds a selectable "" row naming the resolved default', () => {
   it('emits an explicit `value: ""` option that findOption("") returns', () => {
     const groups = withInheritOption(build(), "openai::gpt-5-mini");
     const inherit = findOption(groups, "");
@@ -253,7 +272,9 @@ describe("withInheritOption — adds a selectable \"\" row naming the resolved d
     expect(inherit?.value).toBe("");
     expect(inherit?.kind).toBe("inherit");
     expect(inherit?.isDisabled).toBe(false);
-    expect(modelOptionText(inherit ?? never(), t)).toBe(t("models.select.option.inherit"));
+    expect(modelOptionText(inherit ?? never(), t)).toBe(
+      t("models.select.option.inherit"),
+    );
   });
 
   it("names the model the default currently resolves to", () => {
@@ -263,7 +284,9 @@ describe("withInheritOption — adds a selectable \"\" row naming the resolved d
 
   it("leaves the detail blank when the default is itself unset or unresolvable", () => {
     expect(findOption(withInheritOption(build(), ""), "")?.detail).toBe("");
-    expect(findOption(withInheritOption(build(), "openai::ghost"), "")?.detail).toBe("");
+    expect(
+      findOption(withInheritOption(build(), "openai::ghost"), "")?.detail,
+    ).toBe("");
   });
 
   it('without it, findOption("") finds nothing — the blank-control failure mode', () => {
@@ -313,7 +336,9 @@ describe("formatModelDetail", () => {
   });
 
   it("falls back to the generic local badge when the size is unknown", () => {
-    expect(formatModelDetail(local("llama3.2:3b"), deps)).toBe(t("models.select.localLlm"));
+    expect(formatModelDetail(local("llama3.2:3b"), deps)).toBe(
+      t("models.select.localLlm"),
+    );
   });
 
   it("claims no price for a cloud model that reports none", () => {
@@ -331,8 +356,12 @@ describe("formatModelDetail", () => {
 describe("the empty-group placeholder stays out of the search haystack", () => {
   it("does not match a readable word from its own sentinel", () => {
     const groups = build([cloud("gpt-5-mini", "openai")]);
-    const placeholder = groups.find((group) => group.provider === "ollama")?.options[0];
-    const searchable = { value: placeholder?.value ?? "", label: placeholder?.label ?? "" };
+    const placeholder = groups.find((group) => group.provider === "ollama")
+      ?.options[0];
+    const searchable = {
+      value: placeholder?.value ?? "",
+      label: placeholder?.label ?? "",
+    };
 
     // Kills: a readable prefix like "__fixlang-empty__".
     expect(matchesSearch(searchable, "empty")).toBe(false);
@@ -380,15 +409,15 @@ describe("selectedModelOptionText — the closed control names the provider", ()
   });
 
   it("shows the composite ref's provider, never the raw composite ref itself", () => {
-    expect(selectedModelOptionText(optionFor("openai::gpt-5-mini"), t)).not.toContain(
-      "openai::",
-    );
+    expect(
+      selectedModelOptionText(optionFor("openai::gpt-5-mini"), t),
+    ).not.toContain("openai::");
   });
 
   it("uses each provider's own label", () => {
-    expect(selectedModelOptionText(optionFor("openrouter::google/gemma-2-9b-it"), t)).toBe(
-      "OpenRouter · google/gemma-2-9b-it",
-    );
+    expect(
+      selectedModelOptionText(optionFor("openrouter::google/gemma-2-9b-it"), t),
+    ).toBe("OpenRouter · google/gemma-2-9b-it");
     expect(selectedModelOptionText(optionFor("ollama::llama3.2:3b"), t)).toBe(
       "Ollama · llama3.2:3b",
     );
@@ -402,26 +431,39 @@ describe("selectedModelOptionText — the closed control names the provider", ()
       .filter((option) => option.kind === "model")) {
       expect(modelOptionText(option, t)).toBe(option.modelId);
       for (const provider of PROVIDER_ORDER) {
-        expect(modelOptionText(option, t)).not.toContain(t(PROVIDER_LABEL_KEYS[provider]));
+        expect(modelOptionText(option, t)).not.toContain(
+          t(PROVIDER_LABEL_KEYS[provider]),
+        );
       }
     }
   });
 
   it("leaves inherit, unavailable and empty rows verbatim", () => {
-    const inherit = findOption(withInheritOption(build(PICKABLE), ""), "") ?? never();
-    expect(selectedModelOptionText(inherit, t)).toBe(t("models.select.option.inherit"));
+    const inherit =
+      findOption(withInheritOption(build(PICKABLE), ""), "") ?? never();
+    expect(selectedModelOptionText(inherit, t)).toBe(
+      t("models.select.option.inherit"),
+    );
 
-    const unavailableGroups = withUnavailableOption(build(PICKABLE), "openai::ghost", t);
-    const unavailable = findOption(unavailableGroups, "openai::ghost") ?? never();
+    const unavailableGroups = withUnavailableOption(
+      build(PICKABLE),
+      "openai::ghost",
+      t,
+    );
+    const unavailable =
+      findOption(unavailableGroups, "openai::ghost") ?? never();
     expect(selectedModelOptionText(unavailable, t)).toBe(
       t("models.select.option.unavailable", { model: "ghost" }),
     );
 
     const emptyRow =
-      build([cloud("gpt-5-mini", "openai")]).find((group) => group.provider === "ollama")
-        ?.options[0] ?? never();
+      build([cloud("gpt-5-mini", "openai")]).find(
+        (group) => group.provider === "ollama",
+      )?.options[0] ?? never();
     expect(selectedModelOptionText(emptyRow, t)).toBe(
-      t("models.select.group.empty", { provider: t(PROVIDER_LABEL_KEYS.ollama) }),
+      t("models.select.group.empty", {
+        provider: t(PROVIDER_LABEL_KEYS.ollama),
+      }),
     );
   });
 
@@ -465,9 +507,9 @@ describe("resolveModelSelectCopy — the default the other four call sites get",
   });
 
   it("defaults to the feature description for a feature picker", () => {
-    expect(resolveModelSelectCopy({ useFeatureModel: true }).descriptionKey).toBe(
-      "models.select.description.feature",
-    );
+    expect(
+      resolveModelSelectCopy({ useFeatureModel: true }).descriptionKey,
+    ).toBe("models.select.description.feature");
   });
 
   it("honours an explicit override (what Settings → General passes)", () => {
@@ -491,9 +533,7 @@ function never(): never {
 function indexByProvider(
   groups: readonly ModelOptionGroup[],
 ): Partial<Record<string, ModelOptionGroup>> {
-  const indexed: Partial<Record<string, ModelOptionGroup>> = {};
-  for (const group of groups) {
-    indexed[group.provider ?? "none"] = group;
-  }
-  return indexed;
+  return Object.fromEntries(
+    groups.map((group) => [group.provider ?? "none", group]),
+  );
 }

@@ -29,6 +29,8 @@ const logServiceMocks = vi.hoisted(() => ({
   enablePersistence: vi.fn(),
   formatAll: vi.fn(async () => ""),
   subscribe: vi.fn(),
+  getRecent: vi.fn(),
+  query: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
@@ -51,10 +53,25 @@ vi.mock("~/main/logging/logService", () => ({
 const tEn = createTranslator("en");
 const tJa = createTranslator("ja");
 
-type Handler = (event: unknown, raw?: unknown) => unknown;
+/** A structured-clone value as it reaches a handler, before the handler parses it. */
+type IpcArg =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | readonly IpcArg[]
+  | IpcArgRecord;
+
+type IpcArgRecord = { readonly [key: string]: IpcArg };
+
+/** Replies are never inspected here; what reaches `logService` is. */
+type Handler = (event: undefined, payload?: IpcArg) => Promise<void>;
 
 const getHandler = (channel: string): Handler => {
-  const call = electronMocks.handle.mock.calls.find(([name]) => name === channel);
+  const call = electronMocks.handle.mock.calls.find(
+    ([name]) => name === channel,
+  );
   if (!call) {
     throw new Error(`no handler registered for channel "${channel}"`);
   }
@@ -100,5 +117,55 @@ describe("logs:export dialog copy", () => {
         filters: [{ name: tJa("logs.export.filterName"), extensions: ["txt"] }],
       }),
     );
+  });
+});
+
+describe("logs IPC payload normalization", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    registerLogHandlers();
+  });
+
+  it.each([
+    [undefined, 500],
+    [Number.NaN, 500],
+    [Infinity, 500],
+    ["5", 500],
+    [-3, 0],
+    [12.9, 12],
+    [9999, 500],
+  ])("logs:get-recent clamps limit %j to %j", async (limit, expected) => {
+    await getHandler("logs:get-recent")(undefined, limit);
+    expect(logServiceMocks.getRecent).toHaveBeenCalledWith(expected);
+  });
+
+  it.each([
+    [null, { limit: 100 }],
+    ["query", { limit: 100 }],
+    [["levels"], { limit: 100 }],
+    [{}, { limit: 100 }],
+    [{ limit: Number.NaN, search: 4 }, { limit: 100 }],
+    [{ limit: 0, beforeTimestamp: "" }, { limit: 1 }],
+    [
+      {
+        search: "",
+        levels: ["error", "trace", "debug"],
+        beforeTimestamp: "t",
+        limit: 900.5,
+        extra: true,
+      },
+      {
+        limit: 500,
+        beforeTimestamp: "t",
+        levels: ["debug", "error"],
+        search: "",
+      },
+    ],
+    [{ levels: ["debug", "info", "warn", "error"] }, { limit: 100 }],
+  ])("logs:query normalizes %j", async (payload, expected) => {
+    await getHandler("logs:query")(undefined, payload);
+    const [request] = logServiceMocks.query.mock.calls[0];
+    expect(request).toEqual(expected);
+    expect(Object.keys(request)).toEqual(Object.keys(expected));
   });
 });

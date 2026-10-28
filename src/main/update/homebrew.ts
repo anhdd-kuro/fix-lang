@@ -2,6 +2,8 @@ import { execFile, spawn } from "node:child_process";
 import { closeSync, mkdirSync, openSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
+import { z } from "zod";
+import { isJsonObject, type JsonValue } from "~/main/jsonValue";
 
 const execFileAsync = promisify(execFile);
 
@@ -137,32 +139,33 @@ export const caskVersionPath = (
     : null;
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const CaskVersionSchema = z.string();
 
+/** Cask version from `brew info --json=v2`, or null for unusable output. */
 export const parseCaskVersion = (
   stdout: string,
   caskToken: string = STABLE_CASK_TOKEN,
 ): string | null => {
   if (!isCaskToken(caskToken)) return null;
 
-  let parsed: unknown;
+  let parsed: JsonValue;
   try {
     parsed = JSON.parse(stdout);
   } catch {
     return null;
   }
-  if (!isRecord(parsed) || !Array.isArray(parsed.casks)) {
+  if (!isJsonObject(parsed) || !Array.isArray(parsed.casks)) {
     return null;
   }
 
   const cask = parsed.casks.find(
-    (entry) => isRecord(entry) && entry.token === caskToken,
+    (entry) => isJsonObject(entry) && entry.token === caskToken,
   );
-  if (!isRecord(cask) || typeof cask.version !== "string") {
+  if (!isJsonObject(cask)) {
     return null;
   }
-  return cask.version;
+  const version = CaskVersionSchema.safeParse(cask.version);
+  return version.success ? version.data : null;
 };
 
 export type ActiveCaskChannel = "stable" | "beta" | "both";
@@ -199,7 +202,8 @@ export const downloadsCacheDir = (
   env: NodeJS.ProcessEnv = process.env,
 ): string =>
   path.join(
-    env.HOMEBREW_CACHE ?? path.join(env.HOME ?? "", "Library", "Caches", "Homebrew"),
+    env.HOMEBREW_CACHE ??
+      path.join(env.HOME ?? "", "Library", "Caches", "Homebrew"),
     "downloads",
   );
 

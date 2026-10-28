@@ -32,13 +32,6 @@ import { UsagePanelSkeleton } from "../Skeleton";
 import type { TranslationKey } from "~/features/i18n/shared/keys";
 import type { Translator } from "~/features/i18n/shared/translate";
 import type { OpenRouterRange } from "~/features/usage/preload/openrouter";
-import type {
-  Activity,
-  CardResult,
-  Credits,
-  EnabledKeys,
-  KeyUsage,
-} from "~/main/llm/providers/openrouter/parsers";
 
 type OpenRouterUsagePanelProps = {
   /** Opens the Settings modal (General tab) for the empty-state affordance. */
@@ -50,7 +43,7 @@ const RANGES: { id: OpenRouterRange; labelKey: TranslationKey }[] = [
   { id: "30d", labelKey: "models.openrouter.range.30d" },
 ];
 
-type Card = { ok: false; reason: string } | { ok: true };
+type Card = { ok: false; reason: OpenRouterDegradedReason } | { ok: true };
 
 const Card = ({
   title,
@@ -71,16 +64,15 @@ const Card = ({
       children
     ) : (
       <div className="text-sm text-muted-foreground">
-        {openRouterDegradedMessage(
-          (result as { reason: OpenRouterDegradedReason }).reason,
-          t,
-        )}
+        {openRouterDegradedMessage(result.reason, t)}
       </div>
     )}
   </div>
 );
 
-export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelProps) => {
+export const OpenRouterUsagePanel = ({
+  onOpenSettings,
+}: OpenRouterUsagePanelProps) => {
   const { t, formatNumber } = useI18n();
   const [range, setRange] = useState<OpenRouterRange>("7d");
   const { data, loading, hasKey, refresh } = useOpenRouterAnalytics(range);
@@ -121,10 +113,10 @@ export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelPro
     );
   }
 
-  const credits = data?.credits as CardResult<Credits> | undefined;
-  const keyUsage = data?.keyUsage as CardResult<KeyUsage> | undefined;
-  const activity = data?.activity as CardResult<Activity> | undefined;
-  const enabledKeys = data?.enabledKeys as CardResult<EnabledKeys> | undefined;
+  const credits = data?.credits;
+  const keyUsage = data?.keyUsage;
+  const activity = data?.activity;
+  const enabledKeys = data?.enabledKeys;
 
   if (loading && data === null) {
     return <UsagePanelSkeleton ariaLabel={t("usage.loading")} />;
@@ -225,7 +217,10 @@ export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelPro
               </div>
               <div className="text-xl font-semibold tabular-nums text-foreground">
                 {formatNumber(
-                  activity.data.rows.reduce((sum, row) => sum + row.promptTokens, 0),
+                  activity.data.rows.reduce(
+                    (sum, row) => sum + row.promptTokens,
+                    0,
+                  ),
                 )}
               </div>
             </div>
@@ -248,7 +243,10 @@ export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelPro
               </div>
               <div className="text-xl font-semibold tabular-nums text-foreground">
                 {formatNumber(
-                  activity.data.rows.reduce((sum, row) => sum + row.requests, 0),
+                  activity.data.rows.reduce(
+                    (sum, row) => sum + row.requests,
+                    0,
+                  ),
                 )}
               </div>
             </div>
@@ -295,7 +293,7 @@ export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelPro
                     className="border-t border-card-control-border"
                   >
                     <td
-                      className="py-1 pr-2 text-foreground max-w-[10rem] truncate"
+                      className="py-1 pr-2 text-foreground max-w-40 truncate"
                       title={row.model}
                     >
                       {row.model}
@@ -361,7 +359,7 @@ export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelPro
                       className="border-t border-card-control-border"
                     >
                       <td
-                        className="py-1 pr-2 text-foreground max-w-[12rem] truncate"
+                        className="py-1 pr-2 text-foreground max-w-48 truncate"
                         title={
                           key.name.trim() === ""
                             ? t("models.openrouter.enabledKeys.unnamed")

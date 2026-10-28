@@ -219,7 +219,7 @@ type UpdateActionContract = {
 
 describe("SettingUpdates", () => {
   let container: HTMLDivElement;
-  let root: Root;
+  let root: Root | undefined;
   let updateListener: ((state: UpdateState) => void) | undefined;
   let prereleaseListener: ((state: PrereleaseState) => void) | undefined;
   let localeListener: ((locale: "en" | "ja") => void) | undefined;
@@ -248,7 +248,7 @@ describe("SettingUpdates", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(
+      root?.render(
         createElement(I18nProvider, null, createElement(SettingUpdates)),
       );
     });
@@ -311,7 +311,7 @@ describe("SettingUpdates", () => {
   afterEach(async () => {
     if (root) {
       await act(async () => {
-        root.unmount();
+        root?.unmount();
       });
     }
     container?.remove();
@@ -644,9 +644,9 @@ describe("SettingUpdates", () => {
     expectOutlineStyles(
       buttonNamed(container, tEn("settings.updates.checkButton")),
     );
-    expect(buttonNamed(container, tEn("settings.updates.checkButton")).type).toBe(
-      "button",
-    );
+    expect(
+      buttonNamed(container, tEn("settings.updates.checkButton")).type,
+    ).toBe("button");
     await click(download);
     expect(api.openUpdateRelease).toHaveBeenCalledTimes(1);
   });
@@ -812,7 +812,10 @@ describe("SettingUpdates", () => {
       }),
     );
 
-    const restart = buttonNamed(container, tEn("settings.updates.restartButton"));
+    const restart = buttonNamed(
+      container,
+      tEn("settings.updates.restartButton"),
+    );
     expectPrimaryStyles(restart);
     expect(restart.type).toBe("button");
     await click(restart);
@@ -830,7 +833,10 @@ describe("SettingUpdates", () => {
     });
     api.restartForUpdate.mockReturnValueOnce(pendingRestart);
 
-    const restart = buttonNamed(container, tEn("settings.updates.restartButton"));
+    const restart = buttonNamed(
+      container,
+      tEn("settings.updates.restartButton"),
+    );
     await click(restart);
 
     expect(restart.disabled).toBe(true);
@@ -1173,10 +1179,10 @@ describe("SettingUpdates", () => {
     );
 
     await act(async () => {
-      root.unmount();
+      root?.unmount();
     });
     expect(unsubscribe).toHaveBeenCalledTimes(1);
-    root = undefined as unknown as Root;
+    root = undefined;
   });
 
   it("does not let a late initial snapshot overwrite a newer update event", async () => {
@@ -1189,7 +1195,7 @@ describe("SettingUpdates", () => {
     api.getUpdateState.mockReturnValueOnce(initial);
 
     await act(async () => {
-      root.unmount();
+      root?.unmount();
     });
 
     container.remove();
@@ -1197,7 +1203,7 @@ describe("SettingUpdates", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(
+      root?.render(
         createElement(I18nProvider, null, createElement(SettingUpdates)),
       );
     });
@@ -1234,7 +1240,7 @@ describe("SettingUpdates", () => {
     api.getUpdateState.mockReturnValueOnce(initial);
 
     await act(async () => {
-      root.unmount();
+      root?.unmount();
     });
 
     container.remove();
@@ -1242,7 +1248,7 @@ describe("SettingUpdates", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(
+      root?.render(
         createElement(I18nProvider, null, createElement(SettingUpdates)),
       );
     });
@@ -2445,7 +2451,7 @@ describe("SettingUpdates", () => {
     api.getPrereleaseState.mockReturnValueOnce(initial);
 
     await act(async () => {
-      root.unmount();
+      root?.unmount();
     });
 
     container.remove();
@@ -2453,7 +2459,7 @@ describe("SettingUpdates", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(
+      root?.render(
         createElement(I18nProvider, null, createElement(SettingUpdates)),
       );
     });
@@ -2520,7 +2526,7 @@ describe("SettingUpdates", () => {
     expect(prereleaseUnsubscribe).not.toHaveBeenCalled();
 
     await act(async () => {
-      root.unmount();
+      root?.unmount();
     });
 
     expect(prereleaseUnsubscribe).toHaveBeenCalledTimes(1);

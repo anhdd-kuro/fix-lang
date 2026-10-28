@@ -1,4 +1,4 @@
-import { mkdir, writeFile, mkdtemp  } from "node:fs/promises";
+import { mkdir, writeFile, mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -72,10 +72,18 @@ describe("queryPersistedLogs", () => {
     await writeFile(
       path.join(day, "fixlang.jsonl"),
       [
-        serializeLogJsonLine(makeEntry("d", "2026-07-21T10:00:00.000Z", "debug")),
-        serializeLogJsonLine(makeEntry("i", "2026-07-21T11:00:00.000Z", "info")),
-        serializeLogJsonLine(makeEntry("w", "2026-07-21T12:00:00.000Z", "warn")),
-        serializeLogJsonLine(makeEntry("e", "2026-07-21T13:00:00.000Z", "error")),
+        serializeLogJsonLine(
+          makeEntry("d", "2026-07-21T10:00:00.000Z", "debug"),
+        ),
+        serializeLogJsonLine(
+          makeEntry("i", "2026-07-21T11:00:00.000Z", "info"),
+        ),
+        serializeLogJsonLine(
+          makeEntry("w", "2026-07-21T12:00:00.000Z", "warn"),
+        ),
+        serializeLogJsonLine(
+          makeEntry("e", "2026-07-21T13:00:00.000Z", "error"),
+        ),
       ].join("\n"),
       "utf8",
     );

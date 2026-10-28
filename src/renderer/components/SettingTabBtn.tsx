@@ -24,7 +24,7 @@ export const SettingTabBtn = ({
     `tab transition-all duration-200 rounded-md font-medium text-sm flex items-center justify-center gap-1 py-1 min-w-min`,
     active
       ? "bg-primary text-primary-foreground shadow-md"
-      : "text-card-foreground hover:bg-secondary hover:text-foreground bg-muted/50"
+      : "text-card-foreground hover:bg-secondary hover:text-foreground bg-muted/50",
   );
 
   return (

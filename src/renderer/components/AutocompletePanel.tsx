@@ -36,7 +36,8 @@ const dayRowKey = (row: AutocompleteRollupView, index: number): string =>
   row.date.length > 0 ? row.date : `row-${String(index)}`;
 
 export const AutocompletePanel = () => {
-  const { t, formatNumber, formatCurrency, formatPercent, formatDate } = useI18n();
+  const { t, formatNumber, formatCurrency, formatPercent, formatDate } =
+    useI18n();
   const [state, setState] = useState<LoadState>({ status: "loading" });
 
   useEffect(() => {
@@ -63,12 +64,17 @@ export const AutocompletePanel = () => {
   }, []);
 
   const view: AutocompleteUsageView | null = useMemo(
-    () => (state.status === "ready" ? resolveAutocompleteUsageView(state.snapshot) : null),
-    [state]
+    () =>
+      state.status === "ready"
+        ? resolveAutocompleteUsageView(state.snapshot)
+        : null,
+    [state],
   );
 
   if (state.status === "loading") {
-    return <p className="p-4 text-sm text-muted-foreground">{t("common.loading")}</p>;
+    return (
+      <p className="p-4 text-sm text-muted-foreground">{t("common.loading")}</p>
+    );
   }
 
   if (state.status === "error" || view === null) {
@@ -95,7 +101,11 @@ export const AutocompletePanel = () => {
       />
       <StatCard
         label={t("autocomplete.stat.cost")}
-        value={formatAutocompleteCost(rollup.estimatedCostUsd, t, formatCurrency)}
+        value={formatAutocompleteCost(
+          rollup.estimatedCostUsd,
+          t,
+          formatCurrency,
+        )}
         hint={formatAutocompleteCoverage(rollup.estimatedCostUsd, t)}
       />
     </>
@@ -147,7 +157,9 @@ export const AutocompletePanel = () => {
         {/* The bar above is drawn from priced responses only. Saying so beats
             letting it read as "budget left" over spend nobody can measure. */}
         {capCoverage && (
-          <div className="mt-1 text-xs text-muted-foreground">{capCoverage}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {capCoverage}
+          </div>
         )}
       </section>
 
@@ -156,13 +168,17 @@ export const AutocompletePanel = () => {
           {t("autocomplete.section.dailyHistory")}
         </h2>
         {isAutocompleteUsageEmpty(view) ? (
-          <p className="p-4 text-sm text-muted-foreground">{t("autocomplete.empty")}</p>
+          <p className="p-4 text-sm text-muted-foreground">
+            {t("autocomplete.empty")}
+          </p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-card-control-border bg-card">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-3 py-2 font-medium">{t("autocomplete.day.date")}</th>
+                  <th className="px-3 py-2 font-medium">
+                    {t("autocomplete.day.date")}
+                  </th>
                   <th className="px-3 py-2 text-right font-medium">
                     {t("autocomplete.day.requests")}
                   </th>
@@ -190,13 +206,24 @@ export const AutocompletePanel = () => {
                       className="px-3 py-2 text-right tabular-nums text-card-foreground"
                       title={formatAutocompleteCoverage(row.totalTokens, t)}
                     >
-                      {formatAutocompleteCount(row.totalTokens, t, formatNumber)}
+                      {formatAutocompleteCount(
+                        row.totalTokens,
+                        t,
+                        formatNumber,
+                      )}
                     </td>
                     <td
                       className="px-3 py-2 text-right tabular-nums text-card-foreground"
-                      title={formatAutocompleteCoverage(row.estimatedCostUsd, t)}
+                      title={formatAutocompleteCoverage(
+                        row.estimatedCostUsd,
+                        t,
+                      )}
                     >
-                      {formatAutocompleteCost(row.estimatedCostUsd, t, formatCurrency)}
+                      {formatAutocompleteCost(
+                        row.estimatedCostUsd,
+                        t,
+                        formatCurrency,
+                      )}
                     </td>
                   </tr>
                 ))}

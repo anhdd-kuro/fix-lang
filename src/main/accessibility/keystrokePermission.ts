@@ -4,8 +4,9 @@
  * permission revoked" failure mode when synthesizing keystrokes via
  * `osascript` (the `System Events` `keystroke` command).
  *
- * Why this exists: after an unsigned app update, macOS invalidates the app's
- * TCC (Accessibility) grant because its code identity changed. Every
+ * Why this exists: after an update, macOS invalidates the app's TCC
+ * (Accessibility) grant because its code identity changed (each ad-hoc signed
+ * release has a new one). Every
  * subsequent keystroke synthesis then fails with a message shaped like:
  *
  *   66:98: execution error: System Events got an error: osascript is not
@@ -22,9 +23,11 @@
  * in response to some unrelated failure would be more confusing than the
  * generic error it replaces.
  *
- * Dependency-free by design (no Electron, no Node built-ins) so it stays
- * trivially unit-testable and importable from anywhere in the process tree.
+ * Free of Electron and Node built-ins (only `zod`, for reading the thrown
+ * value) so it stays trivially unit-testable and importable from anywhere in
+ * the process tree.
  */
+import { z } from "zod";
 
 /**
  * Matching strategy:
@@ -46,6 +49,14 @@ const KEYSTROKE_DENIAL_PHRASE = /not allowed to send keystrokes/i;
 const KEYSTROKE_DENIAL_CODE = /\(1002\)/;
 const MENTIONS_KEYSTROKES = /keystrokes/i;
 
+/** A rejection that is just the message text. */
+const ThrownTextSchema = z.string();
+/**
+ * Any object whose `message` (own or inherited) is a string; functions and a
+ * non-string `message` carry no extractable text.
+ */
+const MessageCarrierSchema = z.object({ message: z.string() });
+
 /**
  * Extracts a message string from whatever shape a rejected promise/thrown
  * value might take, without ever throwing.
@@ -56,28 +67,26 @@ const MENTIONS_KEYSTROKES = /keystrokes/i;
  * object, or arbitrary junk (`null`, `undefined`, numbers, plain objects).
  * Returns `undefined` for anything without extractable text.
  */
-const extractMessage = (error: unknown): string | undefined => {
-  if (typeof error === "string") return error;
-  if (error instanceof Error) return error.message;
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
-    typeof (error as { message: unknown }).message === "string"
-  ) {
-    return (error as { message: string }).message;
-  }
-  return undefined;
+const extractMessage = (cause: unknown): string | undefined => {
+  const text = ThrownTextSchema.safeParse(cause);
+  if (text.success) return text.data;
+  if (cause instanceof Error) return cause.message;
+  // A thrown array is still an object to read `message` from; the schema only
+  // takes plain objects, so its own properties are copied into one.
+  const carrier = MessageCarrierSchema.safeParse(
+    Array.isArray(cause) ? { ...cause } : cause,
+  );
+  return carrier.success ? carrier.data.message : undefined;
 };
 
 /**
- * True when `error` looks like macOS's "Accessibility permission was
+ * True when `cause` looks like macOS's "Accessibility permission was
  * revoked" `osascript` failure, as opposed to some other `osascript`/System
  * Events error. See the module doc for the matching rationale. Never throws,
- * regardless of what `error` is.
+ * regardless of what `cause` is.
  */
-export const isKeystrokePermissionDenied = (error: unknown): boolean => {
-  const message = extractMessage(error);
+export const isKeystrokePermissionDenied = (cause: unknown): boolean => {
+  const message = extractMessage(cause);
   if (message === undefined) return false;
 
   return (

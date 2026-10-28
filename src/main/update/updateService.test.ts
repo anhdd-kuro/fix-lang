@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { msg } from "~/features/i18n/shared/message";
+import type { JsonObject, JsonValue } from "~/main/jsonValue";
 import {
   BETA_CASK_TOKEN,
   STABLE_CASK_TOKEN,
@@ -34,8 +35,8 @@ const withoutTheAllowedAppBundlePath = (text: string): string =>
 
 const stableRelease = (
   tagName = "v0.2.0",
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> => ({
+  overrides: JsonObject = {},
+): JsonObject => ({
   tag_name: tagName,
   name: `FixLang ${tagName}`,
   body: "Improved update reliability.",
@@ -95,7 +96,7 @@ const createService = (
     } | null;
     appPath: string | null;
     now: () => number;
-    getLatestRelease: () => Promise<unknown>;
+    getLatestRelease: () => Promise<JsonValue>;
     getLatestPrerelease: () => Promise<PrereleaseCandidate | null>;
     /**
      * Which cask token(s) the Caskroom probe reports; undefined models no
@@ -115,10 +116,9 @@ const createService = (
 ) => {
   const releaseSource = {
     getLatestRelease: vi
-      .fn<() => Promise<unknown>>()
+      .fn<() => Promise<JsonValue>>()
       .mockImplementation(
-        overrides.getLatestRelease ??
-          (() => Promise.resolve(stableRelease())),
+        overrides.getLatestRelease ?? (() => Promise.resolve(stableRelease())),
       ),
     getLatestPrerelease: vi
       .fn<() => Promise<PrereleaseCandidate | null>>()
@@ -216,12 +216,12 @@ const createService = (
     startChannelSwitch,
     /** Runs every scheduled poll once, as the real interval would. */
     tickPoll: () => {
-      for (const run of [...polls]) run();
+      for (const run of polls.slice()) run();
     },
   };
 };
 
-describe("unsigned GitHub update service", () => {
+describe("GitHub update service", () => {
   it("does not contact GitHub from development builds", async () => {
     const { service, releaseSource } = createService({ isPackaged: false });
 
@@ -273,9 +273,13 @@ describe("unsigned GitHub update service", () => {
   it.each([null, undefined])(
     "accepts a stable release whose body is %s",
     async (body) => {
+      // A parsed JSON body cannot hold `undefined`; that case is the absent key.
+      const { body: _notes, ...withoutBody } = stableRelease("v0.2.0");
       const { service } = createService({
         getLatestRelease: () =>
-          Promise.resolve(stableRelease("v0.2.0", { body })),
+          Promise.resolve(
+            body === null ? stableRelease("v0.2.0", { body }) : withoutBody,
+          ),
       });
 
       await service.checkForUpdates();
@@ -297,8 +301,7 @@ describe("unsigned GitHub update service", () => {
     async (currentVersion, releaseVersion, expectedPhase) => {
       const { service } = createService({
         currentVersion,
-        getLatestRelease: () =>
-          Promise.resolve(stableRelease(releaseVersion)),
+        getLatestRelease: () => Promise.resolve(stableRelease(releaseVersion)),
       });
 
       await service.checkForUpdates();
@@ -318,6 +321,13 @@ describe("unsigned GitHub update service", () => {
       assets: [{ name: "FixLang-0.2.0-arm64.dmg", state: "uploaded", size: 0 }],
     }),
     stableRelease("v0.2.0", { body: 42 }),
+    stableRelease("v0.2.0", { draft: null }),
+    stableRelease("v0.2.0", { assets: "FixLang-0.2.0-arm64.dmg" }),
+    stableRelease("v0.2.0", {
+      assets: [
+        { name: "FixLang-0.2.0-arm64.dmg", state: "uploaded", size: 2 ** 53 },
+      ],
+    }),
     { message: "not a release" },
   ])("rejects malformed or non-stable release metadata", async (release) => {
     const { service } = createService({
@@ -398,8 +408,8 @@ describe("unsigned GitHub update service", () => {
   });
 
   it("prevents duplicate checks while the first request is active", async () => {
-    let resolveRelease: ((release: unknown) => void) | undefined;
-    const pendingRelease = new Promise<unknown>((resolve) => {
+    let resolveRelease: ((release: JsonValue) => void) | undefined;
+    const pendingRelease = new Promise<JsonValue>((resolve) => {
       resolveRelease = resolve;
     });
     const { service, releaseSource } = createService({
@@ -454,9 +464,9 @@ describe("Homebrew one-click install", () => {
   const INSTALL_ERROR = msg("settings.updates.installErrorMessage");
 
   it("advertises one-click install only for a cask-managed app", () => {
-    expect(createService({ canInstall: true }).service.getState().canInstall).toBe(
-      true,
-    );
+    expect(
+      createService({ canInstall: true }).service.getState().canInstall,
+    ).toBe(true);
     expect(createService().service.getState().canInstall).toBe(false);
   });
 
@@ -492,7 +502,9 @@ describe("Homebrew one-click install", () => {
   });
 
   it("refuses to install when no checked release is available", async () => {
-    const { service, startUpgrade, quitApp } = createService({ canInstall: true });
+    const { service, startUpgrade, quitApp } = createService({
+      canInstall: true,
+    });
 
     await expect(service.installUpdate()).resolves.toEqual({
       success: false,
@@ -549,7 +561,9 @@ describe("Homebrew one-click install", () => {
   });
 
   it("starts the upgrade only once while it is running", async () => {
-    const { service, startUpgrade, quitApp } = createService({ canInstall: true });
+    const { service, startUpgrade, quitApp } = createService({
+      canInstall: true,
+    });
     await service.checkForUpdates();
 
     const first = service.installUpdate();
@@ -739,7 +753,8 @@ describe("checking against Homebrew rather than GitHub", () => {
     const { service } = createService({
       canInstall: true,
       installableVersion: "0.2.0",
-      getLatestRelease: () => Promise.reject(new Error("/Users/kuro/token abc")),
+      getLatestRelease: () =>
+        Promise.reject(new Error("/Users/kuro/token abc")),
       onLog,
     });
 
@@ -1022,9 +1037,7 @@ describe("reopening during a background upgrade", () => {
 
 // The download runs with the app still open; only the bundle swap follows the quit.
 describe("downloading before quitting", () => {
-  const ready = async (
-    overrides: Parameters<typeof createService>[0] = {},
-  ) => {
+  const ready = async (overrides: Parameters<typeof createService>[0] = {}) => {
     const harness = createService({ canInstall: true, ...overrides });
     await harness.service.checkForUpdates();
     return harness;
@@ -1188,7 +1201,7 @@ describe("restarting into an installed update", () => {
           caskToken: STABLE_CASK_TOKEN,
         },
         installedVersions: ["0.2.0"],
-        ...(onLog ? { onLog } : {}),
+        onLog,
       });
 
     it("never reports the stray version as the installed update", () => {
@@ -2098,14 +2111,14 @@ describe("a check already in flight when a channel operation starts", () => {
   });
 
   it("drops a stale stable answer rather than re-arming Install on a quitting app", async () => {
-    let resolveRelease: ((release: unknown) => void) | undefined;
+    let resolveRelease: ((release: JsonValue) => void) | undefined;
     const candidate = prereleaseCandidate("0.2.0-beta.3");
     const { service, quitApp } = createService({
       canInstall: true,
       activeChannel: "stable",
       getLatestPrerelease: () => Promise.resolve(candidate),
       getLatestRelease: () =>
-        new Promise<unknown>((resolve) => {
+        new Promise<JsonValue>((resolve) => {
           resolveRelease = resolve;
         }),
     });

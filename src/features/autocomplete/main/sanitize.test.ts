@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { MAX_SUGGESTION_CHARS, OVERLAP_LOOKBACK_CHARS, sanitizeSuggestion } from "./sanitize";
+import {
+  MAX_SUGGESTION_CHARS,
+  OVERLAP_LOOKBACK_CHARS,
+  sanitizeSuggestion,
+} from "./sanitize";
 
 /**
  * `""` wherever the case is not about the prefix. The overlap guard needs a
@@ -34,11 +38,15 @@ describe("sanitizeSuggestion", () => {
 
   describe("model output habits", () => {
     it("strips a fenced block with a language tag", () => {
-      expect(sanitizeSuggestion("```ts\nconst x = 1;\n```", "")).toBe("const x = 1;");
+      expect(sanitizeSuggestion("```ts\nconst x = 1;\n```", "")).toBe(
+        "const x = 1;",
+      );
     });
 
     it("strips a fenced block with no language tag", () => {
-      expect(sanitizeSuggestion("```\ncontinuation\n```", "")).toBe("continuation");
+      expect(sanitizeSuggestion("```\ncontinuation\n```", "")).toBe(
+        "continuation",
+      );
     });
 
     it.each([
@@ -57,7 +65,9 @@ describe("sanitizeSuggestion", () => {
     });
 
     it("keeps quotes that are inside the text rather than wrapping it", () => {
-      expect(sanitizeSuggestion('say "hi" to them', "")).toBe('say "hi" to them');
+      expect(sanitizeSuggestion('say "hi" to them', "")).toBe(
+        'say "hi" to them',
+      );
     });
 
     // A lone quote character is not a wrapping pair.
@@ -96,17 +106,24 @@ describe("sanitizeSuggestion", () => {
    */
   describe("markdown images", () => {
     it("strips a complete image, keeping the prose around it", () => {
-      expect(sanitizeSuggestion(" and here ![alt](https://example.com/x.png) it is", "")).toBe(
-        " and here  it is",
-      );
+      expect(
+        sanitizeSuggestion(
+          " and here ![alt](https://example.com/x.png) it is",
+          "",
+        ),
+      ).toBe(" and here  it is");
     });
 
     it("strips an image with no alt text", () => {
-      expect(sanitizeSuggestion("see ![](data:image/png;base64,AAAA)", "")).toBe("see");
+      expect(
+        sanitizeSuggestion("see ![](data:image/png;base64,AAAA)", ""),
+      ).toBe("see");
     });
 
     it("returns null when the suggestion was only an image", () => {
-      expect(sanitizeSuggestion("![alt](https://example.com/x.png)", "")).toBeNull();
+      expect(
+        sanitizeSuggestion("![alt](https://example.com/x.png)", ""),
+      ).toBeNull();
     });
 
     /**
@@ -116,9 +133,9 @@ describe("sanitizeSuggestion", () => {
      * mid-way through typing.
      */
     it("keeps a markdown link, which is ordinary text here", () => {
-      expect(sanitizeSuggestion(" see [the docs](https://example.com)", "")).toBe(
-        " see [the docs](https://example.com)",
-      );
+      expect(
+        sanitizeSuggestion(" see [the docs](https://example.com)", ""),
+      ).toBe(" see [the docs](https://example.com)");
     });
 
     // An unterminated `![` must not swallow the rest of a multi-line suggestion.
@@ -131,7 +148,10 @@ describe("sanitizeSuggestion", () => {
 
   describe("length cap", () => {
     it("caps an overlong suggestion", () => {
-      const suggestion = sanitizeSuggestion("a".repeat(MAX_SUGGESTION_CHARS + 50), "");
+      const suggestion = sanitizeSuggestion(
+        "a".repeat(MAX_SUGGESTION_CHARS + 50),
+        "",
+      );
 
       expect(suggestion).toHaveLength(MAX_SUGGESTION_CHARS);
     });
@@ -141,7 +161,9 @@ describe("sanitizeSuggestion", () => {
     it("does not leave trailing whitespace created by the cap", () => {
       const input = `${"a".repeat(MAX_SUGGESTION_CHARS - 1)}   tail`;
 
-      expect(sanitizeSuggestion(input, "")).toBe("a".repeat(MAX_SUGGESTION_CHARS - 1));
+      expect(sanitizeSuggestion(input, "")).toBe(
+        "a".repeat(MAX_SUGGESTION_CHARS - 1),
+      );
     });
   });
 
@@ -166,11 +188,15 @@ describe("sanitizeSuggestion", () => {
      * perfectly sensible.
      */
     it("strips a re-emission the live model actually returned", () => {
-      expect(sanitizeSuggestion("test this out.", "I want to tes")).toBe("t this out.");
+      expect(sanitizeSuggestion("test this out.", "I want to tes")).toBe(
+        "t this out.",
+      );
     });
 
     it("strips a re-emission of several words, not just the partial one", () => {
-      expect(sanitizeSuggestion("run the test suite", "please run the tes")).toBe("t suite");
+      expect(
+        sanitizeSuggestion("run the test suite", "please run the tes"),
+      ).toBe("t suite");
     });
 
     // Same defect wearing different capitals. The user's own casing is what
@@ -178,9 +204,12 @@ describe("sanitizeSuggestion", () => {
     it.each([
       ["the whole word", "Test", "t"],
       ["the word and more", "Testing", "ting"],
-    ])("strips a case-mismatched re-emission of %s", (_description, suggestion, expected) => {
-      expect(sanitizeSuggestion(suggestion, "tes")).toBe(expected);
-    });
+    ])(
+      "strips a case-mismatched re-emission of %s",
+      (_description, suggestion, expected) => {
+        expect(sanitizeSuggestion(suggestion, "tes")).toBe(expected);
+      },
+    );
 
     // Nothing left to append is no suggestion at all — not an empty ghost, and
     // not a Tab affordance that would insert nothing.
@@ -209,11 +238,22 @@ describe("sanitizeSuggestion", () => {
       ["had had", "he had", " had enough to worry about"],
       ["that that", "I know that", " that is the point"],
       ["New York, New York", "we flew to New York, New", " York for the week"],
-      ["a repeat after a finished word", "he had ", "had enough to worry about"],
-      ["a doubled word the user is typing on purpose", "the the", " the third time"],
-    ])("leaves a legitimate repeat alone: %s", (_description, prefix, suggestion) => {
-      expect(sanitizeSuggestion(suggestion, prefix)).toBe(suggestion);
-    });
+      [
+        "a repeat after a finished word",
+        "he had ",
+        "had enough to worry about",
+      ],
+      [
+        "a doubled word the user is typing on purpose",
+        "the the",
+        " the third time",
+      ],
+    ])(
+      "leaves a legitimate repeat alone: %s",
+      (_description, prefix, suggestion) => {
+        expect(sanitizeSuggestion(suggestion, prefix)).toBe(suggestion);
+      },
+    );
 
     /**
      * The other half of that rule, stated so the boundary is visible: with the

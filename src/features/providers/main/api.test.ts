@@ -1,7 +1,7 @@
 /**
  * @file api.test.ts
  * @description Validation unit tests for the provider-connect payload parser
- * (`parseProviderConnect`). Pure input-shape rejection tests — no Electron IPC
+ * (`ProviderConnectPayloadSchema`). Pure input-shape rejection tests — no Electron IPC
  * is exercised (`registerApiHandlers` is never called), so every heavy
  * dependency the module imports is mocked at the module boundary, except
  * `~/features/providers/shared/providers` — a stand-in for `isProviderId` would test the stand-in.
@@ -19,7 +19,8 @@ vi.mock("~/main/keybindings", () => ({
   reloadHotkeys: vi.fn(),
 }));
 vi.mock("~/main/llm", () => ({
-  createOllamaClient: () => ({ pull: vi.fn(), delete: vi.fn(), chat: vi.fn() }), ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
+  createOllamaClient: () => ({ pull: vi.fn(), delete: vi.fn(), chat: vi.fn() }),
+  ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
 }));
 vi.mock("~/main/llm/models/compatibility", () => ({
   checkModelCompatibility: vi.fn(),
@@ -48,7 +49,7 @@ vi.mock("~/features/providers/store/apiStore", () => ({
   getProfileSetting: vi.fn(),
   resetCurrentProfileSettings: vi.fn(),
   updateProfileSetting: vi.fn(),
-  withoutProfileSecrets: vi.fn((profile: unknown) => profile),
+  withoutProfileSecrets: vi.fn((profile: Profile) => profile),
 }));
 vi.mock("~/features/correction/store/keybindingStore", () => ({
   keybindingStore: { resetKeyBindings: vi.fn() },
@@ -60,12 +61,24 @@ vi.mock("~/features/providers/store/profileSecretStore", () => ({
   secretKindsForProvider: vi.fn().mockReturnValue([]),
   setProfileSecret: vi.fn(),
 }));
-// Import (after mocks) — the real function under test.
-import { parseProviderConnect } from "./api";
+// Import (after mocks) — the real schema under test.
+import { ProviderConnectPayloadSchema } from "./api";
+import type { Profile } from "~/features/providers/store/apiStore";
+
+/**
+ * The handlers' parse step: the schema's result, or `null` when the payload is
+ * refused. Generic because a test payload is arbitrary, exactly as IPC is.
+ */
+const parseProviderConnect = <Payload>(payload: Payload) => {
+  const parsed = ProviderConnectPayloadSchema.safeParse(payload);
+  return parsed.success ? parsed.data : null;
+};
 
 describe("parseProviderConnect", () => {
   it("accepts a bare provider — no modelId is required or carried", () => {
-    expect(parseProviderConnect({ provider: "openai" })).toEqual({ provider: "openai" });
+    expect(parseProviderConnect({ provider: "openai" })).toEqual({
+      provider: "openai",
+    });
   });
 
   it("accepts a full payload with apiKey and provisioningKey", () => {
@@ -83,7 +96,10 @@ describe("parseProviderConnect", () => {
   });
 
   it("DROPS a modelId a stale caller still sends", () => {
-    const parsed = parseProviderConnect({ provider: "ollama", modelId: "llama3" });
+    const parsed = parseProviderConnect({
+      provider: "ollama",
+      modelId: "llama3",
+    });
 
     expect(parsed).toEqual({ provider: "ollama" });
     expect(parsed).not.toHaveProperty("modelId");
@@ -108,8 +124,12 @@ describe("parseProviderConnect", () => {
   });
 
   it("rejects a non-string apiKey", () => {
-    expect(parseProviderConnect({ provider: "openai", apiKey: 123 })).toBeNull();
-    expect(parseProviderConnect({ provider: "openai", apiKey: null })).toBeNull();
+    expect(
+      parseProviderConnect({ provider: "openai", apiKey: 123 }),
+    ).toBeNull();
+    expect(
+      parseProviderConnect({ provider: "openai", apiKey: null }),
+    ).toBeNull();
   });
 
   it("rejects a non-string provisioningKey", () => {
@@ -123,5 +143,92 @@ describe("parseProviderConnect", () => {
     for (const provider of PROVIDER_IDS) {
       expect(parseProviderConnect({ provider })).toEqual({ provider });
     }
+  });
+});
+
+/**
+ * Edge payloads reach the connect parser from IPC with no static type at all;
+ * this models that, so a narrowed parameter type cannot hide a runtime case.
+ */
+const viaBoundary = <Value>(value: Value): never => value as never;
+
+const connectPayloadEdgeCases: [string, unknown][] = [
+  ["undefined", undefined],
+  ["null", null],
+  ["0", 0],
+  ["string", "openai"],
+  ["function", () => ({ provider: "openai" })],
+  ["boxed string", new String("openai")],
+  ["empty array", []],
+  [
+    "array carrying fields",
+    Object.assign([], { provider: "openai", apiKey: "k" }),
+  ],
+  ["inherited fields", Object.create({ provider: "openai", apiKey: "k" })],
+  [
+    "null prototype",
+    Object.assign(Object.create(null), { provider: "anthropic", apiKey: "k" }),
+  ],
+  [
+    "class instance",
+    new (class {
+      provider = "openrouter";
+      provisioningKey = "p";
+    })(),
+  ],
+  ["bare provider", { provider: "openai" }],
+  ["constructor provider", { provider: "constructor" }],
+  ["boxed provider", { provider: new String("openai") }],
+  [
+    "every string field",
+    {
+      provider: "bedrock",
+      apiKey: "AKIA",
+      secretKey: "s",
+      provisioningKey: "p",
+      region: "us-east-1",
+      projectId: "",
+      host: "127.0.0.1",
+      port: 1234,
+      modelId: "dropped",
+    },
+  ],
+  [
+    "explicit undefined fields",
+    { provider: "openai", apiKey: undefined, port: undefined, host: undefined },
+  ],
+  ["null apiKey", { provider: "openai", apiKey: null }],
+  ["numeric secretKey", { provider: "bedrock", secretKey: 5 }],
+  ["numeric region", { provider: "bedrock", region: 5 }],
+  ["numeric projectId", { provider: "openai", projectId: 5 }],
+  ["boxed apiKey", { provider: "openai", apiKey: new String("k") }],
+  ["padded host", { provider: "lmstudio", host: "  localhost  " }],
+  ["blank host", { provider: "lmstudio", host: "   " }],
+  ["scheme host", { provider: "lmstudio", host: "http://x" }],
+  ["numeric host", { provider: "lmstudio", host: 5 }],
+  ["null host", { provider: "lmstudio", host: null }],
+  ["string port", { provider: "ollama", port: "11435" }],
+  ["padded string port", { provider: "ollama", port: " 11435 " }],
+  ["blank string port", { provider: "ollama", port: " " }],
+  ["fractional port", { provider: "ollama", port: 12.5 }],
+  ["NaN port", { provider: "ollama", port: Number.NaN }],
+  ["zero port", { provider: "ollama", port: 0 }],
+  ["out-of-range port", { provider: "ollama", port: 70000 }],
+  ["boolean port", { provider: "ollama", port: true }],
+  ["null port", { provider: "ollama", port: null }],
+  ["hex string port", { provider: "ollama", port: "0x10" }],
+];
+
+describe("parseProviderConnect — pinned edge-case outputs", () => {
+  it("matches the recorded output for every edge payload", () => {
+    expect(
+      connectPayloadEdgeCases.map(([label, payload]) => {
+        const parsed = parseProviderConnect(viaBoundary(payload));
+        return [
+          label,
+          parsed === null ? null : { keys: Object.keys(parsed), parsed },
+        ];
+      }),
+    ).toMatchSnapshot();
   });
 });

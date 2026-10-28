@@ -31,7 +31,7 @@ export type CompatibilityResult = {
  * @returns Promise with compatibility result
  */
 export async function checkModelCompatibility(
-  model: RecommendedModel
+  model: RecommendedModel,
 ): Promise<CompatibilityResult> {
   const issues: string[] = [];
   const recommendations: string[] = [];
@@ -67,11 +67,11 @@ export async function checkModelCompatibility(
   if (model.requirements?.minRam && availableRam < model.requirements.minRam) {
     issues.push(
       `Insufficient RAM: System has ${formatBytes(availableRam)}, but model requires ${formatBytes(
-        model.requirements.minRam
-      )}`
+        model.requirements.minRam,
+      )}`,
     );
     recommendations.push(
-      "Consider using a smaller model with lower memory requirements"
+      "Consider using a smaller model with lower memory requirements",
     );
   }
 
@@ -81,20 +81,20 @@ export async function checkModelCompatibility(
   ) {
     issues.push(
       `Insufficient disk space: System has ${formatBytes(
-        availableDisk
+        availableDisk,
       )} available, but model requires ${formatBytes(
-        model.requirements.minDisk
-      )}`
+        model.requirements.minDisk,
+      )}`,
     );
     recommendations.push("Free up disk space before installing this model");
   }
 
   if (model.requirements?.gpu && !hasGpu) {
     issues.push(
-      "GPU recommended: This model works best with a GPU, but none was detected"
+      "GPU recommended: This model works best with a GPU, but none was detected",
     );
     recommendations.push(
-      "The model will run on CPU but may be slow. Consider using a smaller model for better performance."
+      "The model will run on CPU but may be slow. Consider using a smaller model for better performance.",
     );
   }
 
@@ -102,8 +102,8 @@ export async function checkModelCompatibility(
   if (freeMem < model.size * 1.5) {
     recommendations.push(
       `Low available memory: Only ${formatBytes(
-        freeMem
-      )} free. Consider closing other applications before using this model.`
+        freeMem,
+      )} free. Consider closing other applications before using this model.`,
     );
   }
 
@@ -158,7 +158,7 @@ async function checkDiskSpace(): Promise<{ available: number }> {
       // Get drive letter from homedir
       const driveLetter = homedir.split(":")[0] + ":";
       const { stdout } = await execPromise(
-        `wmic logicaldisk where "DeviceID='${driveLetter}'" get FreeSpace`
+        `wmic logicaldisk where "DeviceID='${driveLetter}'" get FreeSpace`,
       );
       const lines = stdout.trim().split("\n");
       const freeBytes = parseInt(lines[1], 10);
@@ -181,11 +181,11 @@ async function checkGpu(): Promise<{ hasGpu: boolean; info?: string }> {
     // For macOS
     if (process.platform === "darwin") {
       const { stdout } = await execPromise(
-        "system_profiler SPDisplaysDataType"
+        "system_profiler SPDisplaysDataType",
       );
       // Check if there's a dedicated GPU
       const hasGpu = /Chipset Model:.*Radeon|GeForce|Intel Iris|AMD/i.test(
-        stdout
+        stdout,
       );
       return {
         hasGpu,
@@ -198,10 +198,10 @@ async function checkGpu(): Promise<{ hasGpu: boolean; info?: string }> {
         const { stdout } = await execPromise("lspci | grep -i 'vga\\|3d\\|2d'");
         const hasGpu = /nvidia|amd|radeon|intel/i.test(stdout);
         return { hasGpu, info: hasGpu ? stdout.trim() : undefined };
-      } catch (_) {
+      } catch {
         // lspci might not be available, try alternative
         const { stdout } = await execPromise(
-          "glxinfo | grep 'OpenGL renderer'"
+          "glxinfo | grep 'OpenGL renderer'",
         );
         const hasGpu = !/llvmpipe|swrast/i.test(stdout); // Software renderers
         return { hasGpu, info: stdout.trim() };
@@ -210,7 +210,7 @@ async function checkGpu(): Promise<{ hasGpu: boolean; info?: string }> {
     // For Windows
     else if (process.platform === "win32") {
       const { stdout } = await execPromise(
-        "wmic path win32_VideoController get name"
+        "wmic path win32_VideoController get name",
       );
       const lines = stdout.trim().split("\n").slice(1); // Skip the header
       const gpuInfo = lines.join(", ").trim();

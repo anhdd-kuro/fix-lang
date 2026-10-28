@@ -94,17 +94,17 @@ type MakeDepsOverrides = Partial<RunComboDependencies> & {
   settings?: CorrectionSettings;
 };
 
-const makeDeps = (
-  overrides: MakeDepsOverrides = {},
-): RunComboDependencies => {
+const makeDeps = (overrides: MakeDepsOverrides = {}): RunComboDependencies => {
   const { settings, ...rest } = overrides;
   const resolvedSettings = settings ?? makeSettings();
 
   return {
     getCorrectionSettings: vi.fn(() => resolvedSettings),
-    fixGrammar: vi.fn(async (text: string) => makeResult({ correctedText: `${text}-fixed` })),
-    recordStepHistory: vi.fn() as unknown as RecordComboStepHistory,
-    deliver: vi.fn(async () => "pasted") as unknown as ComboDeliver,
+    fixGrammar: vi.fn(async (text: string) =>
+      makeResult({ correctedText: `${text}-fixed` }),
+    ),
+    recordStepHistory: vi.fn<RecordComboStepHistory>(),
+    deliver: vi.fn<ComboDeliver>(async () => "pasted"),
     defaultOutputMode: "paste",
     ...rest,
   };
@@ -132,10 +132,10 @@ describe("runCombo — E2: nothing pasted mid-chain", () => {
         callOrder.push(`fixGrammar:${presetId}`);
         return makeResult({ correctedText: `${text}-${presetId}` });
       }),
-      deliver: vi.fn(async () => {
+      deliver: vi.fn<ComboDeliver>(async () => {
         callOrder.push("deliver");
         return "pasted";
-      }) as unknown as ComboDeliver,
+      }),
     });
 
     const result = await runCombo({ combo, input: "hello" }, deps);
@@ -231,7 +231,11 @@ describe("runCombo — happy path: N steps in order, output chained", () => {
 
   it("3 steps: each receives the previous step's output, in order", async () => {
     const combo = makeCombo({
-      steps: [makeStep("correction"), makeStep("translate"), makeStep("summarize")],
+      steps: [
+        makeStep("correction"),
+        makeStep("translate"),
+        makeStep("summarize"),
+      ],
     });
     const deps = makeDeps({
       fixGrammar: vi.fn(async (text: string, presetId?: string) =>
@@ -254,7 +258,11 @@ describe("runCombo — happy path: N steps in order, output chained", () => {
 describe("runCombo — E6: an empty intermediate output is an error", () => {
   it("raises ComboStepError(empty-output) on a whitespace-only intermediate and never runs later steps", async () => {
     const combo = makeCombo({
-      steps: [makeStep("correction"), makeStep("translate"), makeStep("summarize")],
+      steps: [
+        makeStep("correction"),
+        makeStep("translate"),
+        makeStep("summarize"),
+      ],
     });
     const fixGrammar = vi
       .fn()
@@ -262,7 +270,9 @@ describe("runCombo — E6: an empty intermediate output is an error", () => {
       .mockResolvedValue(makeResult({ correctedText: "should never run" }));
     const deps = makeDeps({ fixGrammar });
 
-    await expect(runCombo({ combo, input: "start" }, deps)).rejects.toMatchObject({
+    await expect(
+      runCombo({ combo, input: "start" }, deps),
+    ).rejects.toMatchObject({
       code: "empty-output",
       stepIndex: 0,
     });
@@ -273,22 +283,32 @@ describe("runCombo — E6: an empty intermediate output is an error", () => {
   });
 
   it("is thrown as a ComboStepError instance carrying the failing step", async () => {
-    const combo = makeCombo({ steps: [makeStep("correction"), makeStep("translate")] });
-    const fixGrammar = vi.fn().mockResolvedValue(makeResult({ correctedText: "" }));
+    const combo = makeCombo({
+      steps: [makeStep("correction"), makeStep("translate")],
+    });
+    const fixGrammar = vi
+      .fn()
+      .mockResolvedValue(makeResult({ correctedText: "" }));
     const deps = makeDeps({ fixGrammar });
 
-    await expect(runCombo({ combo, input: "start" }, deps)).rejects.toBeInstanceOf(
-      ComboStepError,
-    );
+    await expect(
+      runCombo({ combo, input: "start" }, deps),
+    ).rejects.toBeInstanceOf(ComboStepError);
   });
 });
 
 describe("runCombo — E4: source-app context reaches step 1 only", () => {
   it("passes { activeAppName } to call 0 and undefined to calls 1..N", async () => {
     const combo = makeCombo({
-      steps: [makeStep("correction"), makeStep("translate"), makeStep("summarize")],
+      steps: [
+        makeStep("correction"),
+        makeStep("translate"),
+        makeStep("summarize"),
+      ],
     });
-    const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));
+    const fixGrammar = vi.fn(async (text: string) =>
+      makeResult({ correctedText: text }),
+    );
     const deps = makeDeps({ fixGrammar });
 
     await runCombo({ combo, input: "start", activeAppName: "Slack" }, deps);
@@ -296,13 +316,27 @@ describe("runCombo — E4: source-app context reaches step 1 only", () => {
     expect(fixGrammar).toHaveBeenNthCalledWith(1, "start", "correction", {
       activeAppName: "Slack",
     });
-    expect(fixGrammar).toHaveBeenNthCalledWith(2, "start", "translate", undefined);
-    expect(fixGrammar).toHaveBeenNthCalledWith(3, "start", "summarize", undefined);
+    expect(fixGrammar).toHaveBeenNthCalledWith(
+      2,
+      "start",
+      "translate",
+      undefined,
+    );
+    expect(fixGrammar).toHaveBeenNthCalledWith(
+      3,
+      "start",
+      "summarize",
+      undefined,
+    );
   });
 
   it("still passes an explicit { activeAppName: undefined } object to call 0 when nothing was read", async () => {
-    const combo = makeCombo({ steps: [makeStep("correction"), makeStep("translate")] });
-    const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));
+    const combo = makeCombo({
+      steps: [makeStep("correction"), makeStep("translate")],
+    });
+    const fixGrammar = vi.fn(async (text: string) =>
+      makeResult({ correctedText: text }),
+    );
     const deps = makeDeps({ fixGrammar });
 
     await runCombo({ combo, input: "start" }, deps);
@@ -318,13 +352,24 @@ describe("runCombo — user metadata reaches every non-Ask step", () => {
 
   it("passes userMetadata on step 0 alongside the source app, and on later steps alone", async () => {
     const combo = makeCombo({
-      steps: [makeStep("correction"), makeStep("translate"), makeStep("summarize")],
+      steps: [
+        makeStep("correction"),
+        makeStep("translate"),
+        makeStep("summarize"),
+      ],
     });
-    const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));
+    const fixGrammar = vi.fn(async (text: string) =>
+      makeResult({ correctedText: text }),
+    );
     const deps = makeDeps({ fixGrammar });
 
     await runCombo(
-      { combo, input: "start", activeAppName: "Slack", userMetadata: DIRECTIVES },
+      {
+        combo,
+        input: "start",
+        activeAppName: "Slack",
+        userMetadata: DIRECTIVES,
+      },
       deps,
     );
 
@@ -347,7 +392,9 @@ describe("runCombo — user metadata reaches every non-Ask step", () => {
         makeStep("correction"),
       ],
     });
-    const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));
+    const fixGrammar = vi.fn(async (text: string) =>
+      makeResult({ correctedText: text }),
+    );
     const deps = makeDeps({
       settings: makeSettings({
         presets: [
@@ -360,13 +407,20 @@ describe("runCombo — user metadata reaches every non-Ask step", () => {
     });
 
     await runCombo(
-      { combo, input: "the selection", activeAppName: "Slack", userMetadata: DIRECTIVES },
+      {
+        combo,
+        input: "the selection",
+        activeAppName: "Slack",
+        userMetadata: DIRECTIVES,
+      },
       deps,
     );
 
     expect(fixGrammar.mock.calls[0][2]).toBeUndefined();
     expect(fixGrammar.mock.calls[0][0]).toContain(DIRECTIVES);
-    expect(fixGrammar.mock.calls[0][0]).not.toContain("App locale: en\nApp locale:");
+    expect(fixGrammar.mock.calls[0][0]).not.toContain(
+      "App locale: en\nApp locale:",
+    );
     expect(fixGrammar.mock.calls[1][2]).toEqual({ userMetadata: DIRECTIVES });
   });
 
@@ -374,7 +428,9 @@ describe("runCombo — user metadata reaches every non-Ask step", () => {
     const combo = makeCombo({
       steps: [makeStep("correction"), makeStep("translate")],
     });
-    const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));
+    const fixGrammar = vi.fn(async (text: string) =>
+      makeResult({ correctedText: text }),
+    );
     const deps = makeDeps({ fixGrammar });
 
     await runCombo({ combo, input: "start", activeAppName: "Slack" }, deps);
@@ -382,14 +438,23 @@ describe("runCombo — user metadata reaches every non-Ask step", () => {
     expect(fixGrammar).toHaveBeenNthCalledWith(1, "start", "correction", {
       activeAppName: "Slack",
     });
-    expect(fixGrammar).toHaveBeenNthCalledWith(2, "start", "translate", undefined);
+    expect(fixGrammar).toHaveBeenNthCalledWith(
+      2,
+      "start",
+      "translate",
+      undefined,
+    );
   });
 });
 
 describe("runCombo — E7: fail fast, completed steps stay in history", () => {
   it("a rejection at step 2 of 3 stops the chain, delivers nothing, records exactly one history row", async () => {
     const combo = makeCombo({
-      steps: [makeStep("correction"), makeStep("translate"), makeStep("summarize")],
+      steps: [
+        makeStep("correction"),
+        makeStep("translate"),
+        makeStep("summarize"),
+      ],
     });
     const failure = new Error("provider exploded");
     const fixGrammar = vi
@@ -404,7 +469,7 @@ describe("runCombo — E7: fail fast, completed steps stay in history", () => {
     // error would fall through to the generic "something failed" banner,
     // which for a multi-provider combo says nothing useful.
     const rejection = await runCombo({ combo, input: "start" }, deps).catch(
-      (error: unknown) => error,
+      (cause: unknown) => cause,
     );
     expect(rejection).toBeInstanceOf(ComboStepError);
     const stepError = rejection as ComboStepError;
@@ -420,7 +485,9 @@ describe("runCombo — E7: fail fast, completed steps stay in history", () => {
   });
 
   it("paints the ring failed for a wrapped provider rejection, not just for the codes it models itself", async () => {
-    const combo = makeCombo({ steps: [makeStep("correction"), makeStep("translate")] });
+    const combo = makeCombo({
+      steps: [makeStep("correction"), makeStep("translate")],
+    });
     const fixGrammar = vi
       .fn()
       .mockResolvedValueOnce(makeResult({ correctedText: "step1 output" }))
@@ -428,9 +495,9 @@ describe("runCombo — E7: fail fast, completed steps stay in history", () => {
     const onProgress = vi.fn();
     const deps = makeDeps({ fixGrammar, onProgress });
 
-    await expect(runCombo({ combo, input: "start" }, deps)).rejects.toBeInstanceOf(
-      ComboStepError,
-    );
+    await expect(
+      runCombo({ combo, input: "start" }, deps),
+    ).rejects.toBeInstanceOf(ComboStepError);
 
     expect(onProgress).toHaveBeenCalledWith({
       total: 2,
@@ -476,7 +543,7 @@ describe("runCombo — H1: one history row per completed step", () => {
         model: "gpt-5",
         provider: "openai",
         resolvedModel: "gpt-5-2026",
-        sessionJson: "{\"step\":1}",
+        sessionJson: '{"step":1}',
       }),
       makeResult({
         correctedText: "step2",
@@ -484,14 +551,14 @@ describe("runCombo — H1: one history row per completed step", () => {
         model: "claude",
         provider: "bedrock",
         resolvedModel: "claude-x",
-        sessionJson: "{\"step\":2}",
+        sessionJson: '{"step":2}',
       }),
     ];
     const fixGrammar = vi
       .fn()
       .mockResolvedValueOnce(results[0])
       .mockResolvedValueOnce(results[1]);
-    const recordStepHistory = vi.fn() as unknown as RecordComboStepHistory;
+    const recordStepHistory = vi.fn<RecordComboStepHistory>();
     const deps = makeDeps({ fixGrammar, recordStepHistory });
 
     await runCombo({ combo, input: "start" }, deps);
@@ -514,9 +581,7 @@ describe("runCombo — H1: one history row per completed step", () => {
       }),
     );
 
-    const [firstCallArgs, secondCallArgs] = (recordStepHistory as unknown as {
-      mock: { calls: unknown[][] };
-    }).mock.calls as [{ runId: string }][];
+    const [firstCallArgs, secondCallArgs] = recordStepHistory.mock.calls;
     expect(firstCallArgs[0].runId).toBe(secondCallArgs[0].runId);
   });
 });
@@ -539,7 +604,9 @@ describe("runCombo — D4: a requiresInput step never opens the Ask window", () 
 
   it("appends the full userMetadata block to a requiresInput step, not locale alone", async () => {
     const combo = askCombo();
-    const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));
+    const fixGrammar = vi.fn(async (text: string) =>
+      makeResult({ correctedText: text }),
+    );
     const deps = makeDeps({
       settings: askSettings(),
       fixGrammar,
@@ -562,7 +629,9 @@ describe("runCombo — D4: a requiresInput step never opens the Ask window", () 
   });
 
   it("composes the frozen inlineInput through the real Ask contract, not a bare concatenation", async () => {
-    const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));
+    const fixGrammar = vi.fn(async (text: string) =>
+      makeResult({ correctedText: text }),
+    );
     const deps = makeDeps({
       settings: askSettings(),
       fixGrammar,
@@ -593,7 +662,9 @@ describe("runCombo — D4: a requiresInput step never opens the Ask window", () 
   });
 
   it("gives a first-step Ask no source-app context, exactly as the Ask hotkey path does not", async () => {
-    const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));
+    const fixGrammar = vi.fn(async (text: string) =>
+      makeResult({ correctedText: text }),
+    );
     const deps = makeDeps({ settings: askSettings(), fixGrammar });
 
     await runCombo(
@@ -601,7 +672,12 @@ describe("runCombo — D4: a requiresInput step never opens the Ask window", () 
       deps,
     );
 
-    expect(fixGrammar).toHaveBeenNthCalledWith(1, expect.any(String), "ask", undefined);
+    expect(fixGrammar).toHaveBeenNthCalledWith(
+      1,
+      expect.any(String),
+      "ask",
+      undefined,
+    );
   });
 
   it("never imports or calls an Ask input window — comboFlow.ts has no such import", () => {
@@ -645,9 +721,9 @@ describe("runCombo — stored combo that validateCombo rejects", () => {
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(ComboValidationFailedError);
-      expect((error as ComboValidationFailedError).errors.map((e) => e.code)).toContain(
-        "unknown-preset",
-      );
+      expect(
+        (error as ComboValidationFailedError).errors.map((e) => e.code),
+      ).toContain("unknown-preset");
     }
   });
 
@@ -672,12 +748,17 @@ describe("runCombo — E9: per-step timeout and whole-combo budget", () => {
 
   it("aborts and delivers nothing when a single step exceeds the per-step timeout", async () => {
     vi.useFakeTimers();
-    const combo = makeCombo({ steps: [makeStep("correction"), makeStep("translate")] });
+    const combo = makeCombo({
+      steps: [makeStep("correction"), makeStep("translate")],
+    });
     // Never settles within the test — the timeout is what must reject it.
-    const fixGrammar = vi.fn(() => new Promise<FixGrammarResult>(() => undefined));
+    const fixGrammar = vi.fn(
+      () => new Promise<FixGrammarResult>(() => undefined),
+    );
     const deps = makeDeps({ fixGrammar });
 
     const pending = runCombo({ combo, input: "start" }, deps);
+    // oxlint-disable-next-line vitest/valid-expect -- attached before timers advance so the rejection is never unhandled; awaited below
     const assertion = expect(pending).rejects.toMatchObject({
       code: "step-timeout",
       stepIndex: 0,
@@ -693,7 +774,11 @@ describe("runCombo — E9: per-step timeout and whole-combo budget", () => {
   it("aborts once the whole-combo budget is exhausted even though each step is under the per-step cap", async () => {
     vi.useFakeTimers();
     const combo = makeCombo({
-      steps: [makeStep("correction"), makeStep("translate"), makeStep("summarize")],
+      steps: [
+        makeStep("correction"),
+        makeStep("translate"),
+        makeStep("summarize"),
+      ],
     });
     // Each step "takes" 50s — under the 60s per-step cap, but three of them
     // exceed the 120s whole-combo budget.
@@ -701,13 +786,19 @@ describe("runCombo — E9: per-step timeout and whole-combo budget", () => {
     const fixGrammar = vi.fn(
       (text: string) =>
         new Promise<FixGrammarResult>((resolve) => {
-          setTimeout(() => resolve(makeResult({ correctedText: text })), stepDurationMs);
+          setTimeout(
+            () => resolve(makeResult({ correctedText: text })),
+            stepDurationMs,
+          );
         }),
     );
     const deps = makeDeps({ fixGrammar });
 
     const pending = runCombo({ combo, input: "start" }, deps);
-    const assertion = expect(pending).rejects.toMatchObject({ code: "combo-timeout" });
+    // oxlint-disable-next-line vitest/valid-expect -- attached before timers advance so the rejection is never unhandled; awaited below
+    const assertion = expect(pending).rejects.toMatchObject({
+      code: "combo-timeout",
+    });
     await vi.advanceTimersByTimeAsync(COMBO_TOTAL_BUDGET_MS + stepDurationMs);
     await assertion;
 
@@ -734,18 +825,22 @@ describe("runCombo — f1: cancel mid-run never delivers", () => {
 
   it("stops before step 2 when the signal aborts between steps, delivering nothing", async () => {
     const combo = makeCombo({
-      steps: [makeStep("correction"), makeStep("translate"), makeStep("summarize")],
+      steps: [
+        makeStep("correction"),
+        makeStep("translate"),
+        makeStep("summarize"),
+      ],
     });
     const controller = new AbortController();
     // Abort fires once step 1 has fully completed and its history row is
     // written — i.e. strictly BETWEEN steps, not mid-request — so this pins
     // the top-of-loop check on the NEXT iteration, distinct from the
     // in-flight race covered by the other tests in this block.
-    const recordStepHistory = vi.fn((payload) => {
+    const recordStepHistory = vi.fn<RecordComboStepHistory>((payload) => {
       if (payload.stepIndex === 0) {
         controller.abort();
       }
-    }) as unknown as RecordComboStepHistory;
+    });
     const deps = makeDeps({ recordStepHistory });
 
     await expect(
@@ -758,7 +853,9 @@ describe("runCombo — f1: cancel mid-run never delivers", () => {
   });
 
   it("regression for f1 — never delivers when the signal aborts mid-flight on the LAST step, without waiting for the abandoned request", async () => {
-    const combo = makeCombo({ steps: [makeStep("correction"), makeStep("translate")] });
+    const combo = makeCombo({
+      steps: [makeStep("correction"), makeStep("translate")],
+    });
     const controller = new AbortController();
     let resolveLastStep: ((value: FixGrammarResult) => void) | undefined;
     const lastStepPromise = new Promise<FixGrammarResult>((resolve) => {
@@ -792,16 +889,18 @@ describe("runCombo — f1: cancel mid-run never delivers", () => {
   });
 
   it("checks the signal immediately before deliver, even after the last step's history row was already recorded", async () => {
-    const combo = makeCombo({ steps: [makeStep("correction"), makeStep("translate")] });
+    const combo = makeCombo({
+      steps: [makeStep("correction"), makeStep("translate")],
+    });
     const controller = new AbortController();
     // Cancel lands right after the last step's history row is written — the
     // loop is already done (no next iteration to catch it), so only the
     // dedicated pre-deliver check can still stop delivery here.
-    const recordStepHistory = vi.fn((payload) => {
+    const recordStepHistory = vi.fn<RecordComboStepHistory>((payload) => {
       if (payload.stepIndex === 1) {
         controller.abort();
       }
-    }) as unknown as RecordComboStepHistory;
+    });
     const deps = makeDeps({ recordStepHistory });
 
     await expect(
@@ -825,7 +924,7 @@ describe("runCombo — markdownOutput applies to the final step only", () => {
         makePreset("translate", { name: "Translate", markdownOutput: false }),
       ],
     });
-    const deliver = vi.fn(async () => "popup") as unknown as ComboDeliver;
+    const deliver = vi.fn<ComboDeliver>(async () => "popup");
     const deps = makeDeps({ settings, deliver });
 
     await runCombo({ combo, input: "start" }, deps);
@@ -840,14 +939,16 @@ describe("runCombo — markdownOutput applies to the final step only", () => {
     // First and last steps deliberately disagree (f3): if the implementation
     // ever regressed to reading resolvedSteps[0].preset instead of the final
     // step, this would deliver `false` and the assertion below would catch it.
-    const combo = makeCombo({ steps: [makeStep("correction"), makeStep("translate")] });
+    const combo = makeCombo({
+      steps: [makeStep("correction"), makeStep("translate")],
+    });
     const settings = makeSettings({
       presets: [
         makePreset("correction", { name: "Correction", markdownOutput: false }),
         makePreset("translate", { name: "Translate", markdownOutput: true }),
       ],
     });
-    const deliver = vi.fn(async () => "popup") as unknown as ComboDeliver;
+    const deliver = vi.fn<ComboDeliver>(async () => "popup");
     const deps = makeDeps({ settings, deliver });
 
     await runCombo({ combo, input: "start" }, deps);
@@ -872,7 +973,11 @@ describe("runCombo — onProgress: step-boundary seam for the overlay progress r
 
   it("fires 'running' immediately before each step's fixGrammar call, with total/completed/current advancing", async () => {
     const combo = makeCombo({
-      steps: [makeStep("correction"), makeStep("translate"), makeStep("summarize")],
+      steps: [
+        makeStep("correction"),
+        makeStep("translate"),
+        makeStep("summarize"),
+      ],
     });
     const callOrder: string[] = [];
     const onProgress = vi.fn((view: ComboProgressView) =>
@@ -915,7 +1020,9 @@ describe("runCombo — onProgress: step-boundary seam for the overlay progress r
   });
 
   it("fires 'failed' for the failing step right before throwing ComboStepError(empty-output)", async () => {
-    const combo = makeCombo({ steps: [makeStep("correction"), makeStep("translate")] });
+    const combo = makeCombo({
+      steps: [makeStep("correction"), makeStep("translate")],
+    });
     const onProgress = vi.fn();
     const fixGrammar = vi
       .fn()
@@ -923,9 +1030,9 @@ describe("runCombo — onProgress: step-boundary seam for the overlay progress r
       .mockResolvedValueOnce(makeResult({ correctedText: "   " }));
     const deps = makeDeps({ fixGrammar, onProgress });
 
-    await expect(runCombo({ combo, input: "start" }, deps)).rejects.toBeInstanceOf(
-      ComboStepError,
-    );
+    await expect(
+      runCombo({ combo, input: "start" }, deps),
+    ).rejects.toBeInstanceOf(ComboStepError);
 
     expect(onProgress).toHaveBeenLastCalledWith({
       total: 2,
@@ -937,13 +1044,20 @@ describe("runCombo — onProgress: step-boundary seam for the overlay progress r
 
   it("fires 'failed' on a step-timeout before rejecting", async () => {
     vi.useFakeTimers();
-    const combo = makeCombo({ steps: [makeStep("correction"), makeStep("translate")] });
+    const combo = makeCombo({
+      steps: [makeStep("correction"), makeStep("translate")],
+    });
     const onProgress = vi.fn();
-    const fixGrammar = vi.fn(() => new Promise<FixGrammarResult>(() => undefined));
+    const fixGrammar = vi.fn(
+      () => new Promise<FixGrammarResult>(() => undefined),
+    );
     const deps = makeDeps({ fixGrammar, onProgress });
 
     const pending = runCombo({ combo, input: "start" }, deps);
-    const assertion = expect(pending).rejects.toMatchObject({ code: "step-timeout" });
+    // oxlint-disable-next-line vitest/valid-expect -- attached before timers advance so the rejection is never unhandled; awaited below
+    const assertion = expect(pending).rejects.toMatchObject({
+      code: "step-timeout",
+    });
     await vi.advanceTimersByTimeAsync(COMBO_STEP_TIMEOUT_MS);
     await assertion;
 
@@ -955,20 +1069,30 @@ describe("runCombo — onProgress: step-boundary seam for the overlay progress r
   it("fires 'failed' once the whole-combo budget is exhausted, before rejecting with combo-timeout", async () => {
     vi.useFakeTimers();
     const combo = makeCombo({
-      steps: [makeStep("correction"), makeStep("translate"), makeStep("summarize")],
+      steps: [
+        makeStep("correction"),
+        makeStep("translate"),
+        makeStep("summarize"),
+      ],
     });
     const onProgress = vi.fn();
     const stepDurationMs = 50_000;
     const fixGrammar = vi.fn(
       (text: string) =>
         new Promise<FixGrammarResult>((resolve) => {
-          setTimeout(() => resolve(makeResult({ correctedText: text })), stepDurationMs);
+          setTimeout(
+            () => resolve(makeResult({ correctedText: text })),
+            stepDurationMs,
+          );
         }),
     );
     const deps = makeDeps({ fixGrammar, onProgress });
 
     const pending = runCombo({ combo, input: "start" }, deps);
-    const assertion = expect(pending).rejects.toMatchObject({ code: "combo-timeout" });
+    // oxlint-disable-next-line vitest/valid-expect -- attached before timers advance so the rejection is never unhandled; awaited below
+    const assertion = expect(pending).rejects.toMatchObject({
+      code: "combo-timeout",
+    });
     await vi.advanceTimersByTimeAsync(COMBO_TOTAL_BUDGET_MS + stepDurationMs);
     await assertion;
 
@@ -981,6 +1105,8 @@ describe("runCombo — onProgress: step-boundary seam for the overlay progress r
     const combo = makeCombo();
     const deps = makeDeps(); // no onProgress supplied
 
-    await expect(runCombo({ combo, input: "start" }, deps)).resolves.toBeDefined();
+    await expect(
+      runCombo({ combo, input: "start" }, deps),
+    ).resolves.toBeDefined();
   });
 });
