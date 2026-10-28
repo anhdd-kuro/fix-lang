@@ -16,7 +16,7 @@ export const promptGenFeature = {
       x: number;
       y: number;
       autoCopy: boolean;
-    }) => void
+    }) => void,
   ): (() => void) => {
     const listener = (
       _event: Electron.IpcRendererEvent,
@@ -27,7 +27,7 @@ export const promptGenFeature = {
         x: number;
         y: number;
         autoCopy: boolean;
-      }
+      },
     ) => callback(payload);
     ipcRenderer.on("promptGen-data", listener);
     console.log("onPromptGenData registered");

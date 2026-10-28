@@ -11,7 +11,6 @@
  */
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
-import { reasoningForAiSdk } from "~/features/correction/shared/reasoningEffort";
 import { getCurrentProfileId } from "~/features/providers/store/apiStore";
 import { getProfileSecret } from "~/features/providers/store/profileSecretStore";
 import {
@@ -19,8 +18,12 @@ import {
   toConversation,
   usageCounts,
   type AIRequestOptions,
+  type AIRequestResponse,
 } from "~/main/ai.request/requestTypes";
-import { extractResolvedModel } from "~/main/ai.request/resolve-model";
+import {
+  aiSdkCallSettings,
+  aiSdkSystemOption,
+} from "~/main/llm/providers/aiSdkCallSettings";
 import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
 import { notifyRequestError } from "~/main/notifications/error";
 
@@ -45,6 +48,8 @@ export const makeAnthropicAIRequest = async (options: AIRequestOptions) => {
   }
 
   try {
+    // SAFETY: production calls arrive only through the provider registry from
+    // `makeAIRequest`, which always sets `model` to the resolved raw model id.
     const modelId = options.model as string;
     const anthropic = createAnthropic({
       apiKey: apiKey.trim(),
@@ -54,43 +59,40 @@ export const makeAnthropicAIRequest = async (options: AIRequestOptions) => {
     const request = () =>
       generateText({
         model: anthropic(modelId),
-        ...(conversation.system ? { system: conversation.system } : {}),
+        ...aiSdkSystemOption(conversation.system),
         messages: conversation.messages,
         topP: options.top_p,
-        ...(() => {
-          const reasoning = reasoningForAiSdk(options.reasoning);
-          return reasoning !== undefined ? { reasoning } : {};
-        })(),
-        ...(options.stop ? { stopSequences: options.stop } : {}),
-        ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
-        ...(options.maxOutputTokens !== undefined
-          ? { maxOutputTokens: options.maxOutputTokens }
-          : {}),
+        ...aiSdkCallSettings(options),
       });
     // The Messages API has no `n`, so sibling responses are N separate calls —
-    // the same shape the Bedrock path uses for the identical reason.
+    // the same shape every other provider uses.
     const responses = await Promise.all(
       Array.from({ length: Math.max(1, options.n ?? 1) }, request),
     );
     const counts = responses.map((response) => usageCounts(response.usage));
-    const firstBody = responses[0]?.response.body;
 
     const reasoningTexts = responses
       .map((response) => response.reasoningText)
-      .filter((text): text is string => typeof text === "string" && text.length > 0);
-    return {
+      .filter((text): text is string => text != null && text.length > 0);
+    const result: AIRequestResponse = {
       content: responses.map((response) => response.text),
       prompts: responses.map((response) => response.text),
       promptTokens: sumTokenField(counts, "promptTokens"),
       completionTokens: sumTokenField(counts, "completionTokens"),
       model: modelId,
-      provider: "anthropic" as const,
-      resolvedModel: extractResolvedModel(firstBody, modelId),
-      ...(reasoningTexts.length > 0 ? { reasoningTexts } : {}),
+      provider: "anthropic",
+      // `response.modelId` is the model the provider reports having served; no `include` needed.
+      resolvedModel: responses[0]?.response.modelId ?? modelId,
     };
+    if (reasoningTexts.length > 0) result.reasoningTexts = reasoningTexts;
+    return result;
   } catch (error) {
     console.error("makeAnthropicAIRequest error:", error);
-    notifyRequestError(options, error, "Failed to get a response from Anthropic.");
+    notifyRequestError(
+      options,
+      error,
+      "Failed to get a response from Anthropic.",
+    );
     throw error;
   }
 };

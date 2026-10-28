@@ -26,15 +26,15 @@ describe("resolveOverviewCostHint", () => {
 
   it("returns na when every entry is unpriced", () => {
     expect(
-      resolveOverviewCostHint(cost({ total: 3, pricedCount: 0, hasNa: true }))
+      resolveOverviewCostHint(cost({ total: 3, pricedCount: 0, hasNa: true })),
     ).toEqual({ kind: "na" });
   });
 
   it("returns standard precision for a fully priced sum", () => {
     expect(
       resolveOverviewCostHint(
-        cost({ totalUsd: 1.23, pricedCount: 2, total: 2, hasNa: false })
-      )
+        cost({ totalUsd: 1.23, pricedCount: 2, total: 2, hasNa: false }),
+      ),
     ).toEqual({
       kind: "amount",
       valueUsd: 1.23,
@@ -46,8 +46,8 @@ describe("resolveOverviewCostHint", () => {
   it("returns widened precision for a tiny sub-cent sum", () => {
     expect(
       resolveOverviewCostHint(
-        cost({ totalUsd: 0.0006, pricedCount: 1, total: 1, hasNa: false })
-      )
+        cost({ totalUsd: 0.0006, pricedCount: 1, total: 1, hasNa: false }),
+      ),
     ).toEqual({
       kind: "amount",
       valueUsd: 0.0006,
@@ -59,8 +59,8 @@ describe("resolveOverviewCostHint", () => {
   it("carries partial coverage when hasNa is true", () => {
     expect(
       resolveOverviewCostHint(
-        cost({ totalUsd: 0.5, pricedCount: 2, total: 4, hasNa: true })
-      )
+        cost({ totalUsd: 0.5, pricedCount: 2, total: 4, hasNa: true }),
+      ),
     ).toEqual({
       kind: "amount",
       valueUsd: 0.5,
@@ -89,44 +89,38 @@ describe("formatOverviewCostHint", () => {
         formatOverviewCostHint(
           cost({ total: 2, pricedCount: 0, hasNa: true }),
           t,
-          formatNumber
-        )
+          formatNumber,
+        ),
       ).toBe(t("overview.value.estimatedCostNa"));
-    }
+    },
   );
 
-  it.each(localeCases)(
-    "renders a full-coverage hint in %s",
-    (locale) => {
-      const t = createTranslator(locale);
-      const { formatNumber } = createFormatters(locale);
-      const hint = formatOverviewCostHint(
-        cost({ totalUsd: 1.23, pricedCount: 2, total: 2, hasNa: false }),
-        t,
-        formatNumber
-      );
-      expect(hint).toContain("$1.23");
-      expect(hint).toBe(t("overview.value.estimatedCost", { cost: "$1.23" }));
-    }
-  );
+  it.each(localeCases)("renders a full-coverage hint in %s", (locale) => {
+    const t = createTranslator(locale);
+    const { formatNumber } = createFormatters(locale);
+    const hint = formatOverviewCostHint(
+      cost({ totalUsd: 1.23, pricedCount: 2, total: 2, hasNa: false }),
+      t,
+      formatNumber,
+    );
+    expect(hint).toContain("$1.23");
+    expect(hint).toBe(t("overview.value.estimatedCost", { cost: "$1.23" }));
+  });
 
-  it.each(localeCases)(
-    "renders a partial-coverage hint in %s",
-    (locale) => {
-      const t = createTranslator(locale);
-      const { formatNumber } = createFormatters(locale);
-      const hint = formatOverviewCostHint(
-        cost({ totalUsd: 0.5, pricedCount: 2, total: 4, hasNa: true }),
-        t,
-        formatNumber
-      );
-      expect(hint).toBe(
-        t("overview.value.estimatedCostPartial", {
-          cost: "$0.50",
-          priced: 2,
-          total: 4,
-        })
-      );
-    }
-  );
+  it.each(localeCases)("renders a partial-coverage hint in %s", (locale) => {
+    const t = createTranslator(locale);
+    const { formatNumber } = createFormatters(locale);
+    const hint = formatOverviewCostHint(
+      cost({ totalUsd: 0.5, pricedCount: 2, total: 4, hasNa: true }),
+      t,
+      formatNumber,
+    );
+    expect(hint).toBe(
+      t("overview.value.estimatedCostPartial", {
+        cost: "$0.50",
+        priced: 2,
+        total: 4,
+      }),
+    );
+  });
 });

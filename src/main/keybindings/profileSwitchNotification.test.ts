@@ -26,7 +26,9 @@ describe("buildProfileSwitchHotkeyNotification", () => {
 
     expect(buildProfileSwitchHotkeyNotification("Работа")).toEqual({
       title: tEn("notifications.profile.switched.title"),
-      body: tEn("notifications.profile.switchedByHotkey.body", { name: "Работа" }),
+      body: tEn("notifications.profile.switchedByHotkey.body", {
+        name: "Работа",
+      }),
     });
   });
 

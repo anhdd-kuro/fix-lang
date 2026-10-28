@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { appBundlePath, shouldCheckForUpdatesOnLaunch } from "./installationPath";
+import {
+  appBundlePath,
+  shouldCheckForUpdatesOnLaunch,
+} from "./installationPath";
 
 describe("automatic update installation path", () => {
   const homePath = "/Users/kuro";

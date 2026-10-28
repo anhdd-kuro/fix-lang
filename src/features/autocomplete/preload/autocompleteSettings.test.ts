@@ -22,7 +22,8 @@ describe("autocompleteSettings preload boundary", () => {
         dailyCostCapUsd: 5,
       });
 
-      const result = await autocompleteSettingsFeature.getAutocompleteSettings();
+      const result =
+        await autocompleteSettingsFeature.getAutocompleteSettings();
 
       expect(electronMocks.invoke).toHaveBeenCalledWith(
         "get-autocomplete-settings",
@@ -57,9 +58,14 @@ describe("autocompleteSettings preload boundary", () => {
       async (reply) => {
         electronMocks.invoke.mockResolvedValue(reply);
 
-        const result = await autocompleteSettingsFeature.getAutocompleteSettings();
+        const result =
+          await autocompleteSettingsFeature.getAutocompleteSettings();
 
-        expect(result).toEqual({ enabled: false, model: "", dailyCostCapUsd: 5 });
+        expect(result).toEqual({
+          enabled: false,
+          model: "",
+          dailyCostCapUsd: 5,
+        });
       },
     );
   });
@@ -114,13 +120,14 @@ describe("autocompleteSettings preload boundary", () => {
       // keeps the array case from sharing a name with the `undefined` case.
       "rejects a malformed payload without invoking the main process (case %#): %j",
       async (payload) => {
-        const result = await autocompleteSettingsFeature.setAutocompleteSettings(
-          payload as unknown as {
-            enabled: boolean;
-            model: string;
-            dailyCostCapUsd: number;
-          },
-        );
+        const result =
+          await autocompleteSettingsFeature.setAutocompleteSettings(
+            payload as {
+              enabled: boolean;
+              model: string;
+              dailyCostCapUsd: number;
+            },
+          );
 
         expect(electronMocks.invoke).not.toHaveBeenCalled();
         expect(result).toEqual({ success: false });

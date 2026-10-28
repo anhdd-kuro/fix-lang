@@ -32,7 +32,10 @@ import { useUsageCacheInvalidation } from "../hooks/useUsageCacheInvalidation";
 import { useI18n } from "../i18n/useI18n";
 import type { DashboardTabId } from "./dashboardTabs";
 import type { AnalyticsRange } from "../analytics/shared";
-import type { HistoryEntry, HistoryFeatureId } from "~/features/history/store/historyStore";
+import type {
+  HistoryEntry,
+  HistoryFeatureId,
+} from "~/features/history/store/historyStore";
 import type { MessageKey } from "~/features/i18n/shared/message";
 import type { ProviderId } from "~/features/providers/shared/providers";
 
@@ -80,6 +83,7 @@ const App: React.FC = () => {
     model: "",
     promptTokens: 0,
     completionTokens: 0,
+    // oxlint-disable-next-line react/purity -- placeholder timestamp; useState keeps only the first render's value
     timestamp: new Date().toISOString(),
   });
   // Active dashboard tab + shared analytics time range.
@@ -150,7 +154,7 @@ const App: React.FC = () => {
     const handleSettings = (type?: number) => {
       setInitialSettingsTab(type || 0);
       setIsSettingsOpen(true);
-      fetchAllHistories();
+      void fetchAllHistories();
     };
 
     const offOpenSettings = window.electronAPI.onOpenSettings?.(() => {
@@ -224,7 +228,7 @@ const App: React.FC = () => {
         timestamp: new Date().toISOString(),
       });
     }
-    window.electronAPI.removeHistoryEntry(featureId, entry);
+    void window.electronAPI.removeHistoryEntry(featureId, entry);
   };
 
   // Clear the buckets implied by the active filter, then re-fetch so the UI
@@ -297,7 +301,7 @@ const App: React.FC = () => {
 
   // Tab panel contents. Analytics tabs read the shared range; History hosts the
   // list + preview; Usage keeps its own per-provider data hooks.
-  const tabPanels: Record<string, React.ReactNode> = {
+  const tabPanels = {
     overview: <OverviewPanel history={correctionsHistory} range={range} />,
     history: historyTab,
     models: <ModelsPanel history={correctionsHistory} range={range} />,
@@ -330,7 +334,7 @@ const App: React.FC = () => {
         }}
       />
     ),
-  };
+  } satisfies Record<DashboardTabId, React.ReactNode>;
 
   const activeTabId = DASHBOARD_TABS[activeDashboardTab]?.id ?? "overview";
   const showRange = RANGE_AWARE_TABS.has(activeTabId);
@@ -339,7 +343,7 @@ const App: React.FC = () => {
     <div className="flex h-screen flex-col bg-background font-sans text-foreground">
       {/* Shared header: tabs (left) + range pills & settings (right). */}
       <header className="flex items-center justify-between gap-4 border-b border-card-control-border bg-card px-4 py-2">
-        <nav
+        <div
           className="flex gap-1"
           role="tablist"
           aria-label={t("dashboard.tabs.ariaLabel")}
@@ -368,7 +372,7 @@ const App: React.FC = () => {
               </Button>
             );
           })}
-        </nav>
+        </div>
 
         <div className="flex items-center gap-3">
           {showRange && (

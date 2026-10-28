@@ -5,7 +5,10 @@ import { app } from "electron";
 import { logger } from "~/main/logging/logService";
 import { createGitHubReleaseSource } from "./githubReleaseSource";
 import { createHomebrewUpgrader } from "./homebrew";
-import { appBundlePath, shouldCheckForUpdatesOnLaunch } from "./installationPath";
+import {
+  appBundlePath,
+  shouldCheckForUpdatesOnLaunch,
+} from "./installationPath";
 import { createPendingInstallStore } from "./pendingInstall";
 import { createUpdateService, type UpdateService } from "./updateService";
 

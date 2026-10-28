@@ -54,18 +54,28 @@ export const SecurityStatsPanel = ({ range }: SecurityStatsPanelProps) => {
   }, [range]);
 
   const view = useMemo(
-    () => (state.status === "ready" ? resolveSecurityStatsView(state.stats) : null),
+    () =>
+      state.status === "ready" ? resolveSecurityStatsView(state.stats) : null,
     [state],
   );
 
-  const resolve = (status: StatusDescriptor | null): string => resolveStatus(status, t, tm, tl);
+  const resolve = (status: StatusDescriptor | null): string =>
+    resolveStatus(status, t, tm, tl);
 
   if (state.status === "loading") {
-    return <p className="p-4 text-sm text-muted-foreground">{t("security.stats.loading")}</p>;
+    return (
+      <p className="p-4 text-sm text-muted-foreground">
+        {t("security.stats.loading")}
+      </p>
+    );
   }
 
   if (state.status === "error" || view === null) {
-    return <p className="p-4 text-sm text-muted-foreground">{t("security.stats.error")}</p>;
+    return (
+      <p className="p-4 text-sm text-muted-foreground">
+        {t("security.stats.error")}
+      </p>
+    );
   }
 
   const renderCard = (card: SecurityStatCard) => (
@@ -74,9 +84,14 @@ export const SecurityStatsPanel = ({ range }: SecurityStatsPanelProps) => {
       className="flex flex-col gap-1 rounded-lg border border-card-control-border bg-card p-4"
     >
       <span className="text-sm text-muted-foreground">{t(card.labelKey)}</span>
-      <span className="text-2xl font-semibold text-foreground">{formatNumber(card.value)}</span>
+      <span className="text-2xl font-semibold text-foreground">
+        {formatNumber(card.value)}
+      </span>
       {card.details.map((detail, index) => (
-        <span key={`${card.id}-detail-${index}`} className="text-xs text-muted-foreground">
+        <span
+          key={`${card.id}-detail-${index}`}
+          className="text-xs text-muted-foreground"
+        >
           {resolve(detail)}
         </span>
       ))}
@@ -89,14 +104,20 @@ export const SecurityStatsPanel = ({ range }: SecurityStatsPanelProps) => {
       <div className="flex flex-col gap-3">
         {view.lastEventAt !== null && (
           <span className="text-xs text-muted-foreground">
-            {t("security.stats.lastEvent", { date: formatDate(new Date(view.lastEventAt)) })}
+            {t("security.stats.lastEvent", {
+              date: formatDate(new Date(view.lastEventAt)),
+            })}
           </span>
         )}
         {!view.hasActivity && (
-          <p className="text-sm text-muted-foreground">{resolve(view.emptyHint)}</p>
+          <p className="text-sm text-muted-foreground">
+            {resolve(view.emptyHint)}
+          </p>
         )}
         {view.legacyNotice !== null && (
-          <p className="text-sm text-muted-foreground">{resolve(view.legacyNotice)}</p>
+          <p className="text-sm text-muted-foreground">
+            {resolve(view.legacyNotice)}
+          </p>
         )}
         <SecurityCharts
           secretCards={view.secretMixCards}
@@ -127,11 +148,16 @@ export const SecurityStatsPanel = ({ range }: SecurityStatsPanelProps) => {
           <h2 className="text-base font-semibold text-foreground">
             {t("security.stats.rules.title")}
           </h2>
-          <p className="text-sm text-muted-foreground">{resolve(view.rulesHint)}</p>
+          <p className="text-sm text-muted-foreground">
+            {resolve(view.rulesHint)}
+          </p>
           <SecurityRulesBar rows={view.ruleRows} />
           <ul className="flex flex-col gap-1">
             {view.ruleRows.map((row) => (
-              <li key={row.ruleId} className="flex items-baseline justify-between gap-4 text-sm">
+              <li
+                key={row.ruleId}
+                className="flex items-baseline justify-between gap-4 text-sm"
+              >
                 <span className="text-card-foreground">
                   {row.labelKey === null ? row.ruleId : t(row.labelKey)}
                 </span>
@@ -144,7 +170,9 @@ export const SecurityStatsPanel = ({ range }: SecurityStatsPanelProps) => {
         </section>
       )}
 
-      <p className="text-xs text-muted-foreground">{t("security.stats.footnote")}</p>
+      <p className="text-xs text-muted-foreground">
+        {t("security.stats.footnote")}
+      </p>
     </div>
   );
 };

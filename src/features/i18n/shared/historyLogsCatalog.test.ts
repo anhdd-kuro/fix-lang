@@ -37,7 +37,8 @@ const isEnOnlyPluralOne = (key: string): boolean => key.endsWith("_one");
 // why: plain ASCII ordering, not `localeCompare` — the latter is
 // locale-aware and can disagree with a simple byte-order sort for the
 // camelCase/dotted keys used here.
-const asciiCompare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+const asciiCompare = (a: string, b: string): number =>
+  a < b ? -1 : a > b ? 1 : 0;
 
 describe.each(NAMESPACES)("$name.json: en/ja parity", ({ en, ja }) => {
   const enKeys = Object.keys(en);
@@ -49,7 +50,9 @@ describe.each(NAMESPACES)("$name.json: en/ja parity", ({ en, ja }) => {
   });
 
   it("every EN key (except *_one plural variants) has a JA translation", () => {
-    const missing = enKeys.filter((key) => !isEnOnlyPluralOne(key) && !jaKeys.has(key));
+    const missing = enKeys.filter(
+      (key) => !isEnOnlyPluralOne(key) && !jaKeys.has(key),
+    );
     expect(missing).toEqual([]);
   });
 
@@ -64,7 +67,9 @@ describe.each(NAMESPACES)("$name.json: en/ja parity", ({ en, ja }) => {
       .filter((key) => {
         const enPlaceholders = placeholdersOf(en[key]);
         const jaPlaceholders = placeholdersOf(ja[key]);
-        return JSON.stringify(enPlaceholders) !== JSON.stringify(jaPlaceholders);
+        return (
+          JSON.stringify(enPlaceholders) !== JSON.stringify(jaPlaceholders)
+        );
       });
     expect(mismatches).toEqual([]);
   });

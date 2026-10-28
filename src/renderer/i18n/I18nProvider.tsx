@@ -12,10 +12,26 @@
  * only), per the project's Vitest constraint (`.tsx` files are not collected).
  */
 
-import React, { createContext, useCallback, useEffect, useMemo, useReducer } from "react";
-import { createFormatters, type Formatters } from "~/features/i18n/shared/format";
-import { LOCALE_META, type Locale, type TextDirection } from "~/features/i18n/shared/registry";
-import { createTranslator, type Translator } from "~/features/i18n/shared/translate";
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+} from "react";
+import {
+  createFormatters,
+  type Formatters,
+} from "~/features/i18n/shared/format";
+import {
+  LOCALE_META,
+  type Locale,
+  type TextDirection,
+} from "~/features/i18n/shared/registry";
+import {
+  createTranslator,
+  type Translator,
+} from "~/features/i18n/shared/translate";
 import {
   documentAttrsForLocale,
   INITIAL_LOCALE_STATE,
@@ -74,7 +90,7 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children }) => {
       cancelled = true;
       unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `bridge` is `window.electronAPI`, a stable global; re-subscribing per render would drop/re-add the IPC listener for no benefit.
+    // oxlint-disable-next-line react/exhaustive-deps -- `bridge` is `window.electronAPI`, a stable global; re-subscribing per render would drop/re-add the IPC listener for no benefit.
   }, []);
 
   useEffect(() => {
@@ -87,7 +103,7 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children }) => {
     async (next: Locale): Promise<void> => {
       await requestSetLocale(bridge, next, dispatch);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- same stable-global rationale as above.
+    // oxlint-disable-next-line react/exhaustive-deps -- same stable-global rationale as above.
     [],
   );
 

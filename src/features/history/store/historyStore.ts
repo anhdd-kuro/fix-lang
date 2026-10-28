@@ -12,6 +12,7 @@
  * is constructed lazily so importing this module does not require Electron.
  */
 import Store from "electron-store";
+import { z } from "zod";
 import { getHistoryRepo } from "./historyDb";
 import {
   withFallbackTokenCounts,
@@ -83,6 +84,9 @@ const historySchema: Schema<HistoryStore> = {
   },
 };
 
+/** A retired electron-store bucket: its array as stored, or empty when absent or junk. */
+const LegacyHistoryBucketSchema = z.array(z.unknown()).catch(() => []);
+
 // Lazily-constructed electron-store instance. Built on first use so merely
 // importing this module does not require an Electron runtime.
 let historyStoreInstance: Store<HistoryStore> | null = null;
@@ -115,7 +119,7 @@ export function getHistory(featureId: HistoryFeatureId): HistoryEntry[] {
  */
 export function getRecentHistory(
   featureId: HistoryFeatureId,
-  limit: number
+  limit: number,
 ): RecentHistorySummary[] {
   return getHistoryRepo().getRecentByFeature(featureId, limit);
 }
@@ -132,7 +136,7 @@ export function clearHistory(featureId: HistoryFeatureId): void {
 export function addHistoryEntry(
   featureId: HistoryFeatureId,
   entry: HistoryEntry,
-  maxEntries = 100
+  maxEntries = 100,
 ): void {
   // maxEntries is intentionally inert (kept for source-compat); the SQLite
   // backing is uncapped. Reference it so lint does not flag it unused while we
@@ -143,20 +147,36 @@ export function addHistoryEntry(
 
 export const overrideHistory = (
   featureId: HistoryFeatureId,
-  entries: HistoryEntry[]
+  entries: HistoryEntry[],
 ): void => {
-  getHistoryRepo().overrideFeature(featureId, entries.map(withFallbackTokenCounts));
+  getHistoryRepo().overrideFeature(
+    featureId,
+    entries.map(withFallbackTokenCounts),
+  );
 };
 
 export function removeHistoryEntry(
   featureId: HistoryFeatureId,
-  entry: HistoryEntry
+  entry: HistoryEntry,
 ): void {
   getHistoryRepo().remove(featureId, entry);
 }
 
+/**
+ * Callers store a bare `HistoryEntry` (and `{}` to clear), not the
+ * `{ featureId, entry }` shape `LastActionHistory` declares. electron-store 11
+ * accepted that through a loose `set(string, unknown)` overload that v12
+ * dropped; the casts keep the stored shape unchanged.
+ */
+const storedLastActionHistory = (
+  value: HistoryEntry | Record<string, never>,
+): LastActionHistory =>
+  // SAFETY: the only inputs are a bare `HistoryEntry` or `{}`, the shapes every caller stored
+  // before electron-store 12; `never` carries them through `set` unchanged, unvalidated.
+  value as never;
+
 export function setLastActionHistory(entry: HistoryEntry): void {
-  getHistoryStore().set("lastActionHistory", entry);
+  getHistoryStore().set("lastActionHistory", storedLastActionHistory(entry));
 }
 
 export function getLastActionHistory(): LastActionHistory | null {
@@ -164,7 +184,7 @@ export function getLastActionHistory(): LastActionHistory | null {
 }
 
 export function clearLastActionHistory(): void {
-  getHistoryStore().set("lastActionHistory", {});
+  getHistoryStore().set("lastActionHistory", storedLastActionHistory({}));
 }
 
 /**
@@ -180,17 +200,23 @@ export function clearLastActionHistory(): void {
  * The legacy `history.json` is intentionally NOT deleted (safe rollback).
  */
 export const migrateLegacyHistoryBuckets = (): void => {
-  const store = getHistoryStore() as unknown as {
-    get: (key: string) => unknown;
-  };
-
-  const asEntries = (v: unknown): HistoryEntry[] =>
-    Array.isArray(v) ? (v as HistoryEntry[]) : [];
-
-  const corrections = asEntries(store.get("corrections"));
-  const promptGen = asEntries(store.get("promptGen"));
-  const translations = asEntries(store.get("translations"));
-  const summarize = asEntries(store.get("summarize"));
+  const store = getHistoryStore();
+  const [corrections, promptGen, translations, summarize] = [
+    store.get("corrections"),
+    store.get("promptGen"),
+    store.get("translations"),
+    store.get("summarize"),
+  ].map(
+    (bucket) =>
+      // SAFETY: entries are deliberately imported as stored, not
+      // re-validated; `LegacyHistoryBucketSchema` checks only that the bucket
+      // is an array. An entry that cannot be read throws in
+      // `mergeLegacyHistoryEntries` (before BEGIN) or in `insertEntry` (inside
+      // the transaction, which rolls back), so the migration never
+      // half-applies. A wrong-typed scalar can still insert through SQLite
+      // type affinity, exactly as before.
+      LegacyHistoryBucketSchema.parse(bucket) as HistoryEntry[],
+  );
 
   getHistoryRepo().migrateLegacyBuckets(corrections, promptGen, {
     translations,

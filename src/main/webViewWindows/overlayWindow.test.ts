@@ -15,7 +15,10 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildComboProgressStyle, type ComboProgressView } from "./comboProgressView";
+import {
+  buildComboProgressStyle,
+  type ComboProgressView,
+} from "./comboProgressView";
 import {
   createOverlayWindow,
   destroyOverlayWindow,
@@ -83,10 +86,12 @@ describe("overlayWindow — O2 fixed 26x26 / +10 size for every mode", () => {
     destroyOverlayWindow();
     lastWindow = null;
     vi.clearAllMocks();
-    electronMocks.browserWindowCtor.mockImplementation(function BrowserWindowCtor() {
-      lastWindow = new BrowserWindowMock();
-      return lastWindow;
-    });
+    electronMocks.browserWindowCtor.mockImplementation(
+      function BrowserWindowCtor() {
+        lastWindow = new BrowserWindowMock();
+        return lastWindow;
+      },
+    );
     electronMocks.getCursorScreenPoint.mockReturnValue({ x: 100, y: 100 });
   });
 
@@ -136,13 +141,20 @@ describe("updateComboProgress — one executeJavaScript per step boundary (O5)",
     destroyOverlayWindow();
     lastWindow = null;
     vi.clearAllMocks();
-    electronMocks.browserWindowCtor.mockImplementation(function BrowserWindowCtor() {
-      lastWindow = new BrowserWindowMock();
-      return lastWindow;
-    });
+    electronMocks.browserWindowCtor.mockImplementation(
+      function BrowserWindowCtor() {
+        lastWindow = new BrowserWindowMock();
+        return lastWindow;
+      },
+    );
   });
 
-  const VIEW: ComboProgressView = { total: 3, completed: 1, current: 2, state: "running" };
+  const VIEW: ComboProgressView = {
+    total: 3,
+    completed: 1,
+    current: 2,
+    state: "running",
+  };
 
   it("sends exactly one executeJavaScript call whose payload is JSON.stringify of the pure module's output", () => {
     createOverlayWindow();
@@ -201,14 +213,16 @@ describe("updateComboProgress — one executeJavaScript per step boundary (O5)",
     createOverlayWindow();
     fireDidFinishLoad();
     vi.clearAllMocks();
-    const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+    const debugSpy = vi
+      .spyOn(console, "debug")
+      .mockImplementation(() => undefined);
     lastWindow?.webContents.executeJavaScript.mockRejectedValueOnce(
       new ReferenceError("window.__setComboProgress is not a function"),
     );
 
     let unhandledRejection: unknown;
-    const onUnhandledRejection = (reason: unknown) => {
-      unhandledRejection = reason;
+    const onUnhandledRejection = (cause: unknown) => {
+      unhandledRejection = cause;
     };
     process.on("unhandledRejection", onUnhandledRejection);
 
@@ -276,7 +290,9 @@ describe("overlay.html — window.__setComboProgress stays a pure applier (O5)",
       throw new Error("overlay.html has no <script> tag to inspect");
     }
     comboProgressScript = scriptMatch[1];
-    expect(comboProgressScript).toContain("window.__setComboProgress");
+    if (!comboProgressScript.includes("window.__setComboProgress")) {
+      throw new Error("overlay.html script lost window.__setComboProgress");
+    }
   });
 
   it("reads only vars, digit and animate off the payload — nothing else", () => {
@@ -288,7 +304,9 @@ describe("overlay.html — window.__setComboProgress stays a pure applier (O5)",
     ].map(([, property]) => property);
 
     expect(payloadProperties.length).toBeGreaterThan(0);
-    expect(new Set(payloadProperties)).toEqual(new Set(["vars", "digit", "animate"]));
+    expect(new Set(payloadProperties)).toEqual(
+      new Set(["vars", "digit", "animate"]),
+    );
   });
 
   it("never builds a full-circle constant (360) — that math belongs to buildComboProgressStyle", () => {
@@ -307,7 +325,6 @@ describe("overlay.html — window.__setComboProgress stays a pure applier (O5)",
     expect(comboProgressScript).not.toMatch(/\/\s*(?:style\.)?total\b/i);
   });
 });
-
 
 describe("overlay.html — combo ring mask geometry", () => {
   let overlayCss: string;
@@ -338,4 +355,3 @@ describe("overlay.html — combo ring mask geometry", () => {
     );
   });
 });
-

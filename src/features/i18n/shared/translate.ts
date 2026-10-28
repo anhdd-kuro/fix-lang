@@ -22,8 +22,16 @@
  * not spam the console. `resetTranslatorDiagnostics()` clears them for tests.
  */
 
+import { z } from "zod";
+import {
+  AnyNumberSchema,
+  schemaGuard,
+} from "~/features/core/shared/schemaGuard";
 import { CATALOGS, type TranslationKey } from "./locales";
 import { LOCALE_META, type Locale } from "./registry";
+
+/** Any JS number, NaN and ±Infinity included — never a numeric string. */
+const isAnyNumber = schemaGuard(AnyNumberSchema);
 
 /** Values interpolated into `{token}` placeholders. */
 export type TranslateParams = Record<string, string | number>;
@@ -47,7 +55,10 @@ export type TKey = TranslationKey | PluralBaseKey;
 export type Translator = (key: TKey, params?: TranslateParams) => string;
 
 /** Catalog shape accepted by {@link createTranslator}; matches `CATALOGS`. */
-type CatalogSource = Record<Locale, Partial<Record<TranslationKey, string>>>;
+export type CatalogSource = Record<
+  Locale,
+  Partial<Record<TranslationKey, string>>
+>;
 
 const missingKeyWarnings = new Set<string>();
 const missingParamWarnings = new Set<string>();
@@ -55,12 +66,23 @@ const missingParamWarnings = new Set<string>();
 /**
  * True outside production. The renderer runs with `contextIsolation` and no
  * Node integration, so `process` may not exist there — guard its presence
- * before touching `process.env`.
+ * before touching `process.env`. The bare `process` read (not
+ * `"process" in globalThis`) also finds a sandboxed preload's wrapper
+ * parameter, and a missing binding lands in the `catch`.
  */
-const isDevDiagnostics = (): boolean =>
-  typeof process !== "undefined" && process.env.NODE_ENV !== "production";
+const isDevDiagnostics = (): boolean => {
+  try {
+    return process !== undefined && process.env.NODE_ENV !== "production";
+  } catch {
+    return false;
+  }
+};
 
-const warnOnce = (seen: Set<string>, dedupeKey: string, message: string): void => {
+const warnOnce = (
+  seen: Set<string>,
+  dedupeKey: string,
+  message: string,
+): void => {
   if (!isDevDiagnostics() || seen.has(dedupeKey)) {
     return;
   }
@@ -100,10 +122,9 @@ const lookup = (
   candidates: readonly string[],
 ): string | undefined => {
   for (const candidate of candidates) {
-    // why: candidates are built from runtime string concatenation
-    // (`${key}_${category}`), so they cannot be narrowed to the literal
-    // `TranslationKey` union at compile time. The lookup stays safe because
-    // it only ever yields `string | undefined`, never executes untrusted code.
+    // SAFETY: candidates are `key` or `${key}_${category}` built at runtime,
+    // so they cannot be narrowed to the literal `TranslationKey` union; a
+    // candidate the catalog lacks reads `undefined`, which the loop skips.
     const value = catalog[candidate as TranslationKey];
     if (value !== undefined) {
       return value;
@@ -185,15 +206,18 @@ const interpolate = (
       return match;
     }
     const value = values[token];
-    return typeof value === "number"
+    return isAnyNumber(value)
       ? formatNumberParam(value, locale)
       : String(value);
   });
 };
 
-const toFiniteCount = (params: TranslateParams | undefined): number | undefined => {
-  const count = params?.count;
-  return typeof count === "number" && Number.isFinite(count) ? count : undefined;
+const toFiniteCount = (
+  params: TranslateParams | undefined,
+): number | undefined => {
+  // `z.number()` admits finite numbers only.
+  const count = z.number().safeParse(params?.count);
+  return count.success ? count.data : undefined;
 };
 
 /**

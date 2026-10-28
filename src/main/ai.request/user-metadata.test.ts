@@ -30,9 +30,12 @@ describe("withUserMetadata", () => {
     ["null", null],
     ["an empty string", ""],
     ["whitespace only", "  \n  "],
-  ])("returns the system prompt byte-identical for %s", (_label, directives) => {
-    expect(withUserMetadata("Fix grammar.", directives)).toBe("Fix grammar.");
-  });
+  ])(
+    "returns the system prompt byte-identical for %s",
+    (_label, directives) => {
+      expect(withUserMetadata("Fix grammar.", directives)).toBe("Fix grammar.");
+    },
+  );
 
   it("does not invent a Metadata context heading", () => {
     expect(withUserMetadata("Fix grammar.", DIRECTIVES)).not.toContain(
@@ -48,7 +51,7 @@ describe("withUserMetadata", () => {
 });
 
 describe("withUserMetadata — before-last-line", () => {
-  const autocompleteShaped = [
+  const autocompleteStylePrompt = [
     "Reply with one JSON object only:",
     '{"suggestion":"<text appended at the caret>"}',
     "",
@@ -58,7 +61,7 @@ describe("withUserMetadata — before-last-line", () => {
 
   it("keeps the first and last lines in place so a continuation still lands on JSON", () => {
     const result = withUserMetadata(
-      autocompleteShaped,
+      autocompleteStylePrompt,
       DIRECTIVES,
       "before-last-line",
     );
@@ -75,9 +78,9 @@ describe("withUserMetadata — before-last-line", () => {
   });
 
   it("returns the prompt byte-identical when there is nothing to insert", () => {
-    expect(withUserMetadata(autocompleteShaped, "", "before-last-line")).toBe(
-      autocompleteShaped,
-    );
+    expect(
+      withUserMetadata(autocompleteStylePrompt, "", "before-last-line"),
+    ).toBe(autocompleteStylePrompt);
   });
 
   it("falls back to trailing when the prompt has no newline", () => {

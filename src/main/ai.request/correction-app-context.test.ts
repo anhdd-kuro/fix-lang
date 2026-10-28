@@ -36,7 +36,7 @@ vi.mock("electron", () => ({
   app: { getPath: vi.fn().mockReturnValue("/tmp") },
 }));
 vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- importOriginal returns unknown module shape
+  // oxlint-disable-next-line typescript/no-explicit-any -- importOriginal returns unknown module shape
   const real = await importOriginal<any>();
   return {
     ...real,
@@ -73,7 +73,10 @@ import { fixGrammar } from "./correction";
 import { generatePrompt } from "./promptgen";
 import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
-import type { CorrectionPreset, CorrectionSettings } from "~/features/providers/store/apiStore";
+import type {
+  CorrectionPreset,
+  CorrectionSettings,
+} from "~/features/providers/store/apiStore";
 
 const PRESERVE_MARKUP_BULLET =
   "do not add app-specific markup the input does not already use";
@@ -280,13 +283,16 @@ describe("fixGrammar — user metadata", () => {
     ["omitted", undefined],
     ["an empty string", ""],
     ["whitespace only", "  \n  "],
-  ])("leaves the system prompt byte-identical when user metadata is %s", async (_label, userMetadata) => {
-    setup(makePreset({ systemPrompt: "Fix grammar." }));
+  ])(
+    "leaves the system prompt byte-identical when user metadata is %s",
+    async (_label, userMetadata) => {
+      setup(makePreset({ systemPrompt: "Fix grammar." }));
 
-    await fixGrammar("hello world", undefined, { userMetadata });
+      await fixGrammar("hello world", undefined, { userMetadata });
 
-    expect(lastCall().systemPrompt).toBe("Fix grammar.");
-  });
+      expect(lastCall().systemPrompt).toBe("Fix grammar.");
+    },
+  );
 
   it("trails the source-app block so the pinned Metadata context wording is unchanged", async () => {
     setup(makePreset({ systemPrompt: "Fix grammar." }));

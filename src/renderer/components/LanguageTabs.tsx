@@ -1,5 +1,5 @@
 import React from "react";
-import { LOCALE_OPTIONS, type Locale } from "~/features/i18n/shared/registry";
+import { LOCALE_OPTIONS } from "~/features/i18n/shared/registry";
 import { SegmentedControl } from "./SegmentedControl";
 import { useI18n } from "../i18n/useI18n";
 
@@ -39,7 +39,7 @@ export const LanguageTabs: React.FC<LanguageTabsProps> = ({
     <SegmentedControl
       value={locale}
       onChange={(code) => {
-        void setLocale(code as Locale);
+        void setLocale(code);
       }}
       ariaLabel={t("settings.general.language.label")}
       size={size}

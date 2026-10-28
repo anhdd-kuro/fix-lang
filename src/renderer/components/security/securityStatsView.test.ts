@@ -51,13 +51,13 @@ describe("resolveSecurityStatsView", () => {
     expect(view.selectionCards.map((card) => card.id)).toEqual([
       "blockedByApp",
       "declinedLargeSelection",
-      "declinedStaleClipboard",
-      "declinedUnknownClipboardAge",
       "askContextDropped",
     ]);
-    expect([...view.secretCards, ...view.selectionCards].every((card) => card.value === 0)).toBe(
-      true,
-    );
+    expect(
+      [...view.secretCards, ...view.selectionCards].every(
+        (card) => card.value === 0,
+      ),
+    ).toBe(true);
   });
 
   it("carries each count onto its own card", () => {
@@ -69,15 +69,16 @@ describe("resolveSecurityStatsView", () => {
         restoreFailures: 3,
         blockedByApp: 5,
         declinedLargeSelection: 6,
-        declinedStaleClipboard: 7,
-        declinedUnknownClipboardAge: 8,
         askContextDropped: 9,
-        eventCount: 45,
+        eventCount: 30,
       }),
     );
 
     const byId = Object.fromEntries(
-      [...view.secretCards, ...view.selectionCards].map((card) => [card.id, card.value]),
+      [...view.secretCards, ...view.selectionCards].map((card) => [
+        card.id,
+        card.value,
+      ]),
     );
 
     expect(byId).toEqual({
@@ -87,8 +88,6 @@ describe("resolveSecurityStatsView", () => {
       restoreFailures: 3,
       blockedByApp: 5,
       declinedLargeSelection: 6,
-      declinedStaleClipboard: 7,
-      declinedUnknownClipboardAge: 8,
       askContextDropped: 9,
     });
     expect(view.hasActivity).toBe(true);
@@ -101,23 +100,40 @@ describe("resolveSecurityStatsView", () => {
    */
   it("adds one plural-aware detail per masked count, and only when something was masked", () => {
     const masked = resolveSecurityStatsView(
-      stats({ secretMasked: 2, maskedValues: 1, maskedPlaceholders: 4, eventCount: 2 }),
+      stats({
+        secretMasked: 2,
+        maskedValues: 1,
+        maskedPlaceholders: 4,
+        eventCount: 2,
+      }),
     );
-    const maskedCard = masked.secretCards.find((card) => card.id === "secretMasked");
+    const maskedCard = masked.secretCards.find(
+      (card) => card.id === "secretMasked",
+    );
 
     expect(maskedCard?.details).toEqual([
       {
         kind: "plain",
-        message: { key: "security.stats.secretMasked.values", params: { count: 1 } },
+        message: {
+          key: "security.stats.secretMasked.values",
+          params: { count: 1 },
+        },
       },
       {
         kind: "plain",
-        message: { key: "security.stats.secretMasked.placeholders", params: { count: 4 } },
+        message: {
+          key: "security.stats.secretMasked.placeholders",
+          params: { count: 4 },
+        },
       },
     ]);
 
-    const clean = resolveSecurityStatsView(stats({ secretConfirmed: 1, eventCount: 1 }));
-    expect(clean.secretCards.find((card) => card.id === "secretMasked")?.details).toEqual([]);
+    const clean = resolveSecurityStatsView(
+      stats({ secretConfirmed: 1, eventCount: 1 }),
+    );
+    expect(
+      clean.secretCards.find((card) => card.id === "secretMasked")?.details,
+    ).toEqual([]);
   });
 
   /**
@@ -125,7 +141,9 @@ describe("resolveSecurityStatsView", () => {
    * panel must say so instead of letting them read as no activity at all.
    */
   it("names legacy events and never pairs them with the empty hint", () => {
-    const view = resolveSecurityStatsView(stats({ legacyEvents: 3, eventCount: 3 }));
+    const view = resolveSecurityStatsView(
+      stats({ legacyEvents: 3, eventCount: 3 }),
+    );
 
     expect(view.legacyNotice).toEqual({
       kind: "plain",
@@ -133,7 +151,9 @@ describe("resolveSecurityStatsView", () => {
     });
     expect(view.hasActivity).toBe(true);
     expect(view.emptyHint).toBeNull();
-    expect(resolveSecurityStatsView(EMPTY_SECURITY_STATS).legacyNotice).toBeNull();
+    expect(
+      resolveSecurityStatsView(EMPTY_SECURITY_STATS).legacyNotice,
+    ).toBeNull();
   });
 
   it("names a known rule by key and leaves a retired id unlabelled", () => {
@@ -147,7 +167,11 @@ describe("resolveSecurityStatsView", () => {
     );
 
     expect(view.ruleRows).toEqual([
-      { ruleId: knownRuleId, count: 2, labelKey: `security.rules.${knownRuleId}` },
+      {
+        ruleId: knownRuleId,
+        count: 2,
+        labelKey: `security.rules.${knownRuleId}`,
+      },
       { ruleId: "rule-retired-last-year", count: 1, labelKey: null },
     ]);
     expect(view.rulesHint).not.toBeNull();
@@ -166,7 +190,12 @@ describe("resolveSecurityStatsView", () => {
   /** A resolved sentence would freeze into the locale active at fetch time. */
   it("emits keys and descriptors, never prose", () => {
     const view = resolveSecurityStatsView(
-      stats({ secretMasked: 1, maskedValues: 1, maskedPlaceholders: 1, eventCount: 1 }),
+      stats({
+        secretMasked: 1,
+        maskedValues: 1,
+        maskedPlaceholders: 1,
+        eventCount: 1,
+      }),
     );
 
     for (const card of [...view.secretCards, ...view.selectionCards]) {
@@ -180,7 +209,11 @@ describe("resolveSecurityStatsView", () => {
 
   it("passes the newest event timestamp through untouched", () => {
     const view = resolveSecurityStatsView(
-      stats({ blockedByApp: 1, eventCount: 1, lastEventAt: "2026-08-10T09:00:00.000Z" }),
+      stats({
+        blockedByApp: 1,
+        eventCount: 1,
+        lastEventAt: "2026-08-10T09:00:00.000Z",
+      }),
     );
 
     expect(view.lastEventAt).toBe("2026-08-10T09:00:00.000Z");
@@ -213,8 +246,12 @@ describe("resolveSecurityStatsView", () => {
       "secretConfirmed",
       "secretDeclined",
     ]);
-    expect(view.secretMixCards.every((card) => SECRET_GATE_MIX_IDS.has(card.id))).toBe(true);
-    expect(view.secretMixCards.find((card) => card.id === "secretMasked")?.value).toBe(1);
+    expect(
+      view.secretMixCards.every((card) => SECRET_GATE_MIX_IDS.has(card.id)),
+    ).toBe(true);
+    expect(
+      view.secretMixCards.find((card) => card.id === "secretMasked")?.value,
+    ).toBe(1);
   });
 
   /**
@@ -230,12 +267,20 @@ describe("resolveSecurityStatsView", () => {
 
     expect(view.hasActivity).toBe(true);
     expect(view.emptyHint).toBeNull();
-    expect(view.secretCards.find((card) => card.id === "restoreFailures")?.value).toBe(1);
+    expect(
+      view.secretCards.find((card) => card.id === "restoreFailures")?.value,
+    ).toBe(1);
     expect(view.secretMixCards.every((card) => card.value === 0)).toBe(true);
-    expect(SECURITY_CHART_KEYS.secretTitle).toBe("security.stats.charts.secret.title");
-    expect(SECURITY_CHART_KEYS.secretEmpty).toBe("security.stats.charts.secret.empty");
+    expect(SECURITY_CHART_KEYS.secretTitle).toBe(
+      "security.stats.charts.secret.title",
+    );
+    expect(SECURITY_CHART_KEYS.secretEmpty).toBe(
+      "security.stats.charts.secret.empty",
+    );
     expect(tEn(SECURITY_CHART_KEYS.secretTitle)).toBe("Secret gate outcomes");
-    expect(tEn(SECURITY_CHART_KEYS.secretEmpty)).toBe("No secret gate outcomes in this range.");
+    expect(tEn(SECURITY_CHART_KEYS.secretEmpty)).toBe(
+      "No secret gate outcomes in this range.",
+    );
   });
 
   it("emits chart aria descriptors, never prose", () => {
@@ -243,12 +288,17 @@ describe("resolveSecurityStatsView", () => {
       key: "security.stats.charts.namedSlice",
       params: { label: "Masked", detail: "50% · 1 event" },
     });
-    expect(securityChartAriaLabel("Secret guard mix", "Masked: 50% · 1 event")).toEqual({
+    expect(
+      securityChartAriaLabel("Secret guard mix", "Masked: 50% · 1 event"),
+    ).toEqual({
       key: "security.stats.charts.ariaLabel",
       params: { title: "Secret guard mix", summary: "Masked: 50% · 1 event" },
     });
-    expect(joinChartAriaSummary(["Masked: 50% · 1 event", "Cancelled: 50% · 1 event"])).toBe(
-      "Masked: 50% · 1 event; Cancelled: 50% · 1 event",
-    );
+    expect(
+      joinChartAriaSummary([
+        "Masked: 50% · 1 event",
+        "Cancelled: 50% · 1 event",
+      ]),
+    ).toBe("Masked: 50% · 1 event; Cancelled: 50% · 1 event");
   });
 });

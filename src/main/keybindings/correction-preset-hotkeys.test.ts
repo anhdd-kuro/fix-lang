@@ -32,7 +32,10 @@ vi.mock("electron", () => ({
   // calls it in its `finally`, on both the resolve and reject paths — an
   // unmocked call throws and masks whatever error the run actually failed
   // with, since that throw is itself caught and reported instead.
-  globalShortcut: { register: vi.fn().mockReturnValue(true), unregister: vi.fn() },
+  globalShortcut: {
+    register: vi.fn().mockReturnValue(true),
+    unregister: vi.fn(),
+  },
   // A `vi.fn()`, not a plain class, so combo tests can assert exactly which
   // notification (if any) was constructed — e.g. proving E11's good-job
   // notification never fires inside a combo, or that a step failure raises
@@ -49,7 +52,7 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
+  // oxlint-disable-next-line typescript/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return {
     ...real,
@@ -63,19 +66,17 @@ vi.mock("~/features/correction/store/keybindingStore", () => ({
   keybindingStore: { getKeyBindings: vi.fn(() => mocks.keyBindings) },
 }));
 vi.mock("~/features/correction/store/outputModeStore", () => ({
-  outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("popup") },
+  outputModeStore: {
+    getCorrectionOutputMode: vi.fn().mockReturnValue("popup"),
+  },
 }));
 vi.mock("~/features/guards/store/guardStore", () => ({
   guardStore: {
     getSelectionGuardSettings: vi.fn(() => ({
-      clipboardMaxAgeSeconds: 5,
       maxSelectionChars: 20_000,
       deniedBundleIds: [],
     })),
   },
-}));
-vi.mock("../clipboard/clipboardChangeTracker", () => ({
-  clipboardAge: vi.fn(() => null),
 }));
 vi.mock("../../utils", () => ({
   getHighlightedTextWithActiveApp: vi
@@ -125,7 +126,9 @@ vi.mock("./askEnvironment", () => ({
     timeZone: "Asia/Tokyo",
     recentTransforms: [],
   }),
-  buildAskDirectives: vi.fn().mockReturnValue("App locale: en\nSystem language: en-US"),
+  buildAskDirectives: vi
+    .fn()
+    .mockReturnValue("App locale: en\nSystem language: en-US"),
 }));
 // `withHotkeyThrottle` stays REAL: it wraps every registered handler, so a stub
 // pass-through would hide a throttle that swallowed the invocations these tests
@@ -162,7 +165,7 @@ import {
   ComboLockWatchdogError,
   registerCorrectionShortcut,
 } from "./correction";
-import { resetHotkeyThrottleForTests, handleError  } from "./utils";
+import { resetHotkeyThrottleForTests, handleError } from "./utils";
 import {
   getAskContext,
   getHighlightedTextWithActiveApp,
@@ -178,9 +181,11 @@ import {
 import { showAskInputWindow } from "../webViewWindows/askInputWindow";
 import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWindow";
 import type * as KeybindingUtils from "./utils";
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, WebContents } from "electron";
 import type { Mock } from "vitest";
-import type { LogContext } from "~/features/logs/shared/logging";
+import type { FixGrammarResult } from "./comboFlow";
+import type { ComboPreset } from "~/features/providers/store/apiStore";
+import type { LogContext, LogValue } from "~/features/logs/shared/logging";
 
 /** Translate's built-in default accelerator — the one a stored preset claims. */
 const TRANSLATE_DEFAULT_HOTKEY = "Control+Shift+T";
@@ -196,7 +201,7 @@ const storedBuiltIn = (id: string, name: string, hotkey: string) => ({
 });
 
 /** A valid 2-step combo referencing two real built-in presets. */
-const storedCombo = (overrides: Record<string, unknown> = {}) => ({
+const storedCombo = (overrides: Partial<ComboPreset> = {}) => ({
   id: "combo-1",
   name: "Polish and Summarize",
   hotkey: "Control+Alt+K",
@@ -208,7 +213,7 @@ const storedCombo = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const fixGrammarResult = (overrides: Record<string, unknown> = {}) => ({
+const fixGrammarResult = (overrides: Partial<FixGrammarResult> = {}) => ({
   correctedText: "some selected text",
   promptTokens: 10,
   completionTokens: 5,
@@ -245,15 +250,25 @@ const STORED_WITH_CUSTOM_ON_A_BUILTIN_DEFAULT = {
   selectedPresetId: "correction",
 };
 
-const fakeMainWindow = () =>
-  ({
+/** The two members the hotkey path touches; everything else is never read. */
+type FakeMainWindow = {
+  isDestroyed: BrowserWindow["isDestroyed"];
+  webContents: Pick<WebContents, "send">;
+};
+
+const fakeMainWindow = (): BrowserWindow => {
+  const fake: FakeMainWindow = {
     isDestroyed: () => false,
     webContents: { send: vi.fn() },
-  }) as unknown as BrowserWindow;
+  };
+  return fake as BrowserWindow;
+};
 
 type RegisterCall = [string, () => Promise<void>];
 
-const registerFrom = (stored: unknown): RegisterCall[] => {
+const registerFrom = (
+  stored: Parameters<typeof normalizeCorrectionSettings>[0],
+): RegisterCall[] => {
   (getProfileSetting as Mock).mockImplementation((key: string) =>
     key === "models" ? [] : normalizeCorrectionSettings(stored),
   );
@@ -274,13 +289,14 @@ const registerFrom = (stored: unknown): RegisterCall[] => {
 
 const presetIdBehindHandler = async (
   handler: () => Promise<void>,
-): Promise<unknown> => {
+): Promise<LogValue | undefined> => {
   (logger.info as Mock).mockClear();
   await handler();
   const triggered = (logger.info as Mock).mock.calls.find(
-    ([scope, message]) => scope === "correction.hotkey" && message === "Hotkey triggered",
+    ([scope, message]) =>
+      scope === "correction.hotkey" && message === "Hotkey triggered",
   );
-  return (triggered?.[2] as { presetId?: unknown } | undefined)?.presetId;
+  return (triggered?.[2] as LogContext | undefined)?.presetId;
 };
 
 describe("correction preset hotkeys — a materialized built-in never outranks a stored preset", () => {
@@ -422,7 +438,10 @@ describe("correction preset hotkeys — Caveman runs end-to-end from a pre-Cavem
     // registering, so the Caveman-flavored reply is set AFTER that call, same
     // as the lock-busy combo test above does for its own `fixGrammar` mock.
     (fixGrammar as Mock).mockResolvedValue(
-      fixGrammarResult({ correctedText: "ug fix words good", presetName: "Caveman" }),
+      fixGrammarResult({
+        correctedText: "ug fix words good",
+        presetName: "Caveman",
+      }),
     );
 
     await expect(
@@ -587,7 +606,9 @@ describe("correction preset hotkeys — the combo cancel accelerator is never re
       selectedPresetId: "correction",
     });
 
-    expect(calls.map(([shortcut]) => shortcut)).not.toContain(COMBO_CANCEL_CHORD);
+    expect(calls.map(([shortcut]) => shortcut)).not.toContain(
+      COMBO_CANCEL_CHORD,
+    );
     expect(logger.warn).toHaveBeenCalledWith(
       "correction.register",
       "Skipping conflicting correction shortcut",
@@ -605,7 +626,9 @@ describe("correction preset hotkeys — the combo cancel accelerator is never re
       selectedPresetId: "correction",
     });
 
-    expect(calls.map(([shortcut]) => shortcut)).not.toContain(COMBO_CANCEL_CHORD);
+    expect(calls.map(([shortcut]) => shortcut)).not.toContain(
+      COMBO_CANCEL_CHORD,
+    );
     // The rest of the profile is untouched by the skip.
     expect(calls.map(([shortcut]) => shortcut)).toContain("Control+Shift+F");
   });
@@ -773,7 +796,6 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
     // `Once`, so this file's default allow-everything settings are back for
     // the tests below: `vi.clearAllMocks()` clears calls, not implementations.
     (guardStore.getSelectionGuardSettings as Mock).mockReturnValueOnce({
-      clipboardMaxAgeSeconds: 5,
       maxSelectionChars: 20_000,
       deniedBundleIds: ["com.1password.1password"],
     });
@@ -810,7 +832,6 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
       changed: true,
     });
     (guardStore.getSelectionGuardSettings as Mock).mockReturnValueOnce({
-      clipboardMaxAgeSeconds: 5,
       maxSelectionChars: 20_000,
       deniedBundleIds: [],
     });
@@ -900,7 +921,10 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
   });
 
   it("still aborts a non-requiresInput preset with the noTextSelected notification when nothing is selected", async () => {
-    (getHighlightedTextWithActiveApp as Mock).mockResolvedValue({ text: "", activeApp: null });
+    (getHighlightedTextWithActiveApp as Mock).mockResolvedValue({
+      text: "",
+      activeApp: null,
+    });
 
     const calls = registerFrom(singleBuiltInProfile);
     const correctionCall = calls.find(
@@ -976,7 +1000,9 @@ describe("correction preset hotkeys — overlay spinner timing", () => {
     );
 
     const calls = registerFrom(singleBuiltInProfile);
-    const correctionCall = calls.find(([shortcut]) => shortcut === "Control+Shift+F");
+    const correctionCall = calls.find(
+      ([shortcut]) => shortcut === "Control+Shift+F",
+    );
     await correctionCall?.[1]();
 
     expect(showOverlaySpinner).toHaveBeenCalledTimes(1);
@@ -992,13 +1018,17 @@ describe("correction preset hotkeys — overlay spinner timing", () => {
     );
 
     const calls = registerFrom(singleBuiltInProfile);
-    const correctionCall = calls.find(([shortcut]) => shortcut === "Control+Shift+F");
+    const correctionCall = calls.find(
+      ([shortcut]) => shortcut === "Control+Shift+F",
+    );
     await correctionCall?.[1]();
 
     expect(showOverlaySpinner).toHaveBeenCalledTimes(1);
     expect(hideOverlaySpinner).toHaveBeenCalledTimes(1);
     expect(handleError).toHaveBeenCalledWith(
-      expect.objectContaining({ messageKey: "notifications.error.noTextSelected.body" }),
+      expect.objectContaining({
+        messageKey: "notifications.error.noTextSelected.body",
+      }),
     );
   });
 });
@@ -1033,13 +1063,19 @@ describe("correction preset hotkeys — user metadata rides the system prompt", 
     });
 
     const calls = registerFrom(singleBuiltInProfile);
-    const correctionCall = calls.find(([shortcut]) => shortcut === "Control+Shift+F");
+    const correctionCall = calls.find(
+      ([shortcut]) => shortcut === "Control+Shift+F",
+    );
     await correctionCall?.[1]();
 
-    expect(fixGrammar).toHaveBeenCalledWith("some selected text", "correction", {
-      activeAppName: "Slack",
-      userMetadata: "App locale: en\nSystem language: en-US",
-    });
+    expect(fixGrammar).toHaveBeenCalledWith(
+      "some selected text",
+      "correction",
+      {
+        activeAppName: "Slack",
+        userMetadata: "App locale: en\nSystem language: en-US",
+      },
+    );
   });
 });
 
@@ -1082,7 +1118,9 @@ describe("correction preset hotkeys — combo hotkeys register in the same pass 
     const calls = registerFrom(
       twoPresetProfile([storedCombo({ hotkey: "Control+Shift+F" })]),
     );
-    const contested = calls.filter(([shortcut]) => shortcut === "Control+Shift+F");
+    const contested = calls.filter(
+      ([shortcut]) => shortcut === "Control+Shift+F",
+    );
 
     expect(contested).toHaveLength(1);
     expect(logger.warn).toHaveBeenCalledWith(
@@ -1096,16 +1134,21 @@ describe("correction preset hotkeys — combo hotkeys register in the same pass 
     ["promptGen", "Control+Alt+P"],
     ["profileSwitch", "Control+Alt+O"],
     ["the reserved combo-cancel chord", COMBO_CANCEL_ACCELERATOR],
-  ])("skips a combo hotkey equal to %s, with a correction.register warn", (_label, chord) => {
-    const calls = registerFrom(twoPresetProfile([storedCombo({ hotkey: chord })]));
+  ])(
+    "skips a combo hotkey equal to %s, with a correction.register warn",
+    (_label, chord) => {
+      const calls = registerFrom(
+        twoPresetProfile([storedCombo({ hotkey: chord })]),
+      );
 
-    expect(calls.map(([shortcut]) => shortcut)).not.toContain(chord);
-    expect(logger.warn).toHaveBeenCalledWith(
-      "correction.register",
-      "Skipping conflicting correction shortcut",
-      { comboId: "combo-1" },
-    );
-  });
+      expect(calls.map(([shortcut]) => shortcut)).not.toContain(chord);
+      expect(logger.warn).toHaveBeenCalledWith(
+        "correction.register",
+        "Skipping conflicting correction shortcut",
+        { comboId: "combo-1" },
+      );
+    },
+  );
 
   it("re-registers a combo across two registration passes with a changed hotkey, mirroring reloadHotkeys' unregister-then-register-again cycle", () => {
     const first = registerFrom(
@@ -1139,7 +1182,11 @@ describe("correction preset hotkeys — combo hotkeys register in the same pass 
 describe("correction preset hotkeys — combo hotkeys suppress the single-preset good-job notification (E11)", () => {
   const singleComboProfile = () => ({
     presets: [
-      storedBuiltIn(DEFAULT_CORRECTION_PRESET_ID, "Correction", "Control+Shift+F"),
+      storedBuiltIn(
+        DEFAULT_CORRECTION_PRESET_ID,
+        "Correction",
+        "Control+Shift+F",
+      ),
       storedBuiltIn("summarize", "Summarize", "Control+Shift+S"),
     ],
     selectedPresetId: DEFAULT_CORRECTION_PRESET_ID,
@@ -1169,7 +1216,9 @@ describe("correction preset hotkeys — combo hotkeys suppress the single-preset
     // Every step returns the SAME text the selection started with (unchanged
     // output) — exactly the condition that triggers the good-job notification
     // on the single-preset path when the first step's preset is Correction.
-    (fixGrammar as Mock).mockResolvedValue(fixGrammarResult({ correctedText: "some selected text" }));
+    (fixGrammar as Mock).mockResolvedValue(
+      fixGrammarResult({ correctedText: "some selected text" }),
+    );
 
     const calls = registerFrom(singleComboProfile());
     const comboCall = calls.find(([shortcut]) => shortcut === "Control+Alt+K");
@@ -1218,7 +1267,9 @@ describe("correction preset hotkeys — nothing is pasted on a failed or cancell
 
   it("delivers nothing and shows exactly one notification naming the failing step and its position when a step fails", async () => {
     (fixGrammar as Mock)
-      .mockResolvedValueOnce(fixGrammarResult({ correctedText: "step one output" }))
+      .mockResolvedValueOnce(
+        fixGrammarResult({ correctedText: "step one output" }),
+      )
       // E6 — whitespace-only intermediate output is an error, not a silent
       // pass-through, so this is what actually fails step 2.
       .mockResolvedValueOnce(fixGrammarResult({ correctedText: "   " }));
@@ -1232,7 +1283,9 @@ describe("correction preset hotkeys — nothing is pasted on a failed or cancell
     expect(showCorrectionResultWindow).not.toHaveBeenCalled();
 
     expect(Notification).toHaveBeenCalledTimes(1);
-    const [payload] = (Notification as Mock).mock.calls[0] as [{ title: string; body: string }];
+    const [payload] = (Notification as Mock).mock.calls[0] as [
+      { title: string; body: string },
+    ];
     // "Step 2 of 2 — Summarize" — position and preset name of the failing step.
     expect(payload.body).toContain("2");
     expect(payload.body).toContain("Summarize");
@@ -1326,7 +1379,11 @@ describe("correction preset hotkeys — a second combo press is refused while on
       selectedPresetId: "correction",
       combos: [
         storedCombo({ hotkey: "Control+Alt+K" }),
-        storedCombo({ id: "combo-2", name: "Second Combo", hotkey: "Control+Alt+L" }),
+        storedCombo({
+          id: "combo-2",
+          name: "Second Combo",
+          hotkey: "Control+Alt+L",
+        }),
       ],
     });
 
@@ -1342,8 +1399,12 @@ describe("correction preset hotkeys — a second combo press is refused while on
       return fixGrammarResult();
     });
 
-    const firstComboCall = calls.find(([shortcut]) => shortcut === "Control+Alt+K");
-    const secondComboCall = calls.find(([shortcut]) => shortcut === "Control+Alt+L");
+    const firstComboCall = calls.find(
+      ([shortcut]) => shortcut === "Control+Alt+K",
+    );
+    const secondComboCall = calls.find(
+      ([shortcut]) => shortcut === "Control+Alt+L",
+    );
 
     // `withComboLock` acquires its lock SYNCHRONOUSLY, before the handler's
     // first genuine `await` — so by the time this call returns control (a
@@ -1397,7 +1458,9 @@ describe("correction preset hotkeys — a stuck combo handler releases the lock 
     // Simulates the wedged-frontmost-app scenario: the combined selection
     // read never settles, mirroring a real hang in its unbounded
     // `sendCopyKeystroke` fallback (src/utils.ts).
-    (getHighlightedTextWithActiveApp as Mock).mockReturnValue(new Promise(() => undefined));
+    (getHighlightedTextWithActiveApp as Mock).mockReturnValue(
+      new Promise(() => undefined),
+    );
 
     const calls = registerFrom({
       presets: [
@@ -1407,12 +1470,20 @@ describe("correction preset hotkeys — a stuck combo handler releases the lock 
       selectedPresetId: "correction",
       combos: [
         storedCombo({ hotkey: "Control+Alt+K" }),
-        storedCombo({ id: "combo-2", name: "Second Combo", hotkey: "Control+Alt+L" }),
+        storedCombo({
+          id: "combo-2",
+          name: "Second Combo",
+          hotkey: "Control+Alt+L",
+        }),
       ],
     });
 
-    const stuckComboCall = calls.find(([shortcut]) => shortcut === "Control+Alt+K");
-    const laterComboCall = calls.find(([shortcut]) => shortcut === "Control+Alt+L");
+    const stuckComboCall = calls.find(
+      ([shortcut]) => shortcut === "Control+Alt+K",
+    );
+    const laterComboCall = calls.find(
+      ([shortcut]) => shortcut === "Control+Alt+L",
+    );
 
     // Fire-and-forget on purpose: this press hangs forever without the
     // watchdog, so awaiting it directly would hang the test itself.
@@ -1424,7 +1495,9 @@ describe("correction preset hotkeys — a stuck combo handler releases the lock 
     // `finally` need in order to actually run.
     await vi.advanceTimersByTimeAsync(COMBO_LOCK_MAX_HOLD_MS);
 
-    expect(handleError).toHaveBeenCalledWith(expect.any(ComboLockWatchdogError));
+    expect(handleError).toHaveBeenCalledWith(
+      expect.any(ComboLockWatchdogError),
+    );
 
     // The lock must be free now: a later, different combo press proceeds
     // past the lock check (reads the selection again) instead of being
@@ -1529,7 +1602,9 @@ describe("correction preset hotkeys — the lock watchdog aborts the still-runni
     // land 8s later) when the watchdog ceiling arrives.
     await vi.advanceTimersByTimeAsync(52_000);
 
-    expect(handleError).toHaveBeenCalledWith(expect.any(ComboLockWatchdogError));
+    expect(handleError).toHaveBeenCalledWith(
+      expect.any(ComboLockWatchdogError),
+    );
     // Nothing delivered yet — true even pre-fix, since step 2 has not
     // resolved. Not yet the load-bearing assertion.
     expect(pasteText).not.toHaveBeenCalled();
@@ -1706,12 +1781,20 @@ describe("correction preset hotkeys — the watchdog owns the whole handler, not
       selectedPresetId: "correction",
       combos: [
         storedCombo({ hotkey: "Control+Alt+K" }),
-        storedCombo({ id: "combo-2", name: "Second Combo", hotkey: "Control+Alt+L" }),
+        storedCombo({
+          id: "combo-2",
+          name: "Second Combo",
+          hotkey: "Control+Alt+L",
+        }),
       ],
     });
 
-    const stuckComboCall = calls.find(([shortcut]) => shortcut === "Control+Alt+K");
-    const laterComboCall = calls.find(([shortcut]) => shortcut === "Control+Alt+L");
+    const stuckComboCall = calls.find(
+      ([shortcut]) => shortcut === "Control+Alt+K",
+    );
+    const laterComboCall = calls.find(
+      ([shortcut]) => shortcut === "Control+Alt+L",
+    );
 
     // Fire-and-forget: this press hangs in the selection read until released
     // below, well past the watchdog ceiling.
@@ -1719,7 +1802,9 @@ describe("correction preset hotkeys — the watchdog owns the whole handler, not
     expect(getHighlightedTextWithActiveApp).toHaveBeenCalledTimes(1);
 
     await vi.advanceTimersByTimeAsync(COMBO_LOCK_MAX_HOLD_MS);
-    expect(handleError).toHaveBeenCalledWith(expect.any(ComboLockWatchdogError));
+    expect(handleError).toHaveBeenCalledWith(
+      expect.any(ComboLockWatchdogError),
+    );
 
     // The lock is free — a different combo runs, and completes, cleanly.
     await laterComboCall?.[1]();
@@ -1789,7 +1874,9 @@ describe("correction preset hotkeys — a profile switch during the selection re
       combos: [storedCombo({ hotkey: "Control+Alt+K" })],
     });
 
-    const pressed = calls.find(([shortcut]) => shortcut === "Control+Alt+K")?.[1]();
+    const pressed = calls.find(
+      ([shortcut]) => shortcut === "Control+Alt+K",
+    )?.[1]();
 
     // The run is in flight and stuck in the read — this is exactly the window
     // the bug lived in.
@@ -1818,7 +1905,8 @@ describe("correction preset hotkeys — a profile switch during the selection re
 describe("correction preset hotkeys — every combo press logs exactly one latency line", () => {
   const latencyLines = () =>
     (logger.info as Mock).mock.calls.filter(
-      ([scope, message]) => scope === "correction.latency" && message === "Combo latency",
+      ([scope, message]) =>
+        scope === "correction.latency" && message === "Combo latency",
     );
 
   beforeEach(() => {
@@ -1852,7 +1940,7 @@ describe("correction preset hotkeys — every combo press logs exactly one laten
 
     const lines = latencyLines();
     expect(lines).toHaveLength(1);
-    const [, , context] = lines[0] as [string, string, Record<string, unknown>];
+    const [, , context] = lines[0] as [string, string, LogContext];
     expect(context.outcome).toBe("delivered");
     expect(context.comboId).toBe("combo-1");
     expect(typeof context.totalMs).toBe("number");
@@ -1874,14 +1962,16 @@ describe("correction preset hotkeys — every combo press logs exactly one laten
 
     const lines = latencyLines();
     expect(lines).toHaveLength(1);
-    expect((lines[0] as [string, string, Record<string, unknown>])[2].outcome).toBe(
+    expect((lines[0] as [string, string, LogContext])[2].outcome).toBe(
       "no-selection",
     );
   });
 
   it("logs one failed line when a step fails, and never a second one after it", async () => {
     (fixGrammar as Mock)
-      .mockResolvedValueOnce(fixGrammarResult({ correctedText: "step one output" }))
+      .mockResolvedValueOnce(
+        fixGrammarResult({ correctedText: "step one output" }),
+      )
       .mockResolvedValueOnce(fixGrammarResult({ correctedText: "   " }));
 
     const calls = registerFrom(comboProfile());
@@ -1889,7 +1979,7 @@ describe("correction preset hotkeys — every combo press logs exactly one laten
 
     const lines = latencyLines();
     expect(lines).toHaveLength(1);
-    expect((lines[0] as [string, string, Record<string, unknown>])[2].outcome).toBe(
+    expect((lines[0] as [string, string, LogContext])[2].outcome).toBe(
       "failed",
     );
   });

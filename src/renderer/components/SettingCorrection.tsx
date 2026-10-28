@@ -5,7 +5,11 @@ import {
   resolvePresetOptionValue,
   withPresetOptions,
 } from "~/features/correction/shared/presetOptions";
-import { msg, messageLabel, type Message } from "~/features/i18n/shared/message";
+import {
+  msg,
+  messageLabel,
+  type Message,
+} from "~/features/i18n/shared/message";
 import {
   DEFAULT_ASK_PRESET_ID,
   DEFAULT_ASK_PRESET_PROMPT,
@@ -28,10 +32,7 @@ import { useI18n } from "../i18n/useI18n";
 import { splitHotkey } from "./about/userGuideView";
 import { Button } from "./Button";
 import { Checkbox } from "./Checkbox";
-import {
-  collectComboErrors,
-  hasBlockingComboErrors,
-} from "./comboEditorView";
+import { collectComboErrors, hasBlockingComboErrors } from "./comboEditorView";
 import { captureHotkey } from "./hotkeyCapture";
 import { Input, Textarea } from "./Input";
 import { ModelSelect } from "./ModelSelect";
@@ -121,83 +122,88 @@ const PresetHotkeyChips = ({
 export const makeBuiltInPresetDefaults = (): Record<
   string,
   CorrectionPreset
-> => ({
-  [DEFAULT_CORRECTION_PRESET_ID]: {
-    id: DEFAULT_CORRECTION_PRESET_ID,
-    name: "Correction",
-    hotkey: "Control+Shift+F",
-    systemPrompt: DEFAULT_CUSTOM_PROMPT.trim(),
-    model: "", // empty = inherit the global default model
-    isBuiltIn: true,
-  },
-  [DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID]: {
-    id: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
-    name: "Prompt optimization",
-    hotkey: "Control+Shift+D",
-    systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
-    model: "", // empty = inherit the global default model
-    isBuiltIn: true,
-    reasoning: "low",
-  },
-  [DEFAULT_SUMMARIZE_PRESET_ID]: {
-    id: DEFAULT_SUMMARIZE_PRESET_ID,
-    name: "Summarize",
-    hotkey: "Control+Shift+S",
-    systemPrompt: DEFAULT_SUMMARIZE_PRESET_PROMPT,
-    model: "", // empty = inherit the global default model
-    isBuiltIn: true,
-  },
-  [DEFAULT_TRANSLATE_PRESET_ID]: {
-    id: DEFAULT_TRANSLATE_PRESET_ID,
-    name: "Translate",
-    hotkey: "Control+Shift+T",
-    systemPrompt: DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
-    model: "", // empty = inherit the global default model
-    isBuiltIn: true,
-  },
-  [DEFAULT_BUSINESS_WRITING_PRESET_ID]: {
-    id: DEFAULT_BUSINESS_WRITING_PRESET_ID,
-    name: "Business Writing",
-    hotkey: "Control+Shift+B",
-    systemPrompt: DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
-    model: "", // empty = inherit the global default model
-    isBuiltIn: true,
-    reasoning: "low",
-  },
-  [DEFAULT_STRUCTURED_TEXT_PRESET_ID]: {
-    id: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
-    name: "Context-Aware Structured Text",
-    hotkey: "Control+Shift+R",
-    systemPrompt: DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT,
-    model: "", // empty = inherit the global default model
-    isBuiltIn: true,
-  },
-  [DEFAULT_ASK_PRESET_ID]: {
-    id: DEFAULT_ASK_PRESET_ID,
-    name: "Ask AI",
-    hotkey: "Control+Shift+A",
-    systemPrompt: DEFAULT_ASK_PRESET_PROMPT,
-    model: "", // empty = inherit the global default model
-    isBuiltIn: true,
-    // Kept in field-for-field parity with `makeDefaultCorrectionPresets()`;
-    // `minimal` was retired upstream and is no longer a `ReasoningEffort`.
-    reasoning: "low",
-    requiresInput: true,
-    outputMode: "popup",
-    markdownOutput: true,
-  },
-  [DEFAULT_CAVEMAN_PRESET_ID]: {
-    id: DEFAULT_CAVEMAN_PRESET_ID,
-    name: "Caveman",
-    hotkey: "Control+Shift+C",
-    systemPrompt: DEFAULT_CAVEMAN_PRESET_PROMPT,
-    model: "", // empty = inherit the global default model
-    isBuiltIn: true,
-    // Field-for-field parity with `makeDefaultCorrectionPresets()`; the drift
-    // guard in `builtInPresetDefaults.test.ts` fails the moment these disagree.
-    extraOptions: { [CAVEMAN_MODE_OPTION_KEY]: "full" },
-  },
-});
+> => {
+  const builtInPresets: CorrectionPreset[] = [
+    {
+      id: DEFAULT_CORRECTION_PRESET_ID,
+      name: "Correction",
+      hotkey: "Control+Shift+F",
+      systemPrompt: DEFAULT_CUSTOM_PROMPT.trim(),
+      model: "", // empty = inherit the global default model
+      isBuiltIn: true,
+    },
+    {
+      id: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+      name: "Prompt optimization",
+      hotkey: "Control+Shift+D",
+      systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
+      model: "", // empty = inherit the global default model
+      isBuiltIn: true,
+      reasoning: "low",
+    },
+    {
+      id: DEFAULT_SUMMARIZE_PRESET_ID,
+      name: "Summarize",
+      hotkey: "Control+Shift+S",
+      systemPrompt: DEFAULT_SUMMARIZE_PRESET_PROMPT,
+      model: "", // empty = inherit the global default model
+      isBuiltIn: true,
+    },
+    {
+      id: DEFAULT_TRANSLATE_PRESET_ID,
+      name: "Translate",
+      hotkey: "Control+Shift+T",
+      systemPrompt: DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
+      model: "", // empty = inherit the global default model
+      isBuiltIn: true,
+    },
+    {
+      id: DEFAULT_BUSINESS_WRITING_PRESET_ID,
+      name: "Business Writing",
+      hotkey: "Control+Shift+B",
+      systemPrompt: DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
+      model: "", // empty = inherit the global default model
+      isBuiltIn: true,
+      reasoning: "low",
+    },
+    {
+      id: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+      name: "Context-Aware Structured Text",
+      hotkey: "Control+Shift+R",
+      systemPrompt: DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT,
+      model: "", // empty = inherit the global default model
+      isBuiltIn: true,
+    },
+    {
+      id: DEFAULT_ASK_PRESET_ID,
+      name: "Ask AI",
+      hotkey: "Control+Shift+A",
+      systemPrompt: DEFAULT_ASK_PRESET_PROMPT,
+      model: "", // empty = inherit the global default model
+      isBuiltIn: true,
+      // Kept in field-for-field parity with `makeDefaultCorrectionPresets()`;
+      // `minimal` was retired upstream and is no longer a `ReasoningEffort`.
+      reasoning: "low",
+      requiresInput: true,
+      outputMode: "popup",
+      markdownOutput: true,
+    },
+    {
+      id: DEFAULT_CAVEMAN_PRESET_ID,
+      name: "Caveman",
+      hotkey: "Control+Shift+C",
+      systemPrompt: DEFAULT_CAVEMAN_PRESET_PROMPT,
+      model: "", // empty = inherit the global default model
+      isBuiltIn: true,
+      // Field-for-field parity with `makeDefaultCorrectionPresets()`; the drift
+      // guard in `builtInPresetDefaults.test.ts` fails the moment these disagree.
+      extraOptions: { [CAVEMAN_MODE_OPTION_KEY]: "full" },
+    },
+  ];
+  return Object.fromEntries(
+    builtInPresets.map((preset) => [preset.id, preset]),
+  );
+};
 
 const buildDefaultSettings = (): CorrectionSettings => ({
   presets: Object.values(makeBuiltInPresetDefaults()),
@@ -291,7 +297,6 @@ export const SettingCorrection: React.FC = () => {
     [combos, correctionSettings.presets],
   );
 
-
   const loadSettings = async () => {
     try {
       setIsLoading(true);
@@ -311,13 +316,13 @@ export const SettingCorrection: React.FC = () => {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadSettings();
+    // oxlint-disable-next-line react/set-state-in-effect
+    void loadSettings();
   }, []);
 
   useEffect(() => {
     const off = window.electronAPI.onSettingsUpdated?.(() => {
-      loadSettings();
+      void loadSettings();
     });
 
     return () => off?.();
@@ -455,7 +460,6 @@ export const SettingCorrection: React.FC = () => {
     setStatus(null);
     setStatusIsError(false);
   };
-
 
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

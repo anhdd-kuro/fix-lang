@@ -27,7 +27,7 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
+  // oxlint-disable-next-line typescript/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return {
     ...real,
@@ -54,9 +54,13 @@ vi.mock("../webViewWindows/askResultWindow", () => ({
 }));
 vi.mock("./utils", () => ({ handleError: vi.fn() }));
 vi.mock("~/features/correction/store/outputModeStore", () => ({
-  outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("paste") },
+  outputModeStore: {
+    getCorrectionOutputMode: vi.fn().mockReturnValue("paste"),
+  },
 }));
-vi.mock("~/features/i18n/store/localeStore", () => ({ getLocale: vi.fn().mockReturnValue("en") }));
+vi.mock("~/features/i18n/store/localeStore", () => ({
+  getLocale: vi.fn().mockReturnValue("en"),
+}));
 // The secret gate itself (`runSecretGate`, `scanForSecrets`) stays REAL — a
 // mocked gate would let a call site that re-derived Ask's mask-degrades-to-
 // confirm policy pass.
@@ -71,7 +75,7 @@ vi.mock("~/main/notifications/secretGuardDialog", () => ({
 // spy so the ordering test below can see WHEN the timer starts, not merely
 // whether it eventually finishes.
 vi.mock("../logging/latencyTimer", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
+  // oxlint-disable-next-line typescript/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return { ...real, startLatencyTimer: vi.fn(real.startLatencyTimer) };
 });
@@ -95,7 +99,7 @@ import { startLatencyTimer } from "../logging/latencyTimer";
 import { logger } from "../logging/logService";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import { showAskResultWindow } from "../webViewWindows/askResultWindow";
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, WebContents } from "electron";
 import type { Mock } from "vitest";
 import type { CorrectionPreset } from "~/features/providers/store/apiStore";
 
@@ -111,11 +115,19 @@ const basePreset: CorrectionPreset = {
   markdownOutput: true,
 };
 
-const fakeMainWindow = () =>
-  ({
+/** The two members the hotkey path touches; everything else is never read. */
+type FakeMainWindow = {
+  isDestroyed: BrowserWindow["isDestroyed"];
+  webContents: Pick<WebContents, "send">;
+};
+
+const fakeMainWindow = (): BrowserWindow => {
+  const fake: FakeMainWindow = {
     isDestroyed: () => false,
     webContents: { send: vi.fn() },
-  }) as unknown as BrowserWindow;
+  };
+  return fake as BrowserWindow;
+};
 
 const askSessionJson = JSON.stringify({
   systemPrompt: "Ask AI system prompt.",
@@ -143,7 +155,7 @@ const syncedEntry = () => {
 };
 
 /** Mirrors the History row's own gate — `HistoryEntryItem.tsx:54`. */
-const showsDetailsControl = (sessionJson: unknown): boolean =>
+const showsDetailsControl = (sessionJson: string | undefined): boolean =>
   typeof sessionJson === "string" && sessionJson.length > 0;
 
 /** A credential shaped exactly like the `openai-key` rule's pattern. */
@@ -158,7 +170,9 @@ const setSecretGuardMode = (mode: "off" | "confirm" | "mask"): void => {
 
 /** Every `logger.info` line the latency timer emitted, in order. */
 const latencyFinishCalls = () =>
-  (logger.info as Mock).mock.calls.filter(([scope]) => scope === "correction.latency");
+  (logger.info as Mock).mock.calls.filter(
+    ([scope]) => scope === "correction.latency",
+  );
 
 describe("runAskFlow", () => {
   beforeEach(() => {
@@ -495,8 +509,10 @@ describe("runAskFlow secret guard", () => {
       mainWindow: fakeMainWindow(),
     });
 
-    const gateCallOrder = (confirmSecretSend as Mock).mock.invocationCallOrder[0];
-    const timerCallOrder = (startLatencyTimer as Mock).mock.invocationCallOrder[0];
+    const gateCallOrder = (confirmSecretSend as Mock).mock
+      .invocationCallOrder[0];
+    const timerCallOrder = (startLatencyTimer as Mock).mock
+      .invocationCallOrder[0];
     expect(gateCallOrder).toBeDefined();
     expect(timerCallOrder).toBeDefined();
     // The whole point of the ordering: the gate resolves BEFORE the clock
@@ -535,7 +551,10 @@ describe("runAskFlow secret guard", () => {
       mainWindow: fakeMainWindow(),
     });
 
-    expect(fixGrammar).toHaveBeenCalledWith(`${question}\n\nApp locale: en`, "ask");
+    expect(fixGrammar).toHaveBeenCalledWith(
+      `${question}\n\nApp locale: en`,
+      "ask",
+    );
     const finishes = latencyFinishCalls();
     expect(finishes).toHaveLength(1);
     expect(finishes[0][2]).toMatchObject({ outcome: "delivered" });
@@ -606,12 +625,17 @@ describe("runAskFlow secret guard", () => {
     // A free-form answer rarely echoes placeholders back, so a restore would
     // fail on most requests and permanently divert Ask to the popup.
     expect(confirmSecretSend).toHaveBeenCalledTimes(1);
-    expect(fixGrammar).toHaveBeenCalledWith(`${question}\n\nApp locale: en`, "ask");
+    expect(fixGrammar).toHaveBeenCalledWith(
+      `${question}\n\nApp locale: en`,
+      "ask",
+    );
     const [sent] = (fixGrammar as Mock).mock.calls[0];
     expect(sent).not.toMatch(/FIXLANG_SECRET_/);
     expect(syncHistory).toHaveBeenCalledWith(
       expect.objectContaining({
-        entry: expect.objectContaining({ original: `${question}\n\nApp locale: en` }),
+        entry: expect.objectContaining({
+          original: `${question}\n\nApp locale: en`,
+        }),
       }),
     );
   });

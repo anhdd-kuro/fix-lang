@@ -53,9 +53,15 @@ describe("useI18n — tm/tl referential stability", () => {
 
   const Harness = () => {
     const [, setTick] = useState(0);
+    // oxlint-disable-next-line react/globals -- test harness hands the rerender trigger out to the test body
     forceRerender = () => setTick((current) => current + 1);
     const result = useI18n();
-    snapshots.push({ locale: result.locale, tm: result.tm, tl: result.tl, result });
+    snapshots.push({
+      locale: result.locale,
+      tm: result.tm,
+      tl: result.tl,
+      result,
+    });
     return null;
   };
 

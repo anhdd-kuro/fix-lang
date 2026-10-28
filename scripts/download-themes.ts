@@ -6,18 +6,18 @@
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import {
-  THEME_JSON_DIR,
-  TM_THEMES_GITHUB_DIR,
-} from "./themes-paths";
+import { z } from "zod";
+import { THEME_JSON_DIR, TM_THEMES_GITHUB_DIR } from "./themes-paths";
 
-type GitHubContentEntry = {
-  name: string;
-  type: string;
-  download_url: string | null;
-};
+const GitHubContentEntrySchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  download_url: z.string().nullable(),
+});
 
-const fetchJson = async <T>(url: string): Promise<T> => {
+type GitHubContentEntry = z.infer<typeof GitHubContentEntrySchema>;
+
+const fetchJson = async <T>(url: string, schema: z.ZodType<T>): Promise<T> => {
   const response = await fetch(url, {
     headers: {
       Accept: "application/vnd.github+json",
@@ -29,7 +29,7 @@ const fetchJson = async <T>(url: string): Promise<T> => {
     throw new Error(`GitHub API error ${String(response.status)} for ${url}`);
   }
 
-  return (await response.json()) as T;
+  return schema.parse(await response.json());
 };
 
 const downloadThemeFile = async (entry: GitHubContentEntry): Promise<void> => {
@@ -56,7 +56,10 @@ const downloadThemeFile = async (entry: GitHubContentEntry): Promise<void> => {
 const main = async (): Promise<void> => {
   await mkdir(THEME_JSON_DIR, { recursive: true });
 
-  const entries = await fetchJson<GitHubContentEntry[]>(TM_THEMES_GITHUB_DIR);
+  const entries = await fetchJson(
+    TM_THEMES_GITHUB_DIR,
+    z.array(GitHubContentEntrySchema),
+  );
   const jsonEntries = entries.filter(
     (entry) => entry.type === "file" && entry.name.endsWith(".json"),
   );
@@ -72,8 +75,8 @@ const main = async (): Promise<void> => {
   );
 };
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
+main().catch((cause: unknown) => {
+  const message = cause instanceof Error ? cause.message : String(cause);
   console.error(`Theme download failed: ${message}`);
   process.exit(1);
 });

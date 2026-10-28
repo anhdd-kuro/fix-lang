@@ -56,7 +56,7 @@ export const hideErrorPopup = (): void => {
     errorPopupWindow.hide();
     // Reset the dismiss hash so a later Close click fires `did-navigate-in-page`
     // again (setting the same hash twice is a no-op).
-    void errorPopupWindow.webContents.executeJavaScript("location.hash = \"\"");
+    void errorPopupWindow.webContents.executeJavaScript('location.hash = ""');
   }
 };
 
@@ -107,8 +107,8 @@ const displayErrorPopup = (message: string): void => {
         hideErrorPopup();
       }, ERROR_POPUP_DURATION_MS);
     })
-    .catch((error: unknown) => {
-      console.error("Unable to render error popup:", error);
+    .catch((cause: unknown) => {
+      console.error("Unable to render error popup:", cause);
     });
 };
 
@@ -134,10 +134,12 @@ export const createErrorPopupWindow = (): BrowserWindow => {
       devTools: false,
     },
   });
-  errorPopupWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  errorPopupWindow.setVisibleOnAllWorkspaces(true, {
+    visibleOnFullScreen: true,
+  });
   // Unlike the spinner overlay, the error popup must accept clicks on Close.
   errorPopupWindow.setIgnoreMouseEvents(false);
-  errorPopupWindow.loadFile(errorPopupHtml);
+  void errorPopupWindow.loadFile(errorPopupHtml);
   errorPopupWindow.webContents.on("did-navigate-in-page", (_event, url) => {
     if (url.includes(ERROR_POPUP_DISMISS_HASH)) {
       hideErrorPopup();
@@ -166,7 +168,7 @@ export const showErrorPopup = (message: string): void => {
 };
 
 export const initializeErrorPopupWindow = (): void => {
-  app.whenReady().then(() => {
+  void app.whenReady().then(() => {
     createErrorPopupWindow();
   });
   app.on("will-quit", () => {
@@ -177,7 +179,6 @@ export const initializeErrorPopupWindow = (): void => {
     errorPopupReady = false;
   });
 };
-
 
 export const syncErrorPopupTypography = (
   typography = appearanceStore.getTypography(),

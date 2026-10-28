@@ -27,7 +27,7 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
   showErrorPopup: vi.fn(),
 }));
 vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
+  // oxlint-disable-next-line typescript/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return {
     ...real,
@@ -39,6 +39,7 @@ vi.mock("./shared", () => ({ makeAIRequest: vi.fn() }));
 import { getProfileSetting } from "~/features/providers/store/apiStore";
 import { generatePrompt } from "./promptgen";
 import { makeAIRequest } from "./shared";
+import type { AIRequestOptions } from "./requestTypes";
 import type { Mock } from "vitest";
 
 type StoredPromptGenSettings = {
@@ -77,7 +78,7 @@ const setup = (overrides: Partial<StoredPromptGenSettings> = {}) => {
 };
 
 /** The single options object `generatePrompt` handed to `makeAIRequest`. */
-const requestOptions = (): Record<string, unknown> =>
+const requestOptions = (): AIRequestOptions =>
   (makeAIRequest as Mock).mock.calls[0][0];
 
 // A stored profile setting overwriting an explicit caller value is silent —

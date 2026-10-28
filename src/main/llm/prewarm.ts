@@ -17,7 +17,10 @@
  * same cached model list (`getCachedModels`). Nothing here re-derives which
  * provider a ref belongs to.
  */
-import { parseModelRef, resolveModelRef } from "~/features/providers/shared/modelRef";
+import {
+  parseModelRef,
+  resolveModelRef,
+} from "~/features/providers/shared/modelRef";
 import { getApiKey } from "~/features/providers/store/apiKeyStore";
 import { getCurrentProfileId } from "~/features/providers/store/apiStore";
 import { getProfileSecret } from "~/features/providers/store/profileSecretStore";
@@ -29,7 +32,10 @@ import type { Model, ProviderId } from "~/features/providers/shared/providers";
 const LOG_SCOPE = "prewarm.connection";
 
 /** Loopback providers gain nothing from a TCP/TLS prewarm. */
-const LOCAL_PROVIDERS: ReadonlySet<ProviderId> = new Set(["ollama", "lmstudio"]);
+const LOCAL_PROVIDERS: ReadonlySet<ProviderId> = new Set([
+  "ollama",
+  "lmstudio",
+]);
 
 /**
  * How long a successful prewarm suppresses the next one for that provider.
@@ -88,13 +94,17 @@ export const resolveProviderForModelRef = (
  * than cancelling) is what actually frees the socket for reuse; cancelling can
  * tear the connection down instead, which is the opposite of the goal.
  */
-const drain = async (response: { arrayBuffer: () => Promise<unknown> }): Promise<void> => {
+const drain = async (response: {
+  arrayBuffer: () => Promise<ArrayBuffer>;
+}): Promise<void> => {
   await response.arrayBuffer();
 };
 
 const warmOpenAI = async (): Promise<void> => {
   const profileId = getCurrentProfileId();
-  const apiKey = profileId ? await getProfileSecret(profileId, "openai", "api") : null;
+  const apiKey = profileId
+    ? await getProfileSecret(profileId, "openai", "api")
+    : null;
   if (!apiKey) return;
   const response = await keepAliveFetch("https://api.openai.com/v1/models", {
     method: "GET",
@@ -116,11 +126,14 @@ const warmOpenAI = async (): Promise<void> => {
 const warmOpenRouter = async (): Promise<void> => {
   const apiKey = await getApiKey();
   if (!apiKey) return;
-  const response = await keepAliveFetch("https://openrouter.ai/api/v1/credits", {
-    method: "GET",
-    headers: { Authorization: `Bearer ${apiKey.trim()}` },
-    signal: AbortSignal.timeout(5000),
-  });
+  const response = await keepAliveFetch(
+    "https://openrouter.ai/api/v1/credits",
+    {
+      method: "GET",
+      headers: { Authorization: `Bearer ${apiKey.trim()}` },
+      signal: AbortSignal.timeout(5000),
+    },
+  );
   await drain(response);
 };
 
@@ -131,7 +144,9 @@ const warmOpenRouter = async (): Promise<void> => {
  */
 const warmAnthropic = async (): Promise<void> => {
   const profileId = getCurrentProfileId();
-  const apiKey = profileId ? await getProfileSecret(profileId, "anthropic", "api") : null;
+  const apiKey = profileId
+    ? await getProfileSecret(profileId, "anthropic", "api")
+    : null;
   if (!apiKey) return;
   const response = await keepAliveFetch("https://api.anthropic.com/v1/models", {
     method: "GET",
@@ -150,11 +165,14 @@ const warmAnthropic = async (): Promise<void> => {
  * rather than a plain `fetch`, so it has no warm-up implementation here and is
  * skipped like a local provider — see this file's own report for the call.
  */
-const WARM_BY_PROVIDER: Readonly<Partial<Record<ProviderId, () => Promise<void>>>> = {
-  openai: warmOpenAI,
-  openrouter: warmOpenRouter,
-  anthropic: warmAnthropic,
-};
+const WARM_BY_PROVIDER: ReadonlyMap<ProviderId, () => Promise<void>> = new Map<
+  ProviderId,
+  () => Promise<void>
+>([
+  ["openai", warmOpenAI],
+  ["openrouter", warmOpenRouter],
+  ["anthropic", warmAnthropic],
+]);
 
 export const prewarmProviderConnection = (modelRef: string): void => {
   try {
@@ -162,7 +180,7 @@ export const prewarmProviderConnection = (modelRef: string): void => {
     const provider = resolveProviderForModelRef(modelRef, getCachedModels());
     if (provider === null || LOCAL_PROVIDERS.has(provider)) return;
 
-    const warm = WARM_BY_PROVIDER[provider];
+    const warm = WARM_BY_PROVIDER.get(provider);
     if (!warm) return;
 
     const warmedAt = lastPrewarmAt.get(provider);
@@ -179,10 +197,10 @@ export const prewarmProviderConnection = (modelRef: string): void => {
         lastPrewarmAt.set(provider, Date.now());
         logger.debug(LOG_SCOPE, "Prewarm connection established", { provider });
       },
-      (error: unknown) => {
+      (cause: unknown) => {
         logger.debug(LOG_SCOPE, "Prewarm request failed", {
           provider,
-          error: error instanceof Error ? error.message : String(error),
+          error: cause instanceof Error ? cause.message : String(cause),
         });
       },
     );

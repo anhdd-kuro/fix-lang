@@ -41,7 +41,9 @@ describe("createFormatters", () => {
 
     it("returns '' for NaN / Infinity numeric input", () => {
       expect(createFormatters("en").formatDate(Number.NaN)).toBe("");
-      expect(createFormatters("en").formatDate(Number.POSITIVE_INFINITY)).toBe("");
+      expect(createFormatters("en").formatDate(Number.POSITIVE_INFINITY)).toBe(
+        "",
+      );
     });
   });
 
@@ -157,8 +159,14 @@ describe("createFormatters", () => {
     it("+3 hours -> future phrasing in both locales", () => {
       const threeHoursAhead = new Date(now.getTime() + 3 * 60 * 60 * 1000);
 
-      const en = createFormatters("en").formatRelativeTime(threeHoursAhead, now);
-      const ja = createFormatters("ja").formatRelativeTime(threeHoursAhead, now);
+      const en = createFormatters("en").formatRelativeTime(
+        threeHoursAhead,
+        now,
+      );
+      const ja = createFormatters("ja").formatRelativeTime(
+        threeHoursAhead,
+        now,
+      );
 
       expect(en.toLowerCase()).toContain("3");
       expect(en.toLowerCase()).toContain("in");
@@ -233,10 +241,14 @@ describe("createFormatters", () => {
       const now = new Date("2026-07-25T12:00:00Z");
 
       formatRelativeTime(new Date(now.getTime() - 1000), now);
-      const first = __peekFormatCachesForTests.relativeTimeFormat("en", { numeric: "auto" });
+      const first = __peekFormatCachesForTests.relativeTimeFormat("en", {
+        numeric: "auto",
+      });
 
       formatRelativeTime(new Date(now.getTime() - 2000), now);
-      const second = __peekFormatCachesForTests.relativeTimeFormat("en", { numeric: "auto" });
+      const second = __peekFormatCachesForTests.relativeTimeFormat("en", {
+        numeric: "auto",
+      });
 
       expect(first).toBeDefined();
       expect(first).toBe(second);

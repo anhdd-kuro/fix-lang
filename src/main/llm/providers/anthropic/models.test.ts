@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { JsonValue } from "~/main/jsonValue";
 
 const keepAliveFetchMock = vi.fn();
 
@@ -8,7 +9,7 @@ vi.mock("~/main/llm/httpKeepAlive", () => ({
 
 const { fetchAnthropicModels } = await import("./models");
 
-const okResponse = (data: unknown) => ({
+const okResponse = (data: JsonValue) => ({
   ok: true,
   status: 200,
   json: () => Promise.resolve({ data }),
@@ -66,7 +67,11 @@ describe("fetchAnthropicModels", () => {
   it("falls back to the raw id when the display name is missing or empty", async () => {
     keepAliveFetchMock.mockResolvedValue(
       okResponse([
-        { id: "claude-a", display_name: "", created_at: "2026-01-01T00:00:00Z" },
+        {
+          id: "claude-a",
+          display_name: "",
+          created_at: "2026-01-01T00:00:00Z",
+        },
         { id: "claude-b", created_at: "2026-01-01T00:00:00Z" },
       ]),
     );
@@ -92,7 +97,11 @@ describe("fetchAnthropicModels", () => {
 
   it("drops an entry with no usable id instead of emitting a blank row", async () => {
     keepAliveFetchMock.mockResolvedValue(
-      okResponse([{ id: "", display_name: "A" }, { display_name: "B" }, { id: "claude-a" }]),
+      okResponse([
+        { id: "", display_name: "A" },
+        { display_name: "B" },
+        { id: "claude-a" },
+      ]),
     );
 
     const models = await fetchAnthropicModels("sk-ant-api03-test");
@@ -110,7 +119,35 @@ describe("fetchAnthropicModels", () => {
       json: () => Promise.resolve({}),
     });
 
-    await expect(fetchAnthropicModels("sk-ant-api03-test")).rejects.toThrow(/401/);
+    await expect(fetchAnthropicModels("sk-ant-api03-test")).rejects.toThrow(
+      /401/,
+    );
+  });
+
+  it("skips non-object entries but fails the list on a null entry or body", async () => {
+    keepAliveFetchMock.mockResolvedValue(
+      okResponse(["claude-x", 5, ["claude-y"], { id: "claude-a" }]),
+    );
+    await expect(fetchAnthropicModels("sk-ant-api03-test")).resolves.toEqual([
+      expect.objectContaining({ id: "claude-a" }),
+    ]);
+
+    keepAliveFetchMock.mockResolvedValue(
+      okResponse([{ id: "claude-a" }, null]),
+    );
+    await expect(fetchAnthropicModels("sk-ant-api03-test")).rejects.toThrow(
+      TypeError,
+    );
+
+    keepAliveFetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(null),
+      text: () => Promise.resolve(""),
+    });
+    await expect(fetchAnthropicModels("sk-ant-api03-test")).rejects.toThrow(
+      TypeError,
+    );
   });
 
   it("tolerates a body with no data array", async () => {
@@ -121,14 +158,22 @@ describe("fetchAnthropicModels", () => {
       text: () => Promise.resolve(""),
     });
 
-    await expect(fetchAnthropicModels("sk-ant-api03-test")).resolves.toEqual([]);
+    await expect(fetchAnthropicModels("sk-ant-api03-test")).resolves.toEqual(
+      [],
+    );
   });
 
   it("tags every entry with its provider and ships no pricing", async () => {
     // An untagged entry formats as an `openrouter::` ref; a fabricated price
     // would make `computeCost` bill Anthropic requests from invented numbers.
     keepAliveFetchMock.mockResolvedValue(
-      okResponse([{ id: "claude-a", display_name: "A", created_at: "2026-01-01T00:00:00Z" }]),
+      okResponse([
+        {
+          id: "claude-a",
+          display_name: "A",
+          created_at: "2026-01-01T00:00:00Z",
+        },
+      ]),
     );
 
     const [model] = await fetchAnthropicModels("sk-ant-api03-test");

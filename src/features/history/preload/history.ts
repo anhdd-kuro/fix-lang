@@ -1,7 +1,10 @@
 // Unified history-related preload functionality
 import { ipcRenderer } from "electron";
 import type { SyncHistoryResponse } from "~/features/history/main/history";
-import type { HistoryEntry, HistoryStoreType } from "~/features/history/store/historyStore";
+import type {
+  HistoryEntry,
+  HistoryStoreType,
+} from "~/features/history/store/historyStore";
 
 /**
  * Creates a set of history management functions for a specific feature
@@ -28,7 +31,7 @@ const createHistoryFeature = () => {
      */
     removeHistoryEntry: (
       type: HistoryStoreType,
-      entry: HistoryEntry
+      entry: HistoryEntry,
     ): Promise<{ success: boolean }> => {
       return ipcRenderer.invoke("remove-history-entry", {
         featureId: type,
@@ -41,7 +44,7 @@ const createHistoryFeature = () => {
      */
     addHistoryEntry: (
       entry: HistoryEntry,
-      type: HistoryStoreType
+      type: HistoryStoreType,
     ): Promise<{ success: boolean }> => {
       return ipcRenderer.invoke("add-history", {
         featureId: type,
@@ -54,7 +57,7 @@ const createHistoryFeature = () => {
     },
 
     setLastActionHistory: (
-      entry: HistoryEntry
+      entry: HistoryEntry,
     ): Promise<{ success: boolean }> => {
       return ipcRenderer.invoke("set-last-action-history", entry);
     },
@@ -62,7 +65,7 @@ const createHistoryFeature = () => {
     onHistoryUpdate: (callback: (payload: SyncHistoryResponse) => void) => {
       const listener = (
         _event: Electron.IpcRendererEvent,
-        payload: SyncHistoryResponse
+        payload: SyncHistoryResponse,
       ) => callback(payload);
       ipcRenderer.on("sync-history", listener);
       console.log("onHistoryUpdate registered");

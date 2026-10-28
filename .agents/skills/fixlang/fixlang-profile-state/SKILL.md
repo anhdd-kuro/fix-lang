@@ -1,6 +1,6 @@
 ---
 name: fixlang-profile-state
-description: "Use when editing profile switching, multi-profile state, history, or settings sync. Examples: \"switching profiles shows stale settings\", \"history doesn't reload on profile change\". Covers profile switch state sync across hotkeys, settings UI, and history."
+description: 'Use when editing profile switching, multi-profile state, history, or settings sync. Examples: "switching profiles shows stale settings", "history doesn''t reload on profile change". Covers profile switch state sync across hotkeys, settings UI, and history.'
 ---
 
 # FixLang — Profile Switch State Sync Gotcha

@@ -10,6 +10,7 @@
  * - Everything else: no caching support, pass messages through unchanged
  */
 import { stripModelRefPrefix } from "~/features/providers/shared/modelRef";
+import { contentAsText } from "./requestTypes";
 
 export enum CacheProvider {
   ANTHROPIC = "ANTHROPIC",
@@ -82,18 +83,18 @@ export function buildCachedMessages(
     // If content is already an array of content blocks, append cache_control
     // to the last block rather than re-wrapping (avoids double-serialization).
     if (Array.isArray(msg.content)) {
+      // SAFETY: an array `content` is a chat-API content-block list, and every
+      // block in that contract is an object (`{ type, text, ... }`).
       const blocks = [...(msg.content as object[])];
       const last = {
+        // SAFETY: `blocks` holds content-block objects, per the line above.
         ...(blocks[blocks.length - 1] as object),
         cache_control: { type: "ephemeral" },
       };
       return { ...msg, content: [...blocks.slice(0, -1), last] };
     }
 
-    const textContent =
-      typeof msg.content === "string"
-        ? msg.content
-        : JSON.stringify(msg.content);
+    const textContent = contentAsText(msg.content);
 
     return {
       ...msg,
@@ -106,31 +107,4 @@ export function buildCachedMessages(
       ],
     };
   });
-}
-
-/**
- * Safely extracts cache-usage fields from an OpenRouter usage object.
- * These fields are present only when caching is active for the request.
- */
-export function extractCacheUsage(usage: unknown): {
-  cachedTokens: number;
-  cacheWriteTokens: number;
-} {
-  if (!usage || typeof usage !== "object") {
-    return { cachedTokens: 0, cacheWriteTokens: 0 };
-  }
-
-  const u = usage as Record<string, unknown>;
-
-  const cachedTokens =
-    typeof u["cache_read_input_tokens"] === "number"
-      ? u["cache_read_input_tokens"]
-      : 0;
-
-  const cacheWriteTokens =
-    typeof u["cache_creation_input_tokens"] === "number"
-      ? u["cache_creation_input_tokens"]
-      : 0;
-
-  return { cachedTokens, cacheWriteTokens };
 }

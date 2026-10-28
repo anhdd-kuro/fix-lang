@@ -7,7 +7,10 @@
  * `notifications/error.test.ts`.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AccessibilityPermissionError, LocalizedError } from "~/main/notifications/error";
+import {
+  AccessibilityPermissionError,
+  LocalizedError,
+} from "~/main/notifications/error";
 import {
   checkShortcut,
   handleError,
@@ -16,10 +19,11 @@ import {
   withHotkeyThrottle,
 } from "./utils";
 
-const { showErrorNotificationMock, promptAccessibilityPermissionMock } = vi.hoisted(() => ({
-  showErrorNotificationMock: vi.fn(),
-  promptAccessibilityPermissionMock: vi.fn(),
-}));
+const { showErrorNotificationMock, promptAccessibilityPermissionMock } =
+  vi.hoisted(() => ({
+    showErrorNotificationMock: vi.fn(),
+    promptAccessibilityPermissionMock: vi.fn(),
+  }));
 
 // `handleError` now also imports `~/utils` for `promptAccessibilityPermission`.
 // The real module talks to `child_process`/Electron `dialog` — irrelevant to
@@ -44,7 +48,7 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
 }));
 
 vi.mock("~/main/notifications/error", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importOriginal returns unknown module shape (same pattern as correction-preset-options.test.ts)
+  // oxlint-disable-next-line typescript/no-explicit-any -- vi.importOriginal returns unknown module shape (same pattern as correction-preset-options.test.ts)
   const real = await importOriginal<any>();
   return {
     ...real,
@@ -95,7 +99,9 @@ describe("checkShortcut", () => {
 
     expect(result).toBe(false);
     expect(showErrorNotificationMock).toHaveBeenCalledOnce();
-    const [reportedError] = showErrorNotificationMock.mock.calls[0] as [unknown];
+    const [reportedError] = showErrorNotificationMock.mock.calls[0] as [
+      unknown,
+    ];
     expect(reportedError).toBeInstanceOf(LocalizedError);
     expect((reportedError as LocalizedError).messageKey).toBe(
       "notifications.error.hotkeyRegistrationFailed.body",
@@ -110,7 +116,6 @@ describe("checkShortcut", () => {
   });
 });
 
-
 describe("withHotkeyThrottle", () => {
   beforeEach(() => {
     resetHotkeyThrottleForTests();
@@ -119,9 +124,13 @@ describe("withHotkeyThrottle", () => {
   it("invokes the handler on the first press", () => {
     const clock = 1_000;
     const handler = vi.fn();
-    const throttled = withHotkeyThrottle("Control+Shift+D", handler, () => clock);
+    const throttled = withHotkeyThrottle(
+      "Control+Shift+D",
+      handler,
+      () => clock,
+    );
 
-    throttled();
+    void throttled();
 
     expect(handler).toHaveBeenCalledTimes(1);
   });
@@ -129,11 +138,15 @@ describe("withHotkeyThrottle", () => {
   it("ignores a second press of the same accelerator within 500ms", () => {
     let clock = 1_000;
     const handler = vi.fn();
-    const throttled = withHotkeyThrottle("Control+Shift+D", handler, () => clock);
+    const throttled = withHotkeyThrottle(
+      "Control+Shift+D",
+      handler,
+      () => clock,
+    );
 
-    throttled();
+    void throttled();
     clock += HOTKEY_THROTTLE_MS - 1;
-    throttled();
+    void throttled();
 
     expect(handler).toHaveBeenCalledTimes(1);
   });
@@ -141,11 +154,15 @@ describe("withHotkeyThrottle", () => {
   it("invokes again after the 500ms window", () => {
     let clock = 1_000;
     const handler = vi.fn();
-    const throttled = withHotkeyThrottle("Control+Shift+D", handler, () => clock);
+    const throttled = withHotkeyThrottle(
+      "Control+Shift+D",
+      handler,
+      () => clock,
+    );
 
-    throttled();
+    void throttled();
     clock += HOTKEY_THROTTLE_MS;
-    throttled();
+    void throttled();
 
     expect(handler).toHaveBeenCalledTimes(2);
   });
@@ -154,12 +171,20 @@ describe("withHotkeyThrottle", () => {
     let clock = 1_000;
     const first = vi.fn();
     const second = vi.fn();
-    const throttledFirst = withHotkeyThrottle("Control+Shift+D", first, () => clock);
-    const throttledSecond = withHotkeyThrottle("Control+Shift+S", second, () => clock);
+    const throttledFirst = withHotkeyThrottle(
+      "Control+Shift+D",
+      first,
+      () => clock,
+    );
+    const throttledSecond = withHotkeyThrottle(
+      "Control+Shift+S",
+      second,
+      () => clock,
+    );
 
-    throttledFirst();
+    void throttledFirst();
     clock += 50;
-    throttledSecond();
+    void throttledSecond();
 
     expect(first).toHaveBeenCalledTimes(1);
     expect(second).toHaveBeenCalledTimes(1);

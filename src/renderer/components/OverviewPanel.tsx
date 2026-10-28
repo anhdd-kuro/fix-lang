@@ -60,7 +60,7 @@ const CALENDAR_ROWS = 7;
 
 const placeholderCell = (
   column: number,
-  row: number
+  row: number,
 ): TokenActivityCalendarCell => ({
   kind: "placeholder",
   date: null,
@@ -72,12 +72,12 @@ const placeholderCell = (
 });
 
 const calendarColumns = (
-  calendar: TokenActivityCalendar
+  calendar: TokenActivityCalendar,
 ): TokenActivityCalendarCell[][] => {
   const columns = Array.from({ length: calendar.columns }, (_, columnIndex) =>
     Array.from({ length: CALENDAR_ROWS }, (_, rowIndex) =>
-      placeholderCell(columnIndex, rowIndex)
-    )
+      placeholderCell(columnIndex, rowIndex),
+    ),
   );
 
   for (const cell of calendar.cells) {
@@ -93,7 +93,10 @@ const calendarGapTotal = (columnCount: number): number =>
 const calendarWidth = (columnCount: number, cellSize: number): number =>
   columnCount * cellSize + calendarGapTotal(columnCount);
 
-const fittedCellSize = (availableWidth: number, columnCount: number): number => {
+const fittedCellSize = (
+  availableWidth: number,
+  columnCount: number,
+): number => {
   if (availableWidth <= 0 || columnCount <= 0) {
     return MIN_CELL_SIZE_PX;
   }
@@ -130,7 +133,7 @@ const useElementWidth = (): [RefObject<HTMLDivElement | null>, number] => {
 
 const tokenActivityStyle = (
   columnCount: number,
-  cellSize: number
+  cellSize: number,
 ): CSSProperties => ({
   width: calendarWidth(columnCount, cellSize),
   minWidth: calendarWidth(columnCount, MIN_CELL_SIZE_PX),
@@ -142,8 +145,7 @@ const monthLabelStyle = (column: number, cellSize: number): CSSProperties => ({
 
 export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
   const { t, tm, formatNumber, formatDate } = useI18n();
-  const [activityMode, setActivityMode] =
-    useState<TokenActivityMode>("daily");
+  const [activityMode, setActivityMode] = useState<TokenActivityMode>("daily");
   const [activityWidthRef, activityWidth] = useElementWidth();
 
   // Aggregation memo stays STRING-FREE (descriptors + raw data only) — see
@@ -151,6 +153,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
   // render below, never inside this `useMemo`, so a locale switch is visible
   // immediately without needing `t`/`locale` in this dependency array.
   const view = useMemo(() => {
+    // oxlint-disable-next-line react/purity -- intentional wall-clock read: the aggregation is anchored to now whenever its deps change
     const now = new Date();
     const filtered = filterByRange(history, range, now);
     return {
@@ -167,18 +170,19 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
   }, [history, range]);
 
   const tokenCalendar = useMemo(
+    // oxlint-disable-next-line react/purity -- intentional wall-clock read: the aggregation is anchored to now whenever its deps change
     () => tokenActivityCalendar(history, activityMode, new Date()),
-    [activityMode, history]
+    [activityMode, history],
   );
 
   const tokenCalendarColumns = useMemo(
     () => calendarColumns(tokenCalendar),
-    [tokenCalendar]
+    [tokenCalendar],
   );
 
   const tokenActivityCellSize = useMemo(
     () => fittedCellSize(activityWidth, tokenCalendar.columns),
-    [activityWidth, tokenCalendar.columns]
+    [activityWidth, tokenCalendar.columns],
   );
 
   const peakValue = tm(peakHourMessage(view.peak));
@@ -195,13 +199,19 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
     <div className="mx-auto flex w-full flex-col gap-6">
       {/* Summary stat cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        <StatCard label={t(STAT_CARD_KEYS.messages)} value={formatNumber(view.messages)} />
+        <StatCard
+          label={t(STAT_CARD_KEYS.messages)}
+          value={formatNumber(view.messages)}
+        />
         <StatCard
           label={t(STAT_CARD_KEYS.totalTokens)}
           value={formatNumber(view.tokens)}
           hint={formatOverviewCostHint(view.cost, t, formatNumber)}
         />
-        <StatCard label={t(STAT_CARD_KEYS.activeDays)} value={formatNumber(view.days)} />
+        <StatCard
+          label={t(STAT_CARD_KEYS.activeDays)}
+          value={formatNumber(view.days)}
+        />
         <StatCard
           label={t(STAT_CARD_KEYS.streaks)}
           value={t("overview.value.streakPair", {
@@ -218,10 +228,16 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
 
       {/* Correction preset weight distribution (Chart.js). */}
       {view.presetWeights.length === 0 ? (
-        <PresetWeightChart weights={view.presetWeights} overTime={view.presetOverTime} />
+        <PresetWeightChart
+          weights={view.presetWeights}
+          overTime={view.presetOverTime}
+        />
       ) : (
         <section className="rounded-lg border border-card-control-border bg-card p-4">
-          <PresetWeightChart weights={view.presetWeights} overTime={view.presetOverTime} />
+          <PresetWeightChart
+            weights={view.presetWeights}
+            overTime={view.presetOverTime}
+          />
         </section>
       )}
 
@@ -247,7 +263,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
             className="token-activity-switch flex w-full flex-col gap-3"
             style={tokenActivityStyle(
               tokenCalendar.columns,
-              tokenActivityCellSize
+              tokenActivityCellSize,
             )}
           >
             <div className="flex" style={{ gap: CELL_GAP_PX }}>
@@ -263,7 +279,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
                     const tooltipMessage = tooltipMessageForCell(
                       activityMode,
                       cell,
-                      dayFmt
+                      dayFmt,
                     );
                     const tooltipText = tooltipMessage
                       ? tm(tooltipMessage)
@@ -279,7 +295,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
                         }}
                         className={twJoin(
                           heatmapCellClass(heatmapLevelClass(cell.level)),
-                          cell.kind === "placeholder" && "opacity-45"
+                          cell.kind === "placeholder" && "opacity-45",
                         )}
                       />
                     );
@@ -296,10 +312,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
                 <span
                   key={`${label.key}-${label.column}`}
                   className="absolute top-0 whitespace-nowrap"
-                  style={monthLabelStyle(
-                    label.column,
-                    tokenActivityCellSize
-                  )}
+                  style={monthLabelStyle(label.column, tokenActivityCellSize)}
                 >
                   {t(label.key)}
                 </span>

@@ -11,6 +11,7 @@
  * Electron-free: main sanitizes on write, the renderer validates the field as it
  * is typed, and both must agree on what counts as a project id.
  */
+import { z } from "zod";
 
 /**
  * OpenAI project ids are `proj_` + an opaque token. The prefix is checked so a
@@ -26,11 +27,20 @@ export const OPENAI_PROJECT_ID_PREFIX = "proj_";
  * configured" and yields `undefined`; a non-empty value that is not a project id
  * also yields `undefined`, so a malformed entry never reaches a request URL.
  */
-export const sanitizeOpenAIProjectId = (raw: unknown): string | undefined => {
-  if (typeof raw !== "string") return undefined;
-  const trimmed = raw.trim();
-  if (trimmed === "") return undefined;
-  return PROJECT_ID_PATTERN.test(trimmed) ? trimmed : undefined;
+export const OpenAIProjectIdSchema = z
+  .string()
+  .trim()
+  .refine((projectId) => PROJECT_ID_PATTERN.test(projectId));
+
+/**
+ * Re-validates at runtime even though it is typed: the stored settings field
+ * and the renderer's IPC read are both typed claims about JSON on disk.
+ */
+export const sanitizeOpenAIProjectId = (
+  raw: string | null | undefined,
+): string | undefined => {
+  const parsed = OpenAIProjectIdSchema.safeParse(raw);
+  return parsed.success ? parsed.data : undefined;
 };
 
 /**

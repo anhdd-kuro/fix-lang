@@ -54,7 +54,7 @@ export const CorrectionResultWindow = () => {
       </header>
 
       <section className="min-h-0 flex-1 overflow-auto rounded-md border border-card-control-border bg-card p-4">
-        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+        <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed">
           {payload.text}
         </p>
       </section>

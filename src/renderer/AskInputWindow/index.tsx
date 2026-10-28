@@ -26,9 +26,7 @@ import { useTheme } from "../hooks/useTheme";
 import { I18nProvider } from "../i18n/I18nProvider";
 import { useI18n } from "../i18n/useI18n";
 import "../main.css";
-import type {
-  AskInputPayload,
-} from "~/features/ask/shared/ask";
+import type { AskInputPayload } from "~/features/ask/shared/ask";
 
 /**
  * Exported (not just used below for the entry-point auto-render) so
@@ -314,7 +312,9 @@ export const AskInputWindow = () => {
           {
             role: "system",
             sectionId: "context-directives",
-            label: t("notifications.window.askInput.transparencyDirectivesLabel"),
+            label: t(
+              "notifications.window.askInput.transparencyDirectivesLabel",
+            ),
             content: contextDirectives,
           },
         ]
@@ -347,7 +347,7 @@ export const AskInputWindow = () => {
           />
         ) : null}
         <div className="flex justify-end" data-ask-question-input>
-          <div className="relative w-full max-w-[80%] min-w-[12rem] rounded-lg bg-primary p-3 text-primary-foreground">
+          <div className="relative w-full max-w-[80%] min-w-48 rounded-lg bg-primary p-3 text-primary-foreground">
             <h3 className="mb-1 text-xs font-medium uppercase tracking-wide opacity-70">
               {t("notifications.window.askResult.questionLabel")}
             </h3>
@@ -397,9 +397,7 @@ export const AskInputWindow = () => {
       </footer>
     </main>
   );
-
 };
-
 
 const container = document.getElementById("root");
 if (container) {

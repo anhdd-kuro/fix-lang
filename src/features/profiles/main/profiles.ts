@@ -3,7 +3,11 @@
  * @description IPC handlers for profile management
  */
 import { ipcMain, Notification } from "electron";
-import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/message";
+import {
+  messageLabel,
+  textLabel,
+  type Label,
+} from "~/features/i18n/shared/message";
 import {
   clearLegacyApiKey,
   getLegacyApiKey,
@@ -42,6 +46,13 @@ import {
 import type { Profile } from "~/features/providers/store/apiStore";
 
 /**
+ * The pre-profiles store kept a plaintext `apiKey` at its root. `apiStore`'s
+ * type no longer names that key, but the file of an upgrading user still holds
+ * it, so this is the one capability the scrub below needs.
+ */
+type LegacyRootApiKeyStore = { delete(key: "apiKey"): void };
+
+/**
  * Moves legacy global credentials only after the active profile exists. The
  * destination is written first; a legacy encrypted file is removed only after
  * that write succeeds, so a failed migration cannot discard the only key.
@@ -64,11 +75,19 @@ const migrateLegacySecretsToActiveProfile = async (): Promise<void> => {
       await clearLegacy();
       return;
     }
-    const result = await setProfileSecret(profile.id, "openrouter", kind, legacy);
+    const result = await setProfileSecret(
+      profile.id,
+      "openrouter",
+      kind,
+      legacy,
+    );
     if (result.success) {
       await clearLegacy();
     } else {
-      console.warn(`Profile secret migration failed for ${kind}:`, result.error);
+      console.warn(
+        `Profile secret migration failed for ${kind}:`,
+        result.error,
+      );
     }
   };
 
@@ -82,8 +101,18 @@ const migrateLegacySecretsToActiveProfile = async (): Promise<void> => {
   // Earlier releases also persisted a plaintext apiKey inside profile/root
   // settings. It is copied into safeStorage first, then scrubbed only after a
   // successful write. It is never exported or imported below.
-  const legacyPlaintext = profile.settings.apiKey || (apiStore.get("apiKey") as string) || "";
-  if (legacyPlaintext && !(await hasProfileSecret(profile.id, "openrouter", "api"))) {
+  const legacyPlaintext =
+    profile.settings.apiKey ||
+    // SAFETY: not narrowed here. A truthy non-string root `apiKey` never
+    // becomes a secret: `setProfileSecret` throws on `raw.trim()` inside its
+    // own try and returns `success: false`, so this function returns before
+    // the scrub below unless the profile already holds a secret.
+    (apiStore.get("apiKey") as string) ||
+    "";
+  if (
+    legacyPlaintext &&
+    !(await hasProfileSecret(profile.id, "openrouter", "api"))
+  ) {
     const result = await setProfileSecret(
       profile.id,
       "openrouter",
@@ -95,12 +124,15 @@ const migrateLegacySecretsToActiveProfile = async (): Promise<void> => {
 
   if (legacyPlaintext) {
     const profiles = getProfiles();
-    const index = profiles.findIndex((candidate) => candidate.id === profile.id);
+    const index = profiles.findIndex(
+      (candidate) => candidate.id === profile.id,
+    );
     if (index !== -1) {
       profiles[index] = withoutProfileSecrets(profiles[index]);
       apiStore.set("profiles", profiles);
     }
-    (apiStore as unknown as { delete: (key: string) => void }).delete("apiKey");
+    const legacyRootKeyStore: LegacyRootApiKeyStore = apiStore;
+    legacyRootKeyStore.delete("apiKey");
   }
 };
 
@@ -112,9 +144,9 @@ const migrateLegacySecretsToActiveProfile = async (): Promise<void> => {
  * reusing the identical existing `models.select.error.unknown` catalog entry
  * rather than adding a duplicate key.
  */
-const catchLabel = (error: unknown): Label =>
-  error instanceof Error
-    ? textLabel(error.message)
+const catchLabel = (cause: unknown): Label =>
+  cause instanceof Error
+    ? textLabel(cause.message)
     : messageLabel("models.select.error.unknown");
 
 /**
@@ -321,6 +353,10 @@ export const registerProfileHandlers = () => {
       try {
         // Parse the JSON profile
         const profileData = sanitizeImportedProfile(
+          // SAFETY: not checked here. `null` makes `sanitizeImportedProfile`
+          // throw into this try's catch; any other non-object comes back with
+          // no id/name/settings and, like an object missing them, is refused
+          // right below. Nothing reaches the store either way.
           JSON.parse(profileJson) as Profile,
         );
 

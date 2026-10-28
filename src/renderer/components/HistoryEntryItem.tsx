@@ -10,7 +10,10 @@ import { HistorySessionDetailsModal } from "./HistorySessionDetailsModal";
 import Tooltip from "./Tooltip";
 import { TrashButton } from "./TrashButton";
 import { useI18n } from "../i18n/useI18n";
-import type { HistoryEntry, HistoryFeatureId } from "~/features/history/store/historyStore";
+import type {
+  HistoryEntry,
+  HistoryFeatureId,
+} from "~/features/history/store/historyStore";
 
 type HistoryEntryItemProps = {
   entry: HistoryEntry;
@@ -58,7 +61,7 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
   const { t, formatNumber, formatDateTime } = useI18n();
   const [showDetails, setShowDetails] = useState(false);
   const sessionJson = entry.sessionJson;
-  const hasSession = typeof sessionJson === "string" && sessionJson.length > 0;
+  const hasSession = (sessionJson ?? "").length > 0;
   const presetLabel = entry.presetName ?? t("common.unknown");
   const modelLineage = formatModelLineage(entry.model, entry.resolvedModel);
 

@@ -54,7 +54,10 @@ describe("selectProjectSpend", () => {
     // `parseProjectCosts` keys ungrouped spend as "". A configured id must not
     // pick that up, and an empty configured id never reaches here (sanitized).
     expect(
-      selectProjectSpend(costs([{ projectId: "", name: null, costUsd: 7 }], 7), "proj_mine"),
+      selectProjectSpend(
+        costs([{ projectId: "", name: null, costUsd: 7 }], 7),
+        "proj_mine",
+      ),
     ).toEqual({ kind: "no-spend" });
   });
 });

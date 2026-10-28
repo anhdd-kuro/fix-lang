@@ -54,7 +54,12 @@ describe("probeLmStudio", () => {
     });
     expect(probe.reachable).toBe(true);
     expect(probe.models).toEqual([
-      { id: "local-model", name: "local-model", created: 1, provider: "lmstudio" },
+      {
+        id: "local-model",
+        name: "local-model",
+        created: 1,
+        provider: "lmstudio",
+      },
     ]);
   });
 

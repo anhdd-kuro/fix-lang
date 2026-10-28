@@ -16,6 +16,8 @@ export const useModalDismiss = <T extends HTMLElement>(
 
     const dismissOnOutsideMouseDown = (event: MouseEvent) => {
       const content = contentRef.current;
+      // SAFETY: a document-level `mousedown` is dispatched to the DOM node that
+      // was pressed, so its target is always a Node.
       if (content && !content.contains(event.target as Node)) {
         onDismiss();
       }

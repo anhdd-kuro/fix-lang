@@ -33,12 +33,7 @@ describe("capContrastAgainst", () => {
 
   it("keeps the floor when no mix can satisfy both surfaces", () => {
     const surfaces = ["#000000", "#ffffff"];
-    const start = ensureContrastAgainst(
-      "#767676",
-      surfaces,
-      "#767676",
-      1.55,
-    );
+    const start = ensureContrastAgainst("#767676", surfaces, "#767676", 1.55);
 
     expect(capContrastAgainst(start, surfaces, 2.2, 1.55)).toBe(start);
   });

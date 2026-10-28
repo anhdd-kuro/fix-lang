@@ -1,4 +1,7 @@
-import { formatModelRef, parseModelRef } from "~/features/providers/shared/modelRef";
+import {
+  formatModelRef,
+  parseModelRef,
+} from "~/features/providers/shared/modelRef";
 import {
   modelsForProvider,
   PROVIDER_ORDER,
@@ -114,7 +117,9 @@ export const buildModelOptionGroups = (
   const order =
     enabledProviders === undefined
       ? PROVIDER_ORDER
-      : PROVIDER_ORDER.filter((provider) => enabledProviders.includes(provider));
+      : PROVIDER_ORDER.filter((provider) =>
+          enabledProviders.includes(provider),
+        );
 
   return order.map((provider) => {
     const providerName = t(PROVIDER_LABEL_KEYS[provider]);
@@ -126,9 +131,16 @@ export const buildModelOptionGroups = (
         label: model.id,
         modelId: model.id,
         provider,
-        createdAt: showAdditionalInfo ? normalizeModelTimestamp(model.created) : null,
-        detail: showAdditionalInfo ? formatModelDetail(model, { t, formatCurrency }) : "",
-        isLocal: model.local !== undefined || model.provider === "lmstudio" || model.provider === "ollama",
+        createdAt: showAdditionalInfo
+          ? normalizeModelTimestamp(model.created)
+          : null,
+        detail: showAdditionalInfo
+          ? formatModelDetail(model, { t, formatCurrency })
+          : "",
+        isLocal:
+          model.local !== undefined ||
+          model.provider === "lmstudio" ||
+          model.provider === "ollama",
         isUnavailable: false,
         isDisabled: false,
         kind: "model",
@@ -136,14 +148,16 @@ export const buildModelOptionGroups = (
     );
 
     const error = errors?.[provider];
-    return {
+    const group: ModelOptionGroup = {
       label: providerName,
       provider,
-      options: groupOptions.length > 0 ? groupOptions : [emptyPlaceholder(provider)],
-      ...(error === undefined
-        ? {}
-        : { error: t("models.select.group.error", { provider: providerName }) }),
+      options:
+        groupOptions.length > 0 ? groupOptions : [emptyPlaceholder(provider)],
     };
+    if (error !== undefined) {
+      group.error = t("models.select.group.error", { provider: providerName });
+    }
+    return group;
   });
 };
 
@@ -249,7 +263,10 @@ export const modelOptionText = (option: ModelOption, t: Translator): string => {
       return t("models.select.option.unavailable", { model: option.modelId });
     case "empty":
       return t("models.select.group.empty", {
-        provider: option.provider === null ? "" : t(PROVIDER_LABEL_KEYS[option.provider]),
+        provider:
+          option.provider === null
+            ? ""
+            : t(PROVIDER_LABEL_KEYS[option.provider]),
       });
     default:
       return option.modelId;
@@ -258,7 +275,10 @@ export const modelOptionText = (option: ModelOption, t: Translator): string => {
 
 // Separate from `modelOptionText` on purpose: the menu rows sit under a
 // provider heading already, so only the closed control gets the provider.
-export const selectedModelOptionText = (option: ModelOption, t: Translator): string => {
+export const selectedModelOptionText = (
+  option: ModelOption,
+  t: Translator,
+): string => {
   if (option.kind !== "model" || option.provider === null) {
     return modelOptionText(option, t);
   }

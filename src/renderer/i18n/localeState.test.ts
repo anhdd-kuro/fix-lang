@@ -17,7 +17,10 @@ describe("localeReducer", () => {
   });
 
   it("resolves the initial locale", () => {
-    const next = localeReducer(INITIAL_LOCALE_STATE, { type: "resolved", locale: "ja" });
+    const next = localeReducer(INITIAL_LOCALE_STATE, {
+      type: "resolved",
+      locale: "ja",
+    });
     expect(next).toEqual({ locale: "ja", status: "ready" });
   });
 
@@ -33,14 +36,20 @@ describe("localeReducer", () => {
     // locale, but a `locale-changed` broadcast for the NEW locale already
     // landed first and moved status to "ready".
     const readyFromBroadcast: LocaleState = { locale: "ja", status: "ready" };
-    const next = localeReducer(readyFromBroadcast, { type: "resolved", locale: "en" });
+    const next = localeReducer(readyFromBroadcast, {
+      type: "resolved",
+      locale: "en",
+    });
     expect(next).toBe(readyFromBroadcast);
     expect(next.locale).toBe("ja");
   });
 
   it("a broadcast always wins, including immediately after another broadcast", () => {
     const afterFirstBroadcast: LocaleState = { locale: "ja", status: "ready" };
-    const next = localeReducer(afterFirstBroadcast, { type: "broadcast", locale: "en" });
+    const next = localeReducer(afterFirstBroadcast, {
+      type: "broadcast",
+      locale: "en",
+    });
     expect(next).toEqual({ locale: "en", status: "ready" });
   });
 
@@ -130,7 +139,9 @@ describe("subscribeToLocaleBroadcasts", () => {
 
 describe("requestSetLocale", () => {
   it("does not dispatch on success — the broadcast is expected to update state", async () => {
-    const bridge = createBridge({ setLocale: vi.fn().mockResolvedValue({ success: true }) });
+    const bridge = createBridge({
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+    });
     const dispatch = vi.fn();
 
     const result = await requestSetLocale(bridge, "ja", dispatch);

@@ -4,14 +4,13 @@ import {
   PROVIDER_SUPPORTS_API_KEY,
   PROVIDER_SUPPORTS_PROVISIONING_KEY,
 } from "~/features/providers/shared/providers";
-const { rmMock, readFileMock, writeFileMock, getCurrentProfileIdMock } = vi.hoisted(
-  () => ({
+const { rmMock, readFileMock, writeFileMock, getCurrentProfileIdMock } =
+  vi.hoisted(() => ({
     rmMock: vi.fn(),
     readFileMock: vi.fn(),
     writeFileMock: vi.fn(),
     getCurrentProfileIdMock: vi.fn(),
-  }),
-);
+  }));
 vi.mock("node:fs/promises", () => {
   const api = {
     rm: rmMock,
@@ -73,7 +72,8 @@ describe("secretKindsForProvider — derived from the provider tables", () => {
     const expected: SecretKind[] = [];
     if (PROVIDER_SUPPORTS_API_KEY[provider]) expected.push("api");
     if (provider === "bedrock") expected.push("secret");
-    if (PROVIDER_SUPPORTS_PROVISIONING_KEY[provider]) expected.push("provisioning");
+    if (PROVIDER_SUPPORTS_PROVISIONING_KEY[provider])
+      expected.push("provisioning");
 
     expect(secretKindsForProvider(provider)).toEqual(expected);
   });
@@ -91,9 +91,13 @@ describe("secretKindsForProvider — derived from the provider tables", () => {
       const kinds = secretKindsForProvider(provider);
       for (const kind of ["api", "secret", "provisioning"] as const) {
         if (kinds.includes(kind)) {
-          expect(() => getProfileSecretPath("profile_1", provider, kind)).not.toThrow();
+          expect(() =>
+            getProfileSecretPath("profile_1", provider, kind),
+          ).not.toThrow();
         } else {
-          expect(() => getProfileSecretPath("profile_1", provider, kind)).toThrow();
+          expect(() =>
+            getProfileSecretPath("profile_1", provider, kind),
+          ).toThrow();
         }
       }
     }
@@ -128,15 +132,18 @@ describe("clearProfileSecrets — covers every derived slot", () => {
     ).toBe(false);
     // OpenAI now HAS an admin slot, so its file must be among the deletions —
     // a profile deletion that skipped it would leave a billing-scoped key behind.
-    expect(clearedPaths.some((path) => path.includes("openai-provisioning"))).toBe(
-      true,
-    );
+    expect(
+      clearedPaths.some((path) => path.includes("openai-provisioning")),
+    ).toBe(true);
   });
 
   it("rejects an invalid profile id without deleting anything", async () => {
     const result = await clearProfileSecrets("../other");
 
-    expect(result).toEqual({ success: false, error: "Invalid profile or provider" });
+    expect(result).toEqual({
+      success: false,
+      error: "Invalid profile or provider",
+    });
     expect(rmMock).not.toHaveBeenCalled();
   });
 
@@ -150,7 +157,8 @@ describe("clearProfileSecrets — covers every derived slot", () => {
     // Derived, not a literal: a new provider slot must widen this automatically
     // rather than pass while the failing slot's siblings went unattempted.
     expect(rmMock).toHaveBeenCalledTimes(
-      PROVIDER_IDS.flatMap((provider) => secretKindsForProvider(provider)).length,
+      PROVIDER_IDS.flatMap((provider) => secretKindsForProvider(provider))
+        .length,
     );
   });
 });
@@ -175,7 +183,8 @@ describe("setProfileSecret refuses a key that belongs to another slot", () => {
   it("does not write an OpenRouter key into either OpenAI slot", async () => {
     for (const kind of ["api", "provisioning"] as const) {
       expect(
-        (await setProfileSecret("profile_1", "openai", kind, "sk-or-v1-abc")).success,
+        (await setProfileSecret("profile_1", "openai", kind, "sk-or-v1-abc"))
+          .success,
       ).toBe(false);
     }
     expect(writeFileMock).not.toHaveBeenCalled();
@@ -199,7 +208,9 @@ describe("setProfileSecret refuses a key that belongs to another slot", () => {
 
 describe("getActiveProfileSecret", () => {
   it("reads the active profile's secret for a supported slot", async () => {
-    await expect(getActiveProfileSecret("openrouter", "api")).resolves.toBe("a-secret");
+    await expect(getActiveProfileSecret("openrouter", "api")).resolves.toBe(
+      "a-secret",
+    );
   });
 
   it("returns null for a slot the provider does not have, without touching disk", async () => {
@@ -210,7 +221,9 @@ describe("getActiveProfileSecret", () => {
   it("returns null when there is no active profile", async () => {
     getCurrentProfileIdMock.mockReturnValue("");
 
-    await expect(getActiveProfileSecret("openrouter", "api")).resolves.toBeNull();
+    await expect(
+      getActiveProfileSecret("openrouter", "api"),
+    ).resolves.toBeNull();
     expect(readFileMock).not.toHaveBeenCalled();
   });
 

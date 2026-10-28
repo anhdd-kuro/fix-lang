@@ -67,9 +67,17 @@ describe("CorrectionResultWindow", () => {
       signalCorrectionResultReady: vi.fn(),
       closeCorrectionResultWindow: vi.fn(),
       getTheme: vi.fn().mockResolvedValue({ themeId: "brand-codex-dark" }),
-      getAppearanceTypography: vi.fn().mockResolvedValue({ fontSize: "md", fontFamily: "system" }),
-      setAppearanceFontSize: vi.fn().mockResolvedValue({ success: true, typography: { fontSize: "md", fontFamily: "system" } }),
-      setAppearanceFontFamily: vi.fn().mockResolvedValue({ success: true, typography: { fontSize: "md", fontFamily: "system" } }),
+      getAppearanceTypography: vi
+        .fn()
+        .mockResolvedValue({ fontSize: "md", fontFamily: "system" }),
+      setAppearanceFontSize: vi.fn().mockResolvedValue({
+        success: true,
+        typography: { fontSize: "md", fontFamily: "system" },
+      }),
+      setAppearanceFontFamily: vi.fn().mockResolvedValue({
+        success: true,
+        typography: { fontSize: "md", fontFamily: "system" },
+      }),
       onAppearanceTypographyChanged: vi.fn().mockReturnValue(vi.fn()),
       onThemeChanged: vi.fn().mockReturnValue(vi.fn()),
       setTheme: vi.fn().mockResolvedValue({ success: true }),
@@ -140,7 +148,9 @@ describe("CorrectionResultWindow", () => {
       (button) => button.textContent === tEn("common.close"),
     );
     expect(closeButton).toBeTruthy();
-    const copyButton = container.querySelector(`[aria-label="${tEn("common.copy")}"]`);
+    const copyButton = container.querySelector(
+      `[aria-label="${tEn("common.copy")}"]`,
+    );
     expect(copyButton).toBeTruthy();
     expect(copyButton?.querySelector("svg")).toBeNull();
 

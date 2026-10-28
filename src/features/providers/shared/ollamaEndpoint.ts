@@ -18,7 +18,9 @@ export const OLLAMA_DEFAULT_ENDPOINT: ProviderEndpoint = Object.freeze({
   port: OLLAMA_DEFAULT_PORT,
 });
 
-export const resolveOllamaEndpoint = (raw: unknown): ProviderEndpoint =>
+export const resolveOllamaEndpoint = (
+  raw: ProviderEndpoint | null | undefined,
+): ProviderEndpoint =>
   sanitizeProviderEndpoint(raw) ?? { ...OLLAMA_DEFAULT_ENDPOINT };
 
 /** Ollama JS client `host` is a full origin, no `/v1` suffix. */

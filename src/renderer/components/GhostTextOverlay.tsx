@@ -70,7 +70,7 @@ export const GhostTextOverlay = ({
     >
       <div
         data-ghost-mirror=""
-        className="whitespace-pre-wrap break-words p-3 text-sm leading-relaxed"
+        className="whitespace-pre-wrap wrap-break-word p-3 text-sm leading-relaxed"
         style={{ transform: `translateY(${-scrollTop}px)` }}
       >
         <span className="invisible">{typed}</span>

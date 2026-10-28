@@ -5,7 +5,10 @@
  */
 import { describe, expect, it } from "vitest";
 import { createTranslator } from "~/features/i18n/shared/translate";
-import { formatOpenRouterUsd, openRouterDegradedMessage } from "./openRouterFormat";
+import {
+  formatOpenRouterUsd,
+  openRouterDegradedMessage,
+} from "./openRouterFormat";
 
 describe("formatOpenRouterUsd", () => {
   it("renders zero as $0.00", () => {

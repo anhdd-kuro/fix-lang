@@ -70,11 +70,18 @@ describe("OverviewPanel token-activity calendar tooltip", () => {
         return vi.fn();
       }),
     };
-    Object.defineProperty(window, "electronAPI", { configurable: true, value: api });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: api,
+    });
     // `useElementWidth` constructs a real `ResizeObserver`, which jsdom does
     // not provide.
-    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
-      StubResizeObserver;
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: StubResizeObserver,
+    });
 
     container = document.createElement("div");
     document.body.append(container);
@@ -102,26 +109,40 @@ describe("OverviewPanel token-activity calendar tooltip", () => {
     }
     container?.remove();
     localeListener = undefined;
-    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
-      originalResizeObserver;
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: originalResizeObserver,
+    });
     vi.restoreAllMocks();
   });
 
   it("renders locale-formatted tooltips for the calendar, differing between en and ja, never the raw day key", async () => {
     const now = new Date();
     const history: HistoryEntry[] = [
-      { original: "a", corrected: "b", timestamp: now.toISOString(), promptTokens: 100, completionTokens: 50 },
+      {
+        original: "a",
+        corrected: "b",
+        timestamp: now.toISOString(),
+        promptTokens: 100,
+        completionTokens: 50,
+      },
     ];
     await render(history);
 
     const titlesOf = (): string[] =>
-      [...container.querySelectorAll("[title]")].map((el) => el.getAttribute("title") ?? "");
+      [...container.querySelectorAll("[title]")].map(
+        (el) => el.getAttribute("title") ?? "",
+      );
 
     // Regression guard for Bug A: no tooltip anywhere leaks a raw ISO day key.
     expect(titlesOf().some((title) => RAW_ISO_DAY_KEY.test(title))).toBe(false);
 
     const todayKey = localDayKey(now);
-    const enLabel = dayKeyDateFormatter(createFormatters("en").formatDate).date(todayKey);
+    const enLabel = dayKeyDateFormatter(createFormatters("en").formatDate).date(
+      todayKey,
+    );
     expect(titlesOf().some((title) => title.includes(enLabel))).toBe(true);
 
     await act(async () => {
@@ -129,7 +150,9 @@ describe("OverviewPanel token-activity calendar tooltip", () => {
     });
     await waitForUi();
 
-    const jaLabel = dayKeyDateFormatter(createFormatters("ja").formatDate).date(todayKey);
+    const jaLabel = dayKeyDateFormatter(createFormatters("ja").formatDate).date(
+      todayKey,
+    );
     expect(enLabel).not.toBe(jaLabel);
     expect(titlesOf().some((title) => title.includes(jaLabel))).toBe(true);
     expect(titlesOf().some((title) => RAW_ISO_DAY_KEY.test(title))).toBe(false);

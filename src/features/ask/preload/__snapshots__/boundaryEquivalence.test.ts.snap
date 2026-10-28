@@ -1,0 +1,487 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ask preload boundary equivalence > ask-input-data > context = NaN > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > context = array > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > context = boolean > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > context = boxed string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > context = empty string > verdict 1`] = `
+[
+  {
+    "context": "",
+    "contextDirectives": "directives",
+    "contextSource": "selection",
+    "presetId": "ask",
+    "systemPrompt": "system",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-input-data > context = function > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > context = null > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > context = number > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > context = object > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > context = undefined > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > context missing > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextDirectives = NaN > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextDirectives = array > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextDirectives = boolean > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextDirectives = boxed string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextDirectives = empty string > verdict 1`] = `
+[
+  {
+    "context": "selected text",
+    "contextDirectives": "",
+    "contextSource": "selection",
+    "presetId": "ask",
+    "systemPrompt": "system",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextDirectives = function > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextDirectives = null > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextDirectives = number > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextDirectives = object > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextDirectives = undefined > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextDirectives missing > verdict 1`] = `
+[
+  {
+    "context": "selected text",
+    "contextSource": "selection",
+    "presetId": "ask",
+    "systemPrompt": "system",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextSource = NaN > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextSource = array > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextSource = boolean > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextSource = boxed string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextSource = empty string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextSource = function > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextSource = null > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextSource = number > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextSource = object > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextSource = undefined > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > contextSource missing > verdict 1`] = `
+[
+  {
+    "context": "selected text",
+    "contextDirectives": "directives",
+    "presetId": "ask",
+    "systemPrompt": "system",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-input-data > payload array carrying the fields > verdict 1`] = `
+[
+  {
+    "context": "selected text",
+    "contextDirectives": "directives",
+    "contextSource": "selection",
+    "presetId": "ask",
+    "systemPrompt": "system",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-input-data > payload boxed string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > payload class instance > verdict 1`] = `
+[
+  {
+    "context": "ctx",
+    "presetId": "ask",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-input-data > payload clipboard source > verdict 1`] = `
+[
+  {
+    "context": "selected text",
+    "contextDirectives": "directives",
+    "contextSource": "clipboard",
+    "presetId": "ask",
+    "systemPrompt": "system",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-input-data > payload empty array > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > payload empty object > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > payload extra key > verdict 1`] = `
+[
+  {
+    "context": "selected text",
+    "contextDirectives": "directives",
+    "contextSource": "selection",
+    "extra": 1,
+    "presetId": "ask",
+    "systemPrompt": "system",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-input-data > payload function > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > payload null > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > payload number > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > payload string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > payload undefined > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > payload unknown source > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > payload valid > verdict 1`] = `
+[
+  {
+    "context": "selected text",
+    "contextDirectives": "directives",
+    "contextSource": "selection",
+    "presetId": "ask",
+    "systemPrompt": "system",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-input-data > presetId = NaN > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > presetId = array > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > presetId = boolean > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > presetId = boxed string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > presetId = empty string > verdict 1`] = `
+[
+  {
+    "context": "selected text",
+    "contextDirectives": "directives",
+    "contextSource": "selection",
+    "presetId": "",
+    "systemPrompt": "system",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-input-data > presetId = function > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > presetId = null > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > presetId = number > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > presetId = object > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > presetId = undefined > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > presetId missing > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > systemPrompt = NaN > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > systemPrompt = array > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > systemPrompt = boolean > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > systemPrompt = boxed string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > systemPrompt = empty string > verdict 1`] = `
+[
+  {
+    "context": "selected text",
+    "contextDirectives": "directives",
+    "contextSource": "selection",
+    "presetId": "ask",
+    "systemPrompt": "",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-input-data > systemPrompt = function > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > systemPrompt = null > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > systemPrompt = number > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > systemPrompt = object > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > systemPrompt = undefined > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-input-data > systemPrompt missing > verdict 1`] = `
+[
+  {
+    "context": "selected text",
+    "contextDirectives": "directives",
+    "contextSource": "selection",
+    "presetId": "ask",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-result-data > answer = NaN > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > answer = array > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > answer = boolean > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > answer = boxed string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > answer = empty string > verdict 1`] = `
+[
+  {
+    "answer": "",
+    "input": "selection",
+    "markdown": true,
+    "presetName": "Ask",
+    "question": "q",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-result-data > answer = function > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > answer = null > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > answer = number > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > answer = object > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > answer = undefined > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > answer missing > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > input = NaN > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > input = array > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > input = boolean > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > input = boxed string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > input = empty string > verdict 1`] = `
+[
+  {
+    "answer": "a",
+    "input": "",
+    "markdown": true,
+    "presetName": "Ask",
+    "question": "q",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-result-data > input = function > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > input = null > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > input = number > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > input = object > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > input = undefined > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > input missing > verdict 1`] = `
+[
+  {
+    "answer": "a",
+    "markdown": true,
+    "presetName": "Ask",
+    "question": "q",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-result-data > markdown = NaN > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > markdown = array > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > markdown = boolean > verdict 1`] = `
+[
+  {
+    "answer": "a",
+    "input": "selection",
+    "markdown": true,
+    "presetName": "Ask",
+    "question": "q",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-result-data > markdown = boxed string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > markdown = empty string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > markdown = function > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > markdown = null > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > markdown = number > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > markdown = object > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > markdown = undefined > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > markdown missing > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > payload array carrying the fields > verdict 1`] = `
+[
+  {
+    "answer": "a",
+    "input": "selection",
+    "markdown": true,
+    "presetName": "Ask",
+    "question": "q",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-result-data > payload boxed markdown > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > payload boxed string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > payload empty array > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > payload empty object > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > payload extra key > verdict 1`] = `
+[
+  {
+    "answer": "a",
+    "extra": 1,
+    "input": "selection",
+    "markdown": true,
+    "presetName": "Ask",
+    "question": "q",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-result-data > payload function > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > payload null > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > payload number > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > payload string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > payload undefined > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > payload valid > verdict 1`] = `
+[
+  {
+    "answer": "a",
+    "input": "selection",
+    "markdown": true,
+    "presetName": "Ask",
+    "question": "q",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-result-data > presetName = NaN > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > presetName = array > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > presetName = boolean > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > presetName = boxed string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > presetName = empty string > verdict 1`] = `
+[
+  {
+    "answer": "a",
+    "input": "selection",
+    "markdown": true,
+    "presetName": "",
+    "question": "q",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-result-data > presetName = function > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > presetName = null > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > presetName = number > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > presetName = object > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > presetName = undefined > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > presetName missing > verdict 1`] = `
+[
+  {
+    "answer": "a",
+    "input": "selection",
+    "markdown": true,
+    "question": "q",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-result-data > question = NaN > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > question = array > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > question = boolean > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > question = boxed string > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > question = empty string > verdict 1`] = `
+[
+  {
+    "answer": "a",
+    "input": "selection",
+    "markdown": true,
+    "presetName": "Ask",
+    "question": "",
+  },
+]
+`;
+
+exports[`ask preload boundary equivalence > ask-result-data > question = function > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > question = null > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > question = number > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > question = object > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > question = undefined > verdict 1`] = `[]`;
+
+exports[`ask preload boundary equivalence > ask-result-data > question missing > verdict 1`] = `[]`;

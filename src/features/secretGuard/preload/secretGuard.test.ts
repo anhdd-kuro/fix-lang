@@ -46,7 +46,9 @@ describe("secretGuardFeature preload boundary", () => {
 
       const result = await secretGuardFeature.getSecretGuardSettings();
 
-      expect(electronMocks.invoke).toHaveBeenCalledWith("get-secret-guard-settings");
+      expect(electronMocks.invoke).toHaveBeenCalledWith(
+        "get-secret-guard-settings",
+      );
       expect(result).toEqual(validSettings);
     });
 
@@ -62,7 +64,10 @@ describe("secretGuardFeature preload boundary", () => {
     );
 
     it("passes through mode off — a disabled guard is a valid stored choice", async () => {
-      electronMocks.invoke.mockResolvedValue({ mode: "off", highEntropyRule: false });
+      electronMocks.invoke.mockResolvedValue({
+        mode: "off",
+        highEntropyRule: false,
+      });
 
       expect(await secretGuardFeature.getSecretGuardSettings()).toEqual({
         mode: "off",
@@ -75,7 +80,8 @@ describe("secretGuardFeature preload boundary", () => {
     it("forwards a valid payload and reports success", async () => {
       electronMocks.invoke.mockResolvedValue({ success: true });
 
-      const result = await secretGuardFeature.setSecretGuardSettings(validSettings);
+      const result =
+        await secretGuardFeature.setSecretGuardSettings(validSettings);
 
       expect(electronMocks.invoke).toHaveBeenCalledWith(
         "set-secret-guard-settings",
@@ -103,10 +109,58 @@ describe("secretGuardFeature preload boundary", () => {
         error: { kind: "text", text: "nope" },
       });
 
-      const result = await secretGuardFeature.setSecretGuardSettings(validSettings);
+      const result =
+        await secretGuardFeature.setSecretGuardSettings(validSettings);
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
+    });
+  });
+
+  describe("edge-input replies", () => {
+    it.each([
+      ["a boxed mode", { mode: new String("mask"), highEntropyRule: true }],
+      ["a boxed flag", { mode: "mask", highEntropyRule: new Boolean(true) }],
+      ["NaN", Number.NaN],
+      ["a function", Object.assign(() => 1, validSettings)],
+      ["a Date", new Date(0)],
+    ])("rejects %s and falls back to the defaults", async (_label, reply) => {
+      electronMocks.invoke.mockResolvedValue(reply);
+
+      expect(await secretGuardFeature.getSecretGuardSettings()).toBe(
+        DEFAULT_SECRET_GUARD_SETTINGS,
+      );
+    });
+
+    it("accepts a reply carrying extra keys and keeps them", async () => {
+      electronMocks.invoke.mockResolvedValue({ ...validSettings, extra: 1 });
+
+      expect(await secretGuardFeature.getSecretGuardSettings()).toEqual({
+        ...validSettings,
+        extra: 1,
+      });
+    });
+
+    it("accepts a null-prototype reply", async () => {
+      electronMocks.invoke.mockResolvedValue(
+        Object.assign(Object.create(null), validSettings),
+      );
+
+      expect(await secretGuardFeature.getSecretGuardSettings()).toEqual(
+        validSettings,
+      );
+    });
+
+    it("accepts a reply whose mode is inherited rather than own", async () => {
+      electronMocks.invoke.mockResolvedValue(
+        Object.assign(Object.create({ mode: "off" }), {
+          highEntropyRule: false,
+        }),
+      );
+
+      const result = await secretGuardFeature.getSecretGuardSettings();
+      expect(result.mode).toBe("off");
+      expect(result.highEntropyRule).toBe(false);
     });
   });
 });

@@ -1,68 +1,50 @@
 import { ipcRenderer } from "electron";
-import type { AskInputPayload, AskResultPayload } from "~/features/ask/shared/ask";
+import { z } from "zod";
+import { objectLike } from "~/features/core/shared/schemaGuard";
+import type {
+  AskInputPayload,
+  AskResultPayload,
+} from "~/features/ask/shared/ask";
+
+/** `ipcRenderer.on`'s listener; Electron types the payload it hands over `any`. */
+type IpcRendererListener = Parameters<typeof ipcRenderer.on>[1];
 
 /**
- * Validates the ask-input payload crossing the preload boundary. Mirrors
- * `correctionResult.ts`'s `isCorrectionResultPayload` — narrow types are
+ * The ask-input payload crossing the preload boundary. Narrow types are
  * checked field by field, never widened just because the shape is small.
+ *
+ * Optional keys are EXACT-optional: absent is fine, present-but-`undefined` is
+ * not, because the window renders each as `string`-typed text.
+ *
+ * `contextSource` is checked against the exact two members rather than
+ * `string`: the window branches its label on this, and an unknown value would
+ * fall through to the "this is your selection" wording for text that is not.
+ * The two transparency strings (`systemPrompt`, `contextDirectives`) are
+ * optional — a payload carrying neither is valid and the row simply shows
+ * nothing.
  */
-const isAskInputPayload = (value: unknown): value is AskInputPayload => {
-  if (typeof value !== "object" || value === null) return false;
-  if (!("presetId" in value) || typeof value.presetId !== "string") {
-    return false;
-  }
-  if (!("context" in value) || typeof value.context !== "string") {
-    return false;
-  }
-  // Optional, but checked against the exact two members rather than `string`:
-  // the window branches its label on this, and an unknown value would fall
-  // through to the "this is your selection" wording for text that is not.
-  if (
-    "contextSource" in value &&
-    value.contextSource !== "selection" &&
-    value.contextSource !== "clipboard"
-  ) {
-    return false;
-  }
-  // The two transparency strings, checked one at a time and never spread: the
-  // window renders each as `string`-typed text, so a non-string reaching it
-  // would crash the render rather than being rejected here. Optional — a
-  // payload carrying neither is valid and the row simply shows nothing.
-  if ("systemPrompt" in value && typeof value.systemPrompt !== "string") {
-    return false;
-  }
-  if ("contextDirectives" in value && typeof value.contextDirectives !== "string") {
-    return false;
-  }
-  return true;
-};
+const AskInputPayloadSchema = objectLike({
+  presetId: z.string(),
+  context: z.string(),
+  contextSource: z.enum(["selection", "clipboard"]).exactOptional(),
+  systemPrompt: z.string().exactOptional(),
+  contextDirectives: z.string().exactOptional(),
+});
 
 /**
- * Validates the ask-result payload crossing the preload boundary.
- * `presetName` (mirroring `CorrectionResultPayload`) and `input` (the carried-in
- * selection) are optional but must be strings when present — the result window
- * renders both as `string`-typed text, so a non-string reaching it would crash
- * the render instead of being rejected here.
+ * The ask-result payload crossing the preload boundary. `presetName`
+ * (mirroring `CorrectionResultPayload`) and `input` (the carried-in selection)
+ * are optional but must be strings when present — the result window renders
+ * both as `string`-typed text, so a non-string reaching it would crash the
+ * render instead of being rejected here.
  */
-const isAskResultPayload = (value: unknown): value is AskResultPayload => {
-  if (typeof value !== "object" || value === null) return false;
-  if (!("question" in value) || typeof value.question !== "string") {
-    return false;
-  }
-  if (!("answer" in value) || typeof value.answer !== "string") {
-    return false;
-  }
-  if (!("markdown" in value) || typeof value.markdown !== "boolean") {
-    return false;
-  }
-  if ("presetName" in value && typeof value.presetName !== "string") {
-    return false;
-  }
-  if ("input" in value && typeof value.input !== "string") {
-    return false;
-  }
-  return true;
-};
+const AskResultPayloadSchema = objectLike({
+  question: z.string(),
+  answer: z.string(),
+  markdown: z.boolean(),
+  presetName: z.string().exactOptional(),
+  input: z.string().exactOptional(),
+});
 
 export const askFeature = {
   /**
@@ -73,11 +55,9 @@ export const askFeature = {
   onAskInputData: (
     callback: (payload: AskInputPayload) => void,
   ): (() => void) => {
-    const listener = (
-      _event: Electron.IpcRendererEvent,
-      payload: unknown,
-    ) => {
-      if (isAskInputPayload(payload)) callback(payload);
+    const listener: IpcRendererListener = (_event, payload) => {
+      const parsed = AskInputPayloadSchema.safeParse(payload);
+      if (parsed.success) callback(parsed.data);
     };
     ipcRenderer.on("ask-input-data", listener);
     return () => ipcRenderer.removeListener("ask-input-data", listener);
@@ -123,11 +103,9 @@ export const askFeature = {
   onAskResultData: (
     callback: (payload: AskResultPayload) => void,
   ): (() => void) => {
-    const listener = (
-      _event: Electron.IpcRendererEvent,
-      payload: unknown,
-    ) => {
-      if (isAskResultPayload(payload)) callback(payload);
+    const listener: IpcRendererListener = (_event, payload) => {
+      const parsed = AskResultPayloadSchema.safeParse(payload);
+      if (parsed.success) callback(parsed.data);
     };
     ipcRenderer.on("ask-result-data", listener);
     return () => ipcRenderer.removeListener("ask-result-data", listener);

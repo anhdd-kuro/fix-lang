@@ -18,6 +18,7 @@
  * `keybindings/utils.test.ts` use, avoids touching Electron or the
  * filesystem at all.
  */
+import type { ExecOptions } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { redactLogContext } from "~/features/logs/shared/logging";
 import { logger } from "~/main/logging/logService";
@@ -38,30 +39,18 @@ const {
   openExternalMock,
   clipboardState,
   pasteboardEvents,
-  observeNowMock,
-  beginSelfManagedReadMock,
-  endSelfManagedReadMock,
 } = vi.hoisted(() => ({
   execMock: vi.fn(),
   showMessageBoxMock: vi.fn(),
   openExternalMock: vi.fn(),
   clipboardState: { text: "previous clipboard content" },
   pasteboardEvents: [] as string[],
-  observeNowMock: vi.fn(),
-  beginSelfManagedReadMock: vi.fn(),
-  endSelfManagedReadMock: vi.fn(),
 }));
 
 vi.mock("child_process", () => {
   const mockedExports = { exec: execMock, execSync: vi.fn() };
   return { ...mockedExports, default: mockedExports };
 });
-
-vi.mock("~/main/clipboard/clipboardChangeTracker", () => ({
-  observeNow: observeNowMock,
-  beginSelfManagedRead: beginSelfManagedReadMock,
-  endSelfManagedRead: endSelfManagedReadMock,
-}));
 
 vi.mock("electron", () => {
   const mockedExports = {
@@ -106,7 +95,10 @@ type ExecCallback = (error: Error | null, stdout: string) => void;
 const originalPlatform = process.platform;
 
 const setPlatform = (platform: NodeJS.Platform): void => {
-  Object.defineProperty(process, "platform", { value: platform, configurable: true });
+  Object.defineProperty(process, "platform", {
+    value: platform,
+    configurable: true,
+  });
 };
 
 /**
@@ -135,7 +127,11 @@ const mockCopyExec = ({
     // which must be bounded so a hung System Events cannot block the copy.
     // Resolving the callback positionally keeps this mock honest for both
     // instead of silently receiving the options object as its callback.
-    (_cmd: string, optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+    (
+      _cmd: string,
+      optionsOrCallback: ExecOptions | ExecCallback,
+      maybeCallback?: ExecCallback,
+    ) => {
       const callback =
         typeof optionsOrCallback === "function"
           ? (optionsOrCallback as ExecCallback)
@@ -161,7 +157,9 @@ describe("getHighlightedText", () => {
   it("maps a keystroke-permission denial to AccessibilityPermissionError", async () => {
     mockCopyExec({ error: new Error(REAL_DENIAL_MESSAGE) });
 
-    await expect(getHighlightedText()).rejects.toBeInstanceOf(AccessibilityPermissionError);
+    await expect(getHighlightedText()).rejects.toBeInstanceOf(
+      AccessibilityPermissionError,
+    );
   });
 
   it("passes an unrelated osascript failure through unchanged", async () => {
@@ -183,17 +181,21 @@ describe("getHighlightedText", () => {
   it("restores the clipboard even when the failure is a permission denial", async () => {
     mockCopyExec({ error: new Error(REAL_DENIAL_MESSAGE) });
 
-    await expect(getHighlightedText()).rejects.toBeInstanceOf(AccessibilityPermissionError);
+    await expect(getHighlightedText()).rejects.toBeInstanceOf(
+      AccessibilityPermissionError,
+    );
     expect(clipboardState.text).toBe("previous clipboard content");
   });
 
   it("returns the new selection when the copy keystroke changes the clipboard", async () => {
     mockCopyExec({ newClipboardValue: "the user's real selection" });
 
-    await expect(getHighlightedText()).resolves.toBe("the user's real selection");
+    await expect(getHighlightedText()).resolves.toBe(
+      "the user's real selection",
+    );
   });
 
-  it("returns a selection byte-identical to the previous clipboard, instead of reading as \"nothing copied\"", async () => {
+  it('returns a selection byte-identical to the previous clipboard, instead of reading as "nothing copied"', async () => {
     // The workflow the old change-poll could not serve: copy a paragraph,
     // paste it, select that same text again, hit a transform hotkey. The
     // pasteboard value is unchanged from start to finish, so a change-poll saw
@@ -202,7 +204,9 @@ describe("getHighlightedText", () => {
     // it into an ordinary successful copy, so the fallback is not needed.
     mockCopyExec({ newClipboardValue: "previous clipboard content" });
 
-    await expect(getHighlightedText()).resolves.toBe("previous clipboard content");
+    await expect(getHighlightedText()).resolves.toBe(
+      "previous clipboard content",
+    );
   });
 
   it("falls back to the clipboard snapshot when the copy produces nothing", async () => {
@@ -272,7 +276,6 @@ describe("getAskContext", () => {
     await expect(pending).resolves.toMatchObject({
       text: "text the user copied by hand",
       source: "clipboard",
-      changed: false,
     });
   });
 
@@ -301,7 +304,6 @@ describe("getAskContext", () => {
     await expect(getAskContext()).resolves.toMatchObject({
       text: "the user's real selection",
       source: "selection",
-      changed: true,
     });
   });
 
@@ -315,7 +317,10 @@ describe("getAskContext", () => {
     const pending = getAskContext();
     await vi.advanceTimersByTimeAsync(3_000);
 
-    await expect(pending).resolves.toMatchObject({ text: "", source: "clipboard" });
+    await expect(pending).resolves.toMatchObject({
+      text: "",
+      source: "clipboard",
+    });
   });
 
   it("reads a selection byte-identical to the clipboard as a selection, not a fallback", async () => {
@@ -419,7 +424,11 @@ describe("getHighlightedTextWithActiveApp — combined frontmost-app + copy read
     // take the whole transform down with it.
     let call = 0;
     execMock.mockImplementation(
-      (_cmd: string, optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+      (
+        _cmd: string,
+        optionsOrCallback: ExecOptions | ExecCallback,
+        maybeCallback?: ExecCallback,
+      ) => {
         const callback =
           typeof optionsOrCallback === "function"
             ? (optionsOrCallback as ExecCallback)
@@ -445,7 +454,10 @@ describe("getHighlightedTextWithActiveApp — combined frontmost-app + copy read
   });
 
   it("bounds the combined script with a timeout so a hung lookup cannot hang the copy", async () => {
-    mockCopyExec({ stdout: "Slack\tcom.tinyspeck.slackmacgap", newClipboardValue: "sel" });
+    mockCopyExec({
+      stdout: "Slack\tcom.tinyspeck.slackmacgap",
+      newClipboardValue: "sel",
+    });
 
     await getHighlightedTextWithActiveApp();
 
@@ -462,10 +474,12 @@ describe("getHighlightedTextWithActiveApp — combined frontmost-app + copy read
       order.push("callback");
     });
 
-    const pending = getHighlightedTextWithActiveApp(onScriptComplete).then((result) => {
-      order.push("resolved");
-      return result;
-    });
+    const pending = getHighlightedTextWithActiveApp(onScriptComplete).then(
+      (result) => {
+        order.push("resolved");
+        return result;
+      },
+    );
 
     // Land the clipboard change shortly after the callback fires — well
     // inside the poll's timeout — so the whole promise settles quickly
@@ -496,8 +510,8 @@ describe("getHighlightedTextWithActiveApp — combined frontmost-app + copy read
     await expect(pending).resolves.toEqual({
       text: "previous clipboard content",
       activeApp: { name: "Slack", bundleId: "com.tinyspeck.slackmacgap" },
-      // The read fell back: `changed` false is what lets the selection guards
-      // apply the stale-clipboard age limit to exactly this case.
+      // The read fell back: `changed` false is what labels Ask context as
+      // "From clipboard".
       changed: false,
     });
   });
@@ -513,7 +527,7 @@ describe("getHighlightedTextWithActiveApp — combined frontmost-app + copy read
       text: "previous clipboard content",
       activeApp: { name: "Slack", bundleId: "com.tinyspeck.slackmacgap" },
       // Emptying the pasteboard first turns this into an ordinary successful
-      // copy, so it is a real selection — never the stale-clipboard fallback.
+      // copy, so it is a real selection — never the clipboard fallback.
       changed: true,
     });
   });
@@ -536,104 +550,34 @@ describe("getHighlightedTextWithActiveApp — combined frontmost-app + copy read
   });
 });
 
-describe("clipboard change tracker wiring", () => {
+describe("pasteboard handling", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clipboardState.text = "previous clipboard content";
     pasteboardEvents.length = 0;
-    beginSelfManagedReadMock.mockImplementation(() => {
-      pasteboardEvents.push("begin");
-    });
-    endSelfManagedReadMock.mockImplementation(() => {
-      pasteboardEvents.push("end");
-    });
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("observes the pre-copy clipboard content for free and brackets the copy with a self-managed read (getHighlightedText)", async () => {
+  it("empties the pasteboard exactly once before the copy (getHighlightedText)", async () => {
     mockCopyExec({ newClipboardValue: "the user's real selection" });
 
     await getHighlightedText();
 
-    expect(observeNowMock).toHaveBeenCalledWith("previous clipboard content");
-    expect(beginSelfManagedReadMock).toHaveBeenCalledTimes(1);
-    expect(endSelfManagedReadMock).toHaveBeenCalledWith("previous clipboard content");
+    expect(pasteboardEvents).toEqual(["clear"]);
   });
 
-  it("empties the pasteboard INSIDE the self-managed bracket, so the 1Hz observer cannot record our own clearing as a user copy (getHighlightedText)", async () => {
-    // The whole stale-clipboard guard hangs off this ordering. `clear()` is a
-    // pasteboard write of ours; outside the bracket the observer would see a
-    // brand-new value and reset the age the guard reads, silently disarming it.
-    mockCopyExec({ newClipboardValue: "the user's real selection" });
-
-    await getHighlightedText();
-
-    expect(pasteboardEvents).toEqual(["begin", "clear", "end"]);
-  });
-
-  it("still ends the self-managed read when the copy keystroke fails, so the tracker is never left suspended (getHighlightedText)", async () => {
-    mockCopyExec({ error: new Error(REAL_DENIAL_MESSAGE) });
-
-    await expect(getHighlightedText()).rejects.toBeInstanceOf(AccessibilityPermissionError);
-
-    expect(beginSelfManagedReadMock).toHaveBeenCalledTimes(1);
-    expect(endSelfManagedReadMock).toHaveBeenCalledWith("previous clipboard content");
-  });
-
-  it("observes the pre-copy clipboard content for free and brackets the combined read with a self-managed read (getHighlightedTextWithActiveApp)", async () => {
-    mockCopyExec({ stdout: "Slack\tcom.tinyspeck.slackmacgap", newClipboardValue: "sel" });
+  it("empties the pasteboard exactly once before the combined read (getHighlightedTextWithActiveApp)", async () => {
+    mockCopyExec({
+      stdout: "Slack\tcom.tinyspeck.slackmacgap",
+      newClipboardValue: "sel",
+    });
 
     await getHighlightedTextWithActiveApp();
 
-    expect(observeNowMock).toHaveBeenCalledWith("previous clipboard content");
-    expect(beginSelfManagedReadMock).toHaveBeenCalledTimes(1);
-    expect(endSelfManagedReadMock).toHaveBeenCalledWith("previous clipboard content");
-  });
-
-  it("empties the pasteboard INSIDE the self-managed bracket (getHighlightedTextWithActiveApp)", async () => {
-    mockCopyExec({ stdout: "Slack\tcom.tinyspeck.slackmacgap", newClipboardValue: "sel" });
-
-    await getHighlightedTextWithActiveApp();
-
-    expect(pasteboardEvents).toEqual(["begin", "clear", "end"]);
-  });
-
-  it("still ends the self-managed read when the combined read fails, so the tracker is never left suspended (getHighlightedTextWithActiveApp)", async () => {
-    mockCopyExec({ error: new Error(REAL_DENIAL_MESSAGE) });
-
-    await expect(getHighlightedTextWithActiveApp()).rejects.toBeInstanceOf(
-      AccessibilityPermissionError,
-    );
-
-    expect(beginSelfManagedReadMock).toHaveBeenCalledTimes(1);
-    expect(endSelfManagedReadMock).toHaveBeenCalledWith("previous clipboard content");
-  });
-
-  it("brackets the paste write/restore with a self-managed read (pasteText)", async () => {
-    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
-      callback(null, "");
-    });
-
-    await pasteText("corrected text");
-
-    expect(beginSelfManagedReadMock).toHaveBeenCalledTimes(1);
-    expect(endSelfManagedReadMock).toHaveBeenCalledWith("previous clipboard content");
-  });
-
-  it("still ends the self-managed read when the paste keystroke fails, so the tracker is never left suspended (pasteText)", async () => {
-    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
-      callback(new Error(REAL_DENIAL_MESSAGE), "");
-    });
-
-    await expect(pasteText("corrected text")).rejects.toBeInstanceOf(
-      AccessibilityPermissionError,
-    );
-
-    expect(beginSelfManagedReadMock).toHaveBeenCalledTimes(1);
-    expect(endSelfManagedReadMock).toHaveBeenCalledWith("previous clipboard content");
+    expect(pasteboardEvents).toEqual(["clear"]);
   });
 
   it("still restores the clipboard content when the paste keystroke fails (pasteText)", async () => {
@@ -690,7 +634,10 @@ describe("selectionChanged debug key survives redaction", () => {
   });
 
   it("logs the copy-keystroke-returned debug line under selectionChanged, surviving the real redactLogContext (getHighlightedTextWithActiveApp)", async () => {
-    mockCopyExec({ stdout: "Slack\tcom.tinyspeck.slackmacgap", newClipboardValue: "sel" });
+    mockCopyExec({
+      stdout: "Slack\tcom.tinyspeck.slackmacgap",
+      newClipboardValue: "sel",
+    });
     const debugSpy = vi.spyOn(logger, "debug");
 
     await getHighlightedTextWithActiveApp();
@@ -714,7 +661,11 @@ describe("waitForClipboardChange", () => {
     clipboardState.text = "new value";
 
     await expect(
-      waitForClipboardChange({ oldValue: "old value", timeout: 5_000, interval: 5 }),
+      waitForClipboardChange({
+        oldValue: "old value",
+        timeout: 5_000,
+        interval: 5,
+      }),
     ).resolves.toBe("new value");
   });
 
@@ -734,7 +685,11 @@ describe("waitForClipboardChange", () => {
 
   it("returns oldValue unchanged when the clipboard never changes before the timeout", async () => {
     await expect(
-      waitForClipboardChange({ oldValue: "old value", timeout: 30, interval: 5 }),
+      waitForClipboardChange({
+        oldValue: "old value",
+        timeout: 30,
+        interval: 5,
+      }),
     ).resolves.toBe("old value");
   });
 });
@@ -753,7 +708,9 @@ describe("promptAccessibilityPermission", () => {
     // Mirrors the observed bug report: four hotkey failures in 31 seconds
     // should not stack four modals — only the first call within the
     // throttle window should actually show a dialog.
-    showMessageBoxMock.mockResolvedValueOnce({ response: 0 }).mockResolvedValue({ response: 1 });
+    showMessageBoxMock
+      .mockResolvedValueOnce({ response: 0 })
+      .mockResolvedValue({ response: 1 });
 
     await promptAccessibilityPermission();
     await promptAccessibilityPermission();

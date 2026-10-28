@@ -14,10 +14,8 @@
     "jsx": "react-jsx",
     "types": ["electron-vite/node"],
     "paths": {
-      "~/*": [
-        "./src/*"
-      ]
-    },
+      "~/*": ["./src/*"]
+    }
   },
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "tools/oxlint"]
 }

@@ -4,17 +4,23 @@
  */
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import { generateText } from "ai";
-import { reasoningForAiSdk } from "~/features/correction/shared/reasoningEffort";
 import { resolveBedrockRegion } from "~/features/providers/shared/bedrockEndpoint";
-import { getCurrentProfileId, getProviderEndpoint } from "~/features/providers/store/apiStore";
+import {
+  getCurrentProfileId,
+  getProviderEndpoint,
+} from "~/features/providers/store/apiStore";
 import { getProfileSecret } from "~/features/providers/store/profileSecretStore";
 import {
   sumTokenField,
   toConversation,
   usageCounts,
   type AIRequestOptions,
+  type AIRequestResponse,
 } from "~/main/ai.request/requestTypes";
-import { extractResolvedModel } from "~/main/ai.request/resolve-model";
+import {
+  aiSdkCallSettings,
+  aiSdkSystemOption,
+} from "~/main/llm/providers/aiSdkCallSettings";
 import { notifyRequestError } from "~/main/notifications/error";
 
 export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
@@ -26,7 +32,11 @@ export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
   }
 
   const accessKeyId = await getProfileSecret(profileId, "bedrock", "api");
-  const secretAccessKey = await getProfileSecret(profileId, "bedrock", "secret");
+  const secretAccessKey = await getProfileSecret(
+    profileId,
+    "bedrock",
+    "secret",
+  );
   if (!accessKeyId || !secretAccessKey) {
     const error = new Error("AWS Bedrock credentials are missing.");
     notifyRequestError(options, error);
@@ -39,6 +49,8 @@ export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
   }
 
   try {
+    // SAFETY: production calls arrive only through the provider registry from
+    // `makeAIRequest`, which always sets `model` to the resolved raw model id.
     const modelId = options.model as string;
     const region = resolveBedrockRegion(getProviderEndpoint("bedrock"));
     const bedrock = createAmazonBedrock({
@@ -50,41 +62,38 @@ export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
     const request = () =>
       generateText({
         model: bedrock(modelId),
-        ...(conversation.system ? { system: conversation.system } : {}),
+        ...aiSdkSystemOption(conversation.system),
         messages: conversation.messages,
         topP: options.top_p,
-        ...(() => {
-          const reasoning = reasoningForAiSdk(options.reasoning);
-          return reasoning !== undefined ? { reasoning } : {};
-        })(),
-        ...(options.stop ? { stopSequences: options.stop } : {}),
-        ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
-        ...(options.maxOutputTokens !== undefined
-          ? { maxOutputTokens: options.maxOutputTokens }
-          : {}),
+        ...aiSdkCallSettings(options),
       });
     const responses = await Promise.all(
       Array.from({ length: Math.max(1, options.n ?? 1) }, request),
     );
     const counts = responses.map((response) => usageCounts(response.usage));
-    const firstBody = responses[0]?.response.body;
 
     const reasoningTexts = responses
       .map((response) => response.reasoningText)
-      .filter((text): text is string => typeof text === "string" && text.length > 0);
-    return {
+      .filter((text): text is string => text != null && text.length > 0);
+    const result: AIRequestResponse = {
       content: responses.map((response) => response.text),
       prompts: responses.map((response) => response.text),
       promptTokens: sumTokenField(counts, "promptTokens"),
       completionTokens: sumTokenField(counts, "completionTokens"),
       model: modelId,
-      provider: "bedrock" as const,
-      resolvedModel: extractResolvedModel(firstBody, modelId),
-      ...(reasoningTexts.length > 0 ? { reasoningTexts } : {}),
+      provider: "bedrock",
+      // Converse returns no response body (so no `include`); the SDK reports the model on `response.modelId`.
+      resolvedModel: responses[0]?.response.modelId ?? modelId,
     };
+    if (reasoningTexts.length > 0) result.reasoningTexts = reasoningTexts;
+    return result;
   } catch (error) {
     console.error("makeBedrockAIRequest error:", error);
-    notifyRequestError(options, error, "Failed to get a response from AWS Bedrock.");
+    notifyRequestError(
+      options,
+      error,
+      "Failed to get a response from AWS Bedrock.",
+    );
     throw error;
   }
 };

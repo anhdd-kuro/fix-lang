@@ -4,11 +4,15 @@
  * "Show details" transparency UI. Electron-free — shared by main writers and
  * renderer readers.
  */
+import { z } from "zod";
 import {
   isReasoningEffort,
   type ReasoningEffort,
 } from "~/features/correction/shared/reasoningEffort";
-import { isProviderId, type ProviderId } from "~/features/providers/shared/providers";
+import {
+  isProviderId,
+  type ProviderId,
+} from "~/features/providers/shared/providers";
 
 /** One message as sent to (or returned from) the model. */
 export type HistorySessionMessage = {
@@ -35,29 +39,40 @@ export type HistorySessionData = {
   cacheWriteTokens?: number;
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+/**
+ * Any JSON number. `JSON.parse` turns an overflowing literal such as `1e999`
+ * into ±Infinity, which `z.number()` alone would refuse.
+ */
+const StoredNumberSchema = z.union([
+  z.number(),
+  z.literal(Number.POSITIVE_INFINITY),
+  z.literal(Number.NEGATIVE_INFINITY),
+]);
 
-const asSessionMessage = (value: unknown): HistorySessionMessage | undefined => {
-  if (!isRecord(value) || typeof value.role !== "string") {
-    return undefined;
-  }
-  return { role: value.role, content: value.content };
-};
+/** A message object with a string `role`; `content` is carried as stored. */
+const StoredSessionMessageSchema = z.looseObject({ role: z.string() });
 
-const asStringArray = (value: unknown): string[] | undefined => {
-  if (!Array.isArray(value)) return undefined;
-  if (!value.every((item): item is string => typeof item === "string")) {
-    return undefined;
-  }
-  return value;
-};
-
-const asNullableNumber = (value: unknown): number | null | undefined => {
-  if (value === null) return null;
-  if (typeof value === "number") return value;
-  return undefined;
-};
+/**
+ * A stored snapshot. A wrong REQUIRED field rejects the whole snapshot; a
+ * wrong OPTIONAL field is dropped on its own.
+ */
+const StoredHistorySessionSchema = z.looseObject({
+  messages: z.array(StoredSessionMessageSchema),
+  model: z.string(),
+  provider: z.custom<ProviderId>((value) => isProviderId(value)),
+  responses: z.array(z.string()),
+  promptTokens: StoredNumberSchema.nullable(),
+  completionTokens: StoredNumberSchema.nullable(),
+  reasoningEffort: z
+    .custom<ReasoningEffort>((value) => isReasoningEffort(value))
+    .optional()
+    .catch(undefined),
+  topP: StoredNumberSchema.optional().catch(undefined),
+  resolvedModel: z.string().optional().catch(undefined),
+  reasoningTexts: z.array(z.string()).optional().catch(undefined),
+  cachedTokens: StoredNumberSchema.optional().catch(undefined),
+  cacheWriteTokens: StoredNumberSchema.optional().catch(undefined),
+});
 
 /** Serialize a session for SQLite TEXT storage. */
 export const serializeHistorySession = (session: HistorySessionData): string =>
@@ -74,55 +89,39 @@ export const parseHistorySession = (
     return undefined;
   }
   try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!isRecord(parsed)) return undefined;
-    if (typeof parsed.model !== "string") return undefined;
-    if (!isProviderId(parsed.provider)) return undefined;
-    if (!Array.isArray(parsed.messages)) return undefined;
-
-    const messages: HistorySessionMessage[] = [];
-    for (const item of parsed.messages) {
-      const message = asSessionMessage(item);
-      if (!message) return undefined;
-      messages.push(message);
-    }
-
-    const responses = asStringArray(parsed.responses);
-    if (!responses) return undefined;
-
-    const promptTokens = asNullableNumber(parsed.promptTokens);
-    const completionTokens = asNullableNumber(parsed.completionTokens);
-    if (promptTokens === undefined || completionTokens === undefined) {
-      return undefined;
-    }
+    const parsed = StoredHistorySessionSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success) return undefined;
+    const stored = parsed.data;
 
     const session: HistorySessionData = {
-      messages,
-      model: parsed.model,
-      provider: parsed.provider,
-      responses,
-      promptTokens,
-      completionTokens,
+      messages: stored.messages.map((message): HistorySessionMessage => ({
+        role: message.role,
+        content: message.content,
+      })),
+      model: stored.model,
+      provider: stored.provider,
+      responses: stored.responses,
+      promptTokens: stored.promptTokens,
+      completionTokens: stored.completionTokens,
     };
 
-    if (isReasoningEffort(parsed.reasoningEffort)) {
-      session.reasoningEffort = parsed.reasoningEffort;
+    if (stored.reasoningEffort !== undefined) {
+      session.reasoningEffort = stored.reasoningEffort;
     }
-    if (typeof parsed.topP === "number") {
-      session.topP = parsed.topP;
+    if (stored.topP !== undefined) {
+      session.topP = stored.topP;
     }
-    if (typeof parsed.resolvedModel === "string") {
-      session.resolvedModel = parsed.resolvedModel;
+    if (stored.resolvedModel !== undefined) {
+      session.resolvedModel = stored.resolvedModel;
     }
-    const reasoningTexts = asStringArray(parsed.reasoningTexts);
-    if (reasoningTexts) {
-      session.reasoningTexts = reasoningTexts;
+    if (stored.reasoningTexts !== undefined) {
+      session.reasoningTexts = stored.reasoningTexts;
     }
-    if (typeof parsed.cachedTokens === "number") {
-      session.cachedTokens = parsed.cachedTokens;
+    if (stored.cachedTokens !== undefined) {
+      session.cachedTokens = stored.cachedTokens;
     }
-    if (typeof parsed.cacheWriteTokens === "number") {
-      session.cacheWriteTokens = parsed.cacheWriteTokens;
+    if (stored.cacheWriteTokens !== undefined) {
+      session.cacheWriteTokens = stored.cacheWriteTokens;
     }
 
     return session;
