@@ -181,7 +181,7 @@ export const TrayToolbar: React.FC = () => {
             (state.canInstall && response === 1) ||
             (!state.canInstall && response === 0)
           ) {
-            window.electronAPI.openUpdateRelease();
+            void window.electronAPI.openUpdateRelease();
           }
           break;
         }

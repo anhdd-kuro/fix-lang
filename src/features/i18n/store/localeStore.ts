@@ -10,7 +10,7 @@
  */
 import Store from "electron-store";
 import { normalizeLocale } from "~/features/i18n/shared/detect";
-import { DEFAULT_LOCALE, type Locale } from "~/features/i18n/shared/registry";
+import { type Locale } from "~/features/i18n/shared/registry";
 
 type LocaleStoreSchema = {
   locale: Locale | null;

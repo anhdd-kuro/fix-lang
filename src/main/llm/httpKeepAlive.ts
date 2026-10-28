@@ -47,6 +47,6 @@ const keepAliveAgent: Dispatcher = new Agent({
  */
 export const keepAliveFetch: typeof fetch = (input, init) =>
   undiciFetch(input, {
-    ...(init ?? {}),
+    ...init,
     dispatcher: keepAliveAgent,
   } as Parameters<typeof undiciFetch>[1]) as ReturnType<typeof fetch>;

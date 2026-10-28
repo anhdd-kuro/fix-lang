@@ -40,7 +40,7 @@ export const AboutPanel = ({
 
   return (
     <div className="flex h-full flex-col gap-3">
-      <nav
+      <div
         className="flex flex-wrap gap-1"
         role="tablist"
         aria-label={t("about.subTabs.ariaLabel")}
@@ -69,7 +69,7 @@ export const AboutPanel = ({
             </Button>
           );
         })}
-      </nav>
+      </div>
 
       <div
         className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-card-control-border bg-card p-4"

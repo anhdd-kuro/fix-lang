@@ -169,10 +169,10 @@ export const SettingAutocomplete: React.FC = () => {
   // switch can never change what `getAutocompleteUsage` returns.
   useEffect(() => {
     const offActiveProfile = window.electronAPI.onActiveProfileChanged?.(() => {
-      loadSettings();
+      void loadSettings();
     });
     const offSettings = window.electronAPI.onSettingsUpdated?.(() => {
-      loadSettings();
+      void loadSettings();
     });
     return () => {
       offActiveProfile?.();

@@ -86,18 +86,18 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
     // Safety net: if the widget unmounts while the field is still focused
     // (e.g. settings window closes mid-capture), make sure hotkeys resume.
     return () => {
-      window.electronAPI?.resumeHotkeys();
+      void window.electronAPI?.resumeHotkeys();
     };
   }, [hotkeyKey]);
 
   // Pause global hotkeys only while the field is focused for capture — not for
   // the whole lifetime of the settings tab. Resume as soon as focus leaves.
   const handleFocus = (): void => {
-    window.electronAPI?.pauseHotkeys();
+    void window.electronAPI?.pauseHotkeys();
   };
 
   const handleBlur = (): void => {
-    window.electronAPI?.resumeHotkeys();
+    void window.electronAPI?.resumeHotkeys();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {

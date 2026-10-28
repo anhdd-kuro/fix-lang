@@ -162,8 +162,8 @@ export const SettingGeneral: React.FC = () => {
   // connections.
   useEffect(() => {
     // Reading main's state is the external-system sync the rule carves out.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    refreshProviderStates();
+    // oxlint-disable-next-line react/set-state-in-effect
+    void refreshProviderStates();
     const reloadReasoningEffort = (): void => {
       window.electronAPI
         ?.getDefaultReasoningEffort?.()
@@ -185,13 +185,13 @@ export const SettingGeneral: React.FC = () => {
       setProviderStatus({});
       setConfirmDisconnect(null);
       setDisconnectReport(null);
-      refreshProviderStates();
+      void refreshProviderStates();
       reloadReasoningEffort();
     });
     const offActiveProfile = window.electronAPI?.onActiveProfileChanged?.(
       () => {
         setTypedOpenAIProjectId(undefined);
-        refreshProviderStates();
+        void refreshProviderStates();
         reloadReasoningEffort();
       },
     );
@@ -200,7 +200,7 @@ export const SettingGeneral: React.FC = () => {
     // global reasoning select also broadcasts on save — reload the slider so
     // an open Settings window does not keep a stale effort.
     const offSettings = window.electronAPI?.onSettingsUpdated?.(() => {
-      refreshProviderStates();
+      void refreshProviderStates();
       reloadReasoningEffort();
     });
     return () => {

@@ -27,7 +27,7 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
+  // oxlint-disable-next-line typescript/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return {
     ...real,
@@ -75,7 +75,7 @@ vi.mock("~/main/notifications/secretGuardDialog", () => ({
 // spy so the ordering test below can see WHEN the timer starts, not merely
 // whether it eventually finishes.
 vi.mock("../logging/latencyTimer", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
+  // oxlint-disable-next-line typescript/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return { ...real, startLatencyTimer: vi.fn(real.startLatencyTimer) };
 });

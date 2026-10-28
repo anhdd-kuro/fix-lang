@@ -28,7 +28,7 @@ export const MAX_SUGGESTION_CHARS = 200;
  * the text is, and a lone `\r` would survive into the textarea value as a
  * phantom line break.
  */
-// eslint-disable-next-line no-control-regex -- stripping C0/C1 controls is the point
+// oxlint-disable-next-line no-control-regex -- stripping C0/C1 controls is the point
 const CONTROL_CHARACTERS = /[\x00-\x08\x0b-\x1f\x7f-\x9f]/g;
 
 /**

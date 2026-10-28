@@ -199,7 +199,7 @@ export const TrayProviderSummary: React.FC = () => {
         <MutedMessage>{t("tray.providers.empty")}</MutedMessage>
       ) : (
         <>
-          <nav
+          <div
             className="mb-1.5 flex gap-1"
             role="tablist"
             aria-label={t("tray.providers.tabsAriaLabel")}
@@ -228,7 +228,7 @@ export const TrayProviderSummary: React.FC = () => {
                 </Button>
               );
             })}
-          </nav>
+          </div>
 
           {/* The panel is the `tabpanel`, not the button inside it: a `role` on
               the button would strip the semantics that make it activatable. */}

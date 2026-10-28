@@ -1100,7 +1100,9 @@ describe("check-bundle-externals CLI from a path containing spaces", () => {
 
   beforeEach(() => {
     root = mkdtempSync(path.join(tmpdir(), "fix lang cli "));
-    expect(root).toContain(" ");
+    if (!root.includes(" ")) {
+      throw new Error(`temp root lost its space: ${root}`);
+    }
 
     mkdirSync(path.join(root, "scripts"), { recursive: true });
     mkdirSync(path.join(root, "src", "features", "core", "shared"), {

@@ -148,7 +148,7 @@ describe("prewarmProviderConnection", () => {
   it("never throws for garbage input", () => {
     expect(() => prewarmProviderConnection("")).not.toThrow();
     expect(() => prewarmProviderConnection("not::a::valid::ref")).not.toThrow();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately wrong type at a runtime boundary
+    // oxlint-disable-next-line typescript/no-explicit-any -- deliberately wrong type at a runtime boundary
     expect(() => prewarmProviderConnection(null as any)).not.toThrow();
   });
 

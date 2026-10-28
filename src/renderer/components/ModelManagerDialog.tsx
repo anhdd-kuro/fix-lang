@@ -129,7 +129,7 @@ export default function ModelManagerDialog({
       if (result.success) {
         // Give it a moment to complete registration
         setTimeout(() => {
-          refreshModels();
+          void refreshModels();
         }, 1000);
       }
     } catch (error) {
@@ -156,7 +156,7 @@ export default function ModelManagerDialog({
         // Close the confirmation dialog
         setDeleteConfirmation({ isOpen: false });
         // Refresh the model list
-        refreshModels();
+        void refreshModels();
       } else {
         alert(
           t("models.manager.deleteFailedAlert", {
@@ -177,7 +177,8 @@ export default function ModelManagerDialog({
   // Load models when the dialog opens
   useEffect(() => {
     if (isOpen) {
-      loadModels();
+      // oxlint-disable-next-line react/set-state-in-effect -- loading models on open is IPC synchronization; the hook owns its loading state
+      void loadModels();
     }
   }, [isOpen, loadModels]);
 

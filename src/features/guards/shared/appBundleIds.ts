@@ -36,7 +36,7 @@ export const MAX_APP_BUNDLE_PATH_LENGTH = 1024;
  * created with, while existence is NOT checked here — that is a filesystem
  * question and belongs in main.
  */
-// eslint-disable-next-line no-control-regex -- rejecting control chars is the point
+// oxlint-disable-next-line no-control-regex -- rejecting control chars is the point
 const CONTROL_CHARACTERS_PATTERN = /[\x00-\x1f\x7f-\x9f]/;
 
 export const hasAppBundlePathShape = (value: unknown): value is string => {

@@ -49,43 +49,41 @@ describe("registry", () => {
       expect(metaKeys).toHaveLength(LOCALE_CODES.length);
     });
 
-    describe("for each locale meta entry", () => {
-      for (const code of LOCALE_CODES) {
-        describe(`LOCALE_META.${code}`, () => {
-          const meta = LOCALE_META[code];
+    for (const code of LOCALE_CODES) {
+      describe(`for each locale meta entry: LOCALE_META.${code}`, () => {
+        const meta = LOCALE_META[code];
 
-          it("should have code matching the key", () => {
-            expect(meta.code).toBe(code);
-          });
-
-          it("should have non-empty label", () => {
-            expect(typeof meta.label).toBe("string");
-            expect(meta.label.length).toBeGreaterThan(0);
-          });
-
-          it("should have non-empty nativeLabel", () => {
-            expect(typeof meta.nativeLabel).toBe("string");
-            expect(meta.nativeLabel.length).toBeGreaterThan(0);
-          });
-
-          it("should have valid text direction (ltr or rtl)", () => {
-            expect(["ltr", "rtl"]).toContain(meta.dir);
-          });
-
-          it("should have intlTag accepted by Intl.DateTimeFormat", () => {
-            expect(() => {
-              new Intl.DateTimeFormat(meta.intlTag);
-            }).not.toThrow();
-          });
-
-          it("should have intlTag accepted by Intl.getCanonicalLocales", () => {
-            expect(() => {
-              Intl.getCanonicalLocales(meta.intlTag);
-            }).not.toThrow();
-          });
+        it("should have code matching the key", () => {
+          expect(meta.code).toBe(code);
         });
-      }
-    });
+
+        it("should have non-empty label", () => {
+          expect(typeof meta.label).toBe("string");
+          expect(meta.label.length).toBeGreaterThan(0);
+        });
+
+        it("should have non-empty nativeLabel", () => {
+          expect(typeof meta.nativeLabel).toBe("string");
+          expect(meta.nativeLabel.length).toBeGreaterThan(0);
+        });
+
+        it("should have valid text direction (ltr or rtl)", () => {
+          expect(["ltr", "rtl"]).toContain(meta.dir);
+        });
+
+        it("should have intlTag accepted by Intl.DateTimeFormat", () => {
+          expect(() => {
+            new Intl.DateTimeFormat(meta.intlTag);
+          }).not.toThrow();
+        });
+
+        it("should have intlTag accepted by Intl.getCanonicalLocales", () => {
+          expect(() => {
+            Intl.getCanonicalLocales(meta.intlTag);
+          }).not.toThrow();
+        });
+      });
+    }
 
     describe("locale-specific checks", () => {
       it("ja.nativeLabel should be in Japanese (日本語)", () => {

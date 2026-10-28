@@ -29,6 +29,7 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
   const { t, dateFnsLocale } = useI18n();
 
   const heatmap = useMemo(
+    // oxlint-disable-next-line react/purity -- intentional wall-clock read: the aggregation is anchored to now whenever its deps change
     () => sevenDayHourBlockHeatmap(entries, new Date()),
     [entries],
   );
@@ -109,14 +110,14 @@ export const TrayActivityHeatmapLoader: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
 
-    window.electronAPI.getHistory("corrections").then((history) => {
+    void window.electronAPI.getHistory("corrections").then((history) => {
       if (!cancelled) {
         setEntries(history);
       }
     });
 
     const removeListener = window.electronAPI.onHistoryUpdate?.(() => {
-      window.electronAPI.getHistory("corrections").then((history) => {
+      void window.electronAPI.getHistory("corrections").then((history) => {
         if (!cancelled) {
           setEntries(history);
         }

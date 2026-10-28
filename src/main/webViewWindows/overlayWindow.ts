@@ -96,7 +96,7 @@ export const createOverlayWindow = (): BrowserWindow => {
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   // Enable click-through so overlay never blocks mouse events (production)
   overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-  overlayWindow.loadFile(spinnerOverlayHtml);
+  void overlayWindow.loadFile(spinnerOverlayHtml);
 
   overlayWindow.webContents.on("did-finish-load", () => {
     overlayReady = true;
@@ -115,7 +115,7 @@ export const createOverlayWindow = (): BrowserWindow => {
  * Ensures the overlay window is created when the app is ready (hidden by default).
  */
 export const initializeOverlayWindow = () => {
-  app.whenReady().then(() => {
+  void app.whenReady().then(() => {
     createOverlayWindow();
   });
   app.on("will-quit", () => {

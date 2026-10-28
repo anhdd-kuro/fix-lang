@@ -198,7 +198,7 @@ async function checkGpu(): Promise<{ hasGpu: boolean; info?: string }> {
         const { stdout } = await execPromise("lspci | grep -i 'vga\\|3d\\|2d'");
         const hasGpu = /nvidia|amd|radeon|intel/i.test(stdout);
         return { hasGpu, info: hasGpu ? stdout.trim() : undefined };
-      } catch (_) {
+      } catch {
         // lspci might not be available, try alternative
         const { stdout } = await execPromise(
           "glxinfo | grep 'OpenGL renderer'",

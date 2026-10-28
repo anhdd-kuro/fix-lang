@@ -57,11 +57,11 @@ export const SettingPromptGen: React.FC = () => {
     };
 
     // Load initial settings
-    loadSettings();
+    void loadSettings();
 
     // Listen for settings updates
     const off = window.electronAPI.onSettingsUpdated?.(() => {
-      loadSettings();
+      void loadSettings();
     });
 
     return () => off?.();
@@ -82,11 +82,11 @@ export const SettingPromptGen: React.FC = () => {
     };
 
     // Load initial settings
-    loadSettings();
+    void loadSettings();
 
     // Listen for settings updates
     const off = window.electronAPI.onSettingsUpdated?.(() => {
-      loadSettings();
+      void loadSettings();
     });
 
     return () => off?.();

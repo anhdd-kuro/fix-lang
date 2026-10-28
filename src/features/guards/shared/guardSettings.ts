@@ -40,7 +40,7 @@ export const MAX_BUNDLE_ID_LENGTH = 120;
  * app's `name` — they cannot appear in a real bundle id and would otherwise
  * ride an unbounded value into a JSONL log line untouched.
  */
-// eslint-disable-next-line no-control-regex -- rejecting control chars is the point
+// oxlint-disable-next-line no-control-regex -- rejecting control chars is the point
 const CONTROL_CHARACTERS_PATTERN = /[\x00-\x1f\x7f-\x9f]/;
 
 /**

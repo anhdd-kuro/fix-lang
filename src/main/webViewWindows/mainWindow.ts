@@ -62,12 +62,12 @@ export const createMainWindow = (
     __dirname,
     "../renderer/MainWindow/index.html",
   );
-  win.loadFile(rendererPath);
+  void win.loadFile(rendererPath);
   return win;
 };
 
 export const initializeMainWindow = () => {
-  app.whenReady().then(() => {
+  void app.whenReady().then(() => {
     createMainWindow();
   });
   app.on("will-quit", () => {

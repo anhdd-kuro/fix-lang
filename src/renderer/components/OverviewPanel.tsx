@@ -153,6 +153,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
   // render below, never inside this `useMemo`, so a locale switch is visible
   // immediately without needing `t`/`locale` in this dependency array.
   const view = useMemo(() => {
+    // oxlint-disable-next-line react/purity -- intentional wall-clock read: the aggregation is anchored to now whenever its deps change
     const now = new Date();
     const filtered = filterByRange(history, range, now);
     return {
@@ -169,6 +170,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
   }, [history, range]);
 
   const tokenCalendar = useMemo(
+    // oxlint-disable-next-line react/purity -- intentional wall-clock read: the aggregation is anchored to now whenever its deps change
     () => tokenActivityCalendar(history, activityMode, new Date()),
     [activityMode, history],
   );

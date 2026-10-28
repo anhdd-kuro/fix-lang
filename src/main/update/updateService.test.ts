@@ -133,7 +133,7 @@ const createService = (
     cancelPoll,
     /** Runs every scheduled poll once, as the real interval would. */
     tickPoll: () => {
-      for (const run of [...polls]) run();
+      for (const run of polls.slice()) run();
     },
   };
 };

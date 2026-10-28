@@ -236,13 +236,13 @@ export const SettingCombos: React.FC = () => {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadSettings();
+    // oxlint-disable-next-line react/set-state-in-effect
+    void loadSettings();
   }, []);
 
   useEffect(() => {
     const off = window.electronAPI.onSettingsUpdated?.(() => {
-      loadSettings();
+      void loadSettings();
     });
 
     return () => off?.();

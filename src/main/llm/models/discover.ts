@@ -180,7 +180,7 @@ export async function getLocalModels(): Promise<Model[]> {
         );
       } else {
         console.log(
-          `[DEBUG] Direct connection to Ollama failed: ${listResponse}`,
+          `[DEBUG] Direct connection to Ollama failed: ${String(listResponse)}`,
         );
       }
     } catch (directErr) {

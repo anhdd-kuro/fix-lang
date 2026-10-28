@@ -26,7 +26,7 @@ vi.mock("electron", () => ({
   clipboard: { readText: vi.fn().mockReturnValue(""), writeText: vi.fn() },
 }));
 vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- importOriginal returns unknown module shape
+  // oxlint-disable-next-line typescript/no-explicit-any -- importOriginal returns unknown module shape
   const real = await importOriginal<any>();
   return {
     ...real,

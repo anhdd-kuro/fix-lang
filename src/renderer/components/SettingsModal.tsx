@@ -289,7 +289,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // clobbering a tab the user picks manually while it stays open.
   useEffect(() => {
     if (isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // oxlint-disable-next-line react/set-state-in-effect
       setActiveTab(Math.min(Math.max(initialTab, 0), tabs.length - 1));
     }
   }, [isOpen, initialTab, tabs.length]);

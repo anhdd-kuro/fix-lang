@@ -108,7 +108,7 @@ export const UsagePanel = ({
 
   return (
     <div className="flex h-full flex-col gap-3">
-      <nav
+      <div
         className="flex gap-1"
         role="tablist"
         aria-label={t("usage.subTabs.ariaLabel")}
@@ -137,7 +137,7 @@ export const UsagePanel = ({
             </Button>
           );
         })}
-      </nav>
+      </div>
 
       <div
         className="min-h-0 flex-1"

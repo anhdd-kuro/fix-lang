@@ -929,8 +929,11 @@ describe("SettingSecurity", () => {
 
     expect(setSelectionGuards).toHaveBeenCalledTimes(3);
     expect(
-      (setSelectionGuards.mock.calls[2]?.[0] as SelectionGuardSettings)
-        .maxSelectionChars,
+      (
+        setSelectionGuards.mock.calls[2]?.[0] as
+          | SelectionGuardSettings
+          | undefined
+      )?.maxSelectionChars,
     ).toBe(4321);
   });
 

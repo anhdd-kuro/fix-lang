@@ -90,7 +90,7 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children }) => {
       cancelled = true;
       unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `bridge` is `window.electronAPI`, a stable global; re-subscribing per render would drop/re-add the IPC listener for no benefit.
+    // oxlint-disable-next-line react/exhaustive-deps -- `bridge` is `window.electronAPI`, a stable global; re-subscribing per render would drop/re-add the IPC listener for no benefit.
   }, []);
 
   useEffect(() => {
@@ -103,7 +103,7 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children }) => {
     async (next: Locale): Promise<void> => {
       await requestSetLocale(bridge, next, dispatch);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- same stable-global rationale as above.
+    // oxlint-disable-next-line react/exhaustive-deps -- same stable-global rationale as above.
     [],
   );
 

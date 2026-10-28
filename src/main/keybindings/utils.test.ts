@@ -48,7 +48,7 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
 }));
 
 vi.mock("~/main/notifications/error", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importOriginal returns unknown module shape (same pattern as correction-preset-options.test.ts)
+  // oxlint-disable-next-line typescript/no-explicit-any -- vi.importOriginal returns unknown module shape (same pattern as correction-preset-options.test.ts)
   const real = await importOriginal<any>();
   return {
     ...real,
@@ -130,7 +130,7 @@ describe("withHotkeyThrottle", () => {
       () => clock,
     );
 
-    throttled();
+    void throttled();
 
     expect(handler).toHaveBeenCalledTimes(1);
   });
@@ -144,9 +144,9 @@ describe("withHotkeyThrottle", () => {
       () => clock,
     );
 
-    throttled();
+    void throttled();
     clock += HOTKEY_THROTTLE_MS - 1;
-    throttled();
+    void throttled();
 
     expect(handler).toHaveBeenCalledTimes(1);
   });
@@ -160,9 +160,9 @@ describe("withHotkeyThrottle", () => {
       () => clock,
     );
 
-    throttled();
+    void throttled();
     clock += HOTKEY_THROTTLE_MS;
-    throttled();
+    void throttled();
 
     expect(handler).toHaveBeenCalledTimes(2);
   });
@@ -182,9 +182,9 @@ describe("withHotkeyThrottle", () => {
       () => clock,
     );
 
-    throttledFirst();
+    void throttledFirst();
     clock += 50;
-    throttledSecond();
+    void throttledSecond();
 
     expect(first).toHaveBeenCalledTimes(1);
     expect(second).toHaveBeenCalledTimes(1);

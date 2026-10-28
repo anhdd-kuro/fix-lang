@@ -139,7 +139,7 @@ export const createErrorPopupWindow = (): BrowserWindow => {
   });
   // Unlike the spinner overlay, the error popup must accept clicks on Close.
   errorPopupWindow.setIgnoreMouseEvents(false);
-  errorPopupWindow.loadFile(errorPopupHtml);
+  void errorPopupWindow.loadFile(errorPopupHtml);
   errorPopupWindow.webContents.on("did-navigate-in-page", (_event, url) => {
     if (url.includes(ERROR_POPUP_DISMISS_HASH)) {
       hideErrorPopup();
@@ -168,7 +168,7 @@ export const showErrorPopup = (message: string): void => {
 };
 
 export const initializeErrorPopupWindow = (): void => {
-  app.whenReady().then(() => {
+  void app.whenReady().then(() => {
     createErrorPopupWindow();
   });
   app.on("will-quit", () => {

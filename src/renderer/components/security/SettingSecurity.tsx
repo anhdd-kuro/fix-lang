@@ -360,26 +360,27 @@ export const SettingSecurity = () => {
         // does, the queue must report it rather than reject this task — the
         // callers are fire-and-forget, so a rejection would surface as an
         // unhandled one AND leave the claimed status line silent.
-        let next: SelectionGuardSettings | null;
+        let nextSettings: SelectionGuardSettings | null;
         try {
-          next = update(base ?? defaultGuardSettings());
+          nextSettings = update(base ?? defaultGuardSettings());
         } catch {
           return { success: false, error: plainStatus("security.saveError") };
         }
-        if (next === null) return null;
+        if (nextSettings === null) return null;
 
-        latestGuardSettingsRef.current = next;
+        latestGuardSettingsRef.current = nextSettings;
         setState((current) =>
           current.status === "ready"
-            ? { ...current, guardSettings: next }
+            ? { ...current, guardSettings: nextSettings }
             : current,
         );
 
         try {
-          const result = await window.electronAPI.setSelectionGuards(next);
+          const result =
+            await window.electronAPI.setSelectionGuards(nextSettings);
           if (result.success) {
             // A successful setter is itself authoritative: the store now holds
-            // `next`, which is what the ref holds. Trust revoked by an earlier
+            // `nextSettings`, which is what the ref holds. Trust revoked by an earlier
             // failure is therefore earned back here, without a read — otherwise
             // Restore defaults could succeed against an unreadable store and
             // still leave every subsequent edit refused.
@@ -424,23 +425,24 @@ export const SettingSecurity = () => {
           return { success: false, error: plainStatus("security.saveError") };
         }
 
-        let next: SecretGuardSettings | null;
+        let nextSettings: SecretGuardSettings | null;
         try {
-          next = update(base ?? DEFAULT_SECRET_GUARD_SETTINGS);
+          nextSettings = update(base ?? DEFAULT_SECRET_GUARD_SETTINGS);
         } catch {
           return { success: false, error: plainStatus("security.saveError") };
         }
-        if (next === null) return null;
+        if (nextSettings === null) return null;
 
-        latestSecretSettingsRef.current = next;
+        latestSecretSettingsRef.current = nextSettings;
         setState((current) =>
           current.status === "ready"
-            ? { ...current, secretSettings: next }
+            ? { ...current, secretSettings: nextSettings }
             : current,
         );
 
         try {
-          const result = await window.electronAPI.setSecretGuardSettings(next);
+          const result =
+            await window.electronAPI.setSecretGuardSettings(nextSettings);
           if (result.success) {
             // See `runGuardWrite` — a successful setter re-earns trust.
             secretBaseTrustedRef.current = true;

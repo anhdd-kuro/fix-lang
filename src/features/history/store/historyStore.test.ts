@@ -12,9 +12,7 @@
  * lastActionHistory pointer.
  */
 // vi.mock calls must precede the module-under-test imports (mocks are
-// registered before the SUT resolves its deps), which conflicts with
-// import-x/order grouping — disabled file-wide for this test.
-/* eslint-disable import-x/order */
+// registered before the SUT resolves its deps).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
@@ -35,16 +33,16 @@ vi.mock("./historyDb", () => ({
 }));
 
 // electron-store is only used for the lastActionHistory pointer now.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- test mock; Store.get/set accept any shape
+// oxlint-disable-next-line typescript/no-explicit-any -- test mock; Store.get/set accept any shape
 const storeMap = new Map<string, any>();
 vi.mock("electron-store", () => {
   return {
     default: class MockStore {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic K/V store API
+      // oxlint-disable-next-line typescript/no-explicit-any -- generic K/V store API
       get(key: string): any {
         return storeMap.get(key);
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic K/V store API
+      // oxlint-disable-next-line typescript/no-explicit-any -- generic K/V store API
       set(key: string, value: any): void {
         storeMap.set(key, value);
       }

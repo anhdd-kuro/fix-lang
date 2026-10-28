@@ -173,21 +173,21 @@ export const SettingUpdates = () => {
 
     // Subscribe before requesting the snapshot so a newer event cannot be
     // overwritten if the initial IPC response arrives later.
-    const unsubscribe = api.onUpdateStateChanged((next) => {
+    const unsubscribe = api.onUpdateStateChanged((nextState) => {
       receivedLiveState = true;
       if (mounted) {
         setActionPending(false);
         setMountLoadError(null);
-        setState(next);
+        setState(nextState);
       }
     });
 
     void api
       .getUpdateState()
-      .then((next) => {
+      .then((nextState) => {
         if (mounted && !receivedLiveState) {
           setMountLoadError(null);
-          setState(next);
+          setState(nextState);
         }
       })
       .catch(() => {

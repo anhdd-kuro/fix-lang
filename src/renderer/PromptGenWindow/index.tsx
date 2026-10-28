@@ -35,7 +35,7 @@ const PromptGenWindow: React.FC = () => {
 
       if (payload.autoCopy && payload.prompts.length > 0) {
         const allPrompts = payload.prompts.join("\n\n");
-        window.electronAPI.copyToClipboard(allPrompts);
+        void window.electronAPI.copyToClipboard(allPrompts);
       }
     });
     return () => {

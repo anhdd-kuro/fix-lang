@@ -386,10 +386,10 @@ describe("buildAutocompletePrompt", () => {
     it("puts the mid-word rule before the fall-back phrase rule", () => {
       const rules = AUTOCOMPLETE_SYSTEM_PROMPT.split("\n");
       const wordRuleIndex = rules.findIndex((line) =>
-        /^- Ends mid-word/.test(line),
+        line.startsWith("- Ends mid-word"),
       );
       const phraseRuleIndex = rules.findIndex((line) =>
-        /^- Ends on a whole word/.test(line),
+        line.startsWith("- Ends on a whole word"),
       );
 
       expect(wordRuleIndex).toBeGreaterThanOrEqual(0);
@@ -436,7 +436,7 @@ describe("buildAutocompletePrompt", () => {
      */
     it("treats an already-complete word as done, like a space or a mark", () => {
       const phraseRule = AUTOCOMPLETE_SYSTEM_PROMPT.split("\n").find((line) =>
-        /^- Ends on/.test(line),
+        line.startsWith("- Ends on"),
       );
 
       expect(phraseRule).toMatch(/whole word/);
@@ -533,7 +533,7 @@ describe("buildAutocompletePrompt", () => {
     it("keeps the context rule in the middle of the list, never last", () => {
       const lines = AUTOCOMPLETE_SYSTEM_PROMPT.trimEnd().split("\n");
       const contextRuleIndex = lines.findIndex((line) =>
-        /^- Context blocks/.test(line),
+        line.startsWith("- Context blocks"),
       );
 
       expect(contextRuleIndex).toBeGreaterThan(0);

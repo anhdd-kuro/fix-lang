@@ -78,7 +78,9 @@ export const HistoryPanel = ({
             suggestions={[
               ...availableFilters,
               // Today and yesterday
+              // oxlint-disable-next-line react/purity -- today/yesterday filter chips are meant to follow the wall clock on each render
               format(new Date(), "MM/dd", { locale: dateFnsLocale }),
+              // oxlint-disable-next-line react/purity -- today/yesterday filter chips are meant to follow the wall clock on each render
               format(addDays(new Date(), -1), "MM/dd", {
                 locale: dateFnsLocale,
               }),

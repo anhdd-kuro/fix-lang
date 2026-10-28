@@ -198,7 +198,7 @@ function initializeApp() {
   // This method will be called when Electron has finished
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
-  app.whenReady().then(() => {
+  void app.whenReady().then(() => {
     // Register all IPC handlers
     const updateService = registerIpcHandlers();
 
@@ -231,7 +231,7 @@ function initializeApp() {
         // run immediately, same as before.
         void promptAccessibilityPermission();
       }
-      app.dock?.show();
+      void app.dock?.show();
       setupTray();
     }
 

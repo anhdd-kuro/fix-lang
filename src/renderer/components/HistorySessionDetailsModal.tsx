@@ -124,7 +124,7 @@ export const HistorySessionDetailsModal: React.FC<
             />
           ) : null}
         </div>
-        <nav
+        <div
           className="mb-3 flex gap-1"
           role="tablist"
           aria-label={t("history.details.tabsAriaLabel")}
@@ -152,7 +152,7 @@ export const HistorySessionDetailsModal: React.FC<
               </Button>
             );
           })}
-        </nav>
+        </div>
         <div
           className="min-h-0 flex-1 overflow-auto rounded-md bg-secondary p-3"
           role="tabpanel"

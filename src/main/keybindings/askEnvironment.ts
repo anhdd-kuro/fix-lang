@@ -132,7 +132,7 @@ const resolveTimeZone = (): string | null => {
  */
 const sanitizeLineValue = (value: string, maxLength: number): string =>
   value
-    // eslint-disable-next-line no-control-regex -- stripping C0/C1 controls is the point
+    // oxlint-disable-next-line no-control-regex -- stripping C0/C1 controls is the point
     .replace(/[\x00-\x1f\x7f-\x9f]/g, " ")
     .trim()
     .slice(0, maxLength)

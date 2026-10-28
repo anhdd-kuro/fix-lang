@@ -83,6 +83,7 @@ const App: React.FC = () => {
     model: "",
     promptTokens: 0,
     completionTokens: 0,
+    // oxlint-disable-next-line react/purity -- placeholder timestamp; useState keeps only the first render's value
     timestamp: new Date().toISOString(),
   });
   // Active dashboard tab + shared analytics time range.
@@ -153,7 +154,7 @@ const App: React.FC = () => {
     const handleSettings = (type?: number) => {
       setInitialSettingsTab(type || 0);
       setIsSettingsOpen(true);
-      fetchAllHistories();
+      void fetchAllHistories();
     };
 
     const offOpenSettings = window.electronAPI.onOpenSettings?.(() => {
@@ -227,7 +228,7 @@ const App: React.FC = () => {
         timestamp: new Date().toISOString(),
       });
     }
-    window.electronAPI.removeHistoryEntry(featureId, entry);
+    void window.electronAPI.removeHistoryEntry(featureId, entry);
   };
 
   // Clear the buckets implied by the active filter, then re-fetch so the UI
@@ -342,7 +343,7 @@ const App: React.FC = () => {
     <div className="flex h-screen flex-col bg-background font-sans text-foreground">
       {/* Shared header: tabs (left) + range pills & settings (right). */}
       <header className="flex items-center justify-between gap-4 border-b border-card-control-border bg-card px-4 py-2">
-        <nav
+        <div
           className="flex gap-1"
           role="tablist"
           aria-label={t("dashboard.tabs.ariaLabel")}
@@ -371,7 +372,7 @@ const App: React.FC = () => {
               </Button>
             );
           })}
-        </nav>
+        </div>
 
         <div className="flex items-center gap-3">
           {showRange && (

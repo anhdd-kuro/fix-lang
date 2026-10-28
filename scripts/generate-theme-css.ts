@@ -178,7 +178,7 @@ const themeDescription = (id: string, type: "dark" | "light"): string => {
 };
 
 const loadThemeEntries = async (): Promise<ThemeEntry[]> => {
-  const sourceFiles: Array<{ id: string; filePath: string }> = [];
+  const sourceFiles: { id: string; filePath: string }[] = [];
 
   const shikiFiles = (await readdir(THEME_JSON_DIR))
     .filter((file) => file.endsWith(".json"))
@@ -192,7 +192,7 @@ const loadThemeEntries = async (): Promise<ThemeEntry[]> => {
   }
 
   for (const dir of [THEME_TERMINAL_JSON_DIR, THEME_BRANDS_JSON_DIR]) {
-    let files: string[] = [];
+    let files: string[];
     try {
       files = (await readdir(dir))
         .filter((file) => file.endsWith(".json"))

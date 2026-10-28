@@ -67,12 +67,12 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
 
   // Fetch profiles on component mount
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchProfiles();
+    // oxlint-disable-next-line react/set-state-in-effect
+    void fetchProfiles();
 
     // Set up listener for profile updates
     const cleanup = window.electronAPI.onProfileUpdated?.(() => {
-      fetchProfiles();
+      void fetchProfiles();
     });
 
     return () => {

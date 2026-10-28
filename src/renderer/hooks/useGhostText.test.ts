@@ -93,6 +93,7 @@ describe("useGhostText", () => {
   let liveSurface: GhostTextSurfaceState | null = null;
 
   const Harness = () => {
+    // oxlint-disable-next-line react/globals -- test harness hands the hook result out to the test body
     hook = useGhostText({ readSurface: () => liveSurface });
     return null;
   };

@@ -64,7 +64,7 @@ export const promptAccessibilityPermission = async (): Promise<void> => {
 
   if (response === 0) {
     // Open Accessibility Settings
-    shell.openExternal(
+    void shell.openExternal(
       "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
     );
   }

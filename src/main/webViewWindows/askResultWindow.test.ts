@@ -27,6 +27,7 @@ vi.mock("./attachThemeSync", () => ({
 let nextWindowId = 1;
 
 class BrowserWindowMock {
+  // oxlint-disable-next-line no-useless-assignment -- false positive: the post-increment is read by the next constructed mock
   id = nextWindowId++;
   setTitle = vi.fn();
   setVisibleOnAllWorkspaces = vi.fn();

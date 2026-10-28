@@ -290,7 +290,9 @@ describe("overlay.html — window.__setComboProgress stays a pure applier (O5)",
       throw new Error("overlay.html has no <script> tag to inspect");
     }
     comboProgressScript = scriptMatch[1];
-    expect(comboProgressScript).toContain("window.__setComboProgress");
+    if (!comboProgressScript.includes("window.__setComboProgress")) {
+      throw new Error("overlay.html script lost window.__setComboProgress");
+    }
   });
 
   it("reads only vars, digit and animate off the payload — nothing else", () => {

@@ -762,6 +762,7 @@ describe("runCombo — E9: per-step timeout and whole-combo budget", () => {
     const deps = makeDeps({ fixGrammar });
 
     const pending = runCombo({ combo, input: "start" }, deps);
+    // oxlint-disable-next-line vitest/valid-expect -- attached before timers advance so the rejection is never unhandled; awaited below
     const assertion = expect(pending).rejects.toMatchObject({
       code: "step-timeout",
       stepIndex: 0,
@@ -798,6 +799,7 @@ describe("runCombo — E9: per-step timeout and whole-combo budget", () => {
     const deps = makeDeps({ fixGrammar });
 
     const pending = runCombo({ combo, input: "start" }, deps);
+    // oxlint-disable-next-line vitest/valid-expect -- attached before timers advance so the rejection is never unhandled; awaited below
     const assertion = expect(pending).rejects.toMatchObject({
       code: "combo-timeout",
     });
@@ -1056,6 +1058,7 @@ describe("runCombo — onProgress: step-boundary seam for the overlay progress r
     const deps = makeDeps({ fixGrammar, onProgress });
 
     const pending = runCombo({ combo, input: "start" }, deps);
+    // oxlint-disable-next-line vitest/valid-expect -- attached before timers advance so the rejection is never unhandled; awaited below
     const assertion = expect(pending).rejects.toMatchObject({
       code: "step-timeout",
     });
@@ -1090,6 +1093,7 @@ describe("runCombo — onProgress: step-boundary seam for the overlay progress r
     const deps = makeDeps({ fixGrammar, onProgress });
 
     const pending = runCombo({ combo, input: "start" }, deps);
+    // oxlint-disable-next-line vitest/valid-expect -- attached before timers advance so the rejection is never unhandled; awaited below
     const assertion = expect(pending).rejects.toMatchObject({
       code: "combo-timeout",
     });

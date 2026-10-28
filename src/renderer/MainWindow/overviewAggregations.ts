@@ -139,7 +139,7 @@ export const peakHour = (entries: HistoryEntry[]): number | null => {
   if (entries.length === 0) {
     return null;
   }
-  const counts = new Array<number>(24).fill(0);
+  const counts = Array.from({ length: 24 }, () => 0);
   for (const e of entries) {
     counts[new Date(e.timestamp).getHours()] += 1;
   }
@@ -305,7 +305,7 @@ export const presetCountsOverTime = (
     presetNames.map((presetName, index) => [presetName, index]),
   );
   const countsByPreset = presetNames.map(() =>
-    new Array<number>(days.length).fill(0),
+    Array.from({ length: days.length }, () => 0),
   );
 
   for (const entry of entries) {
@@ -323,7 +323,7 @@ export const presetCountsOverTime = (
       presetIdx = presetNames.length;
       presetNames.push(name);
       presetIndex.set(name, presetIdx);
-      countsByPreset.push(new Array<number>(days.length).fill(0));
+      countsByPreset.push(Array.from({ length: days.length }, () => 0));
     }
     countsByPreset[presetIdx][dayIdx] += 1;
   }
@@ -463,7 +463,7 @@ export const hourBlockHeatmap = (
     Math.max(HEATMAP_MIN_DAYS, minDays),
   );
   const dayIndex = new Map(days.map((d, i) => [d, i]));
-  const cells = days.map(() => new Array<number>(HOUR_BLOCKS).fill(0));
+  const cells = days.map(() => Array.from({ length: HOUR_BLOCKS }, () => 0));
 
   for (const e of entries) {
     const di = dayIndex.get(localDayKey(e.timestamp));
@@ -496,7 +496,7 @@ export const sevenDayHourBlockHeatmap = (
 ): HourBlockHeatmap => {
   const days = denseDayKeys(entries, "7d", now);
   const dayIndex = new Map(days.map((d, i) => [d, i]));
-  const cells = days.map(() => new Array<number>(HOUR_BLOCKS).fill(0));
+  const cells = days.map(() => Array.from({ length: HOUR_BLOCKS }, () => 0));
 
   for (const e of entries) {
     const di = dayIndex.get(localDayKey(e.timestamp));

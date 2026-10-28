@@ -222,19 +222,19 @@ export const ModelSelect: React.FC<{
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchModels();
-    loadProviderStates();
-    loadModelSetting();
+    // oxlint-disable-next-line react/set-state-in-effect
+    void fetchModels();
+    void loadProviderStates();
+    void loadModelSetting();
   }, [fetchModels, loadProviderStates, loadModelSetting]);
 
   // Cross-window sync: any window's connect/disconnect/model change broadcasts
   // 'settings-updated', so every mounted instance refreshes without a remount.
   useEffect(() => {
     const off = window.electronAPI?.onSettingsUpdated?.(() => {
-      fetchModels(true);
-      loadProviderStates();
-      loadModelSetting();
+      void fetchModels(true);
+      void loadProviderStates();
+      void loadModelSetting();
     });
     return () => off?.();
   }, [fetchModels, loadProviderStates, loadModelSetting]);
@@ -242,7 +242,7 @@ export const ModelSelect: React.FC<{
   useEffect(() => {
     // Parent-controlled when provided, including the `""` inherit sentinel.
     if (selectedModelId !== undefined) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // oxlint-disable-next-line react/set-state-in-effect
       setSelectedModel(selectedModelId);
     }
   }, [selectedModelId]);
@@ -473,7 +473,7 @@ export const ModelSelect: React.FC<{
             iconClassName="stroke-success"
             onClick={() => {
               if (window.electronAPI?.openModelManager) {
-                window.electronAPI.openModelManager();
+                void window.electronAPI.openModelManager();
               } else {
                 alert(t("models.select.managerUnavailable"));
               }

@@ -1545,7 +1545,7 @@ const consumerContractRows = [
     "SITE-212540f76558cdfa-01",
     "LIVE-212540f76558cdfa",
     "src/renderer/MainWindow/App.tsx",
-    353,
+    354,
     15,
   ],
   [
@@ -1601,7 +1601,7 @@ const consumerContractRows = [
     "SITE-8264f7f6bcd8085d-01",
     "LIVE-8264f7f6bcd8085d",
     "src/renderer/components/HistoryPanel.tsx",
-    94,
+    96,
     11,
   ],
   [
@@ -1609,7 +1609,7 @@ const consumerContractRows = [
     "SITE-8975613823778fc5-01",
     "LIVE-8975613823778fc5",
     "src/renderer/components/HistoryPanel.tsx",
-    102,
+    104,
     13,
   ],
   [
@@ -1681,7 +1681,7 @@ const consumerContractRows = [
     "SITE-7197db62a76969f7-01",
     "LIVE-7197db62a76969f7",
     "src/renderer/components/ModelManagerDialog.tsx",
-    195,
+    196,
     11,
   ],
   [
@@ -1689,7 +1689,7 @@ const consumerContractRows = [
     "SITE-67f4724e126c10d4-01",
     "LIVE-67f4724e126c10d4",
     "src/renderer/components/ModelManagerDialog.tsx",
-    207,
+    208,
     11,
   ],
   [
@@ -1697,7 +1697,7 @@ const consumerContractRows = [
     "SITE-04748a61b30e3ef8-01",
     "LIVE-04748a61b30e3ef8",
     "src/renderer/components/ModelManagerDialog.tsx",
-    218,
+    219,
     11,
   ],
   [
@@ -1705,7 +1705,7 @@ const consumerContractRows = [
     "SITE-7c4301fb38c9808d-01",
     "LIVE-7c4301fb38c9808d",
     "src/renderer/components/ModelManagerDialog.tsx",
-    230,
+    231,
     13,
   ],
   [
@@ -1713,7 +1713,7 @@ const consumerContractRows = [
     "SITE-fc298046a960042d-01",
     "LIVE-fc298046a960042d",
     "src/renderer/components/ModelManagerDialog.tsx",
-    256,
+    257,
     19,
   ],
   [
@@ -1721,7 +1721,7 @@ const consumerContractRows = [
     "SITE-c09e1d790b99f3f9-01",
     "LIVE-c09e1d790b99f3f9",
     "src/renderer/components/ModelManagerDialog.tsx",
-    276,
+    277,
     27,
   ],
   [
@@ -1729,7 +1729,7 @@ const consumerContractRows = [
     "SITE-e25d0c965e5599f3-01",
     "LIVE-e25d0c965e5599f3",
     "src/renderer/components/ModelManagerDialog.tsx",
-    330,
+    331,
     27,
   ],
   [
@@ -1737,7 +1737,7 @@ const consumerContractRows = [
     "SITE-5526ee17ec81f974-01",
     "LIVE-5526ee17ec81f974",
     "src/renderer/components/ModelManagerDialog.tsx",
-    405,
+    406,
     17,
   ],
   [
@@ -1745,7 +1745,7 @@ const consumerContractRows = [
     "SITE-73361c5a5c8f4108-01",
     "LIVE-73361c5a5c8f4108",
     "src/renderer/components/ModelManagerDialog.tsx",
-    412,
+    413,
     17,
   ],
   [
@@ -1769,7 +1769,7 @@ const consumerContractRows = [
     "SITE-edf192add08f8fcb-01",
     "LIVE-edf192add08f8fcb",
     "src/renderer/components/ModelsPanel.tsx",
-    161,
+    162,
     15,
   ],
   [
@@ -2289,7 +2289,7 @@ const consumerContractRows = [
     "SITE-38b41e9662ef85eb-01",
     "LIVE-dfaccf3e32130320",
     "src/renderer/components/security/SettingSecurity.tsx",
-    797,
+    799,
     17,
   ],
   [
@@ -2297,7 +2297,7 @@ const consumerContractRows = [
     "SITE-b1fefcea3824a139-01",
     "LIVE-6a59bc31fcc6d246",
     "src/renderer/components/security/SettingSecurity.tsx",
-    824,
+    826,
     11,
   ],
   [
@@ -2305,7 +2305,7 @@ const consumerContractRows = [
     "SITE-fd75f166a3e391cd-01",
     "LIVE-0ec083a0c6614349",
     "src/renderer/components/security/SettingSecurity.tsx",
-    833,
+    835,
     11,
   ],
   [
@@ -2313,7 +2313,7 @@ const consumerContractRows = [
     "SITE-8afb88035a3e0cf1-01",
     "LIVE-8afb88035a3e0cf1",
     "src/renderer/components/security/SettingSecurity.tsx",
-    860,
+    862,
     17,
   ],
   [
@@ -2321,7 +2321,7 @@ const consumerContractRows = [
     "SITE-73eb9ca62146352c-01",
     "LIVE-73eb9ca62146352c",
     "src/renderer/components/security/SettingSecurity.tsx",
-    1003,
+    1005,
     9,
   ],
   [
@@ -2385,7 +2385,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "e3d7b0726e4ee05e966297ba705a4a26b77219f298a43575da0c0385ad2e1e33";
+  "a11bb3d575fcd2f3986aaa30bd8579e236b812a578dbaafb0bd87eae5d4fdd06";
 
 const compareConsumers = (
   left: ButtonConsumer,
@@ -2985,8 +2985,9 @@ describe("renderer Button source guard", () => {
     );
   });
 
-  if (process.env.REGEN_BUTTON_CONTRACT === "1") {
-    it("regenerates consumer contract artifact", async () => {
+  it.runIf(process.env.REGEN_BUTTON_CONTRACT === "1")(
+    "regenerates consumer contract artifact",
+    async () => {
       const { writeFile, mkdir } = await import("node:fs/promises");
       const result = await scanRenderer();
       const sorted = [...result.buttonConsumers].sort(compareConsumers);
@@ -3021,6 +3022,6 @@ describe("renderer Button source guard", () => {
         ),
       );
       expect(rows.length).toBeGreaterThan(0);
-    });
-  }
+    },
+  );
 });
