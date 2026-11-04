@@ -50,7 +50,9 @@ describe("SecurityStatsPanel", () => {
         getSecurityStats,
         getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
         setLocale: vi.fn().mockResolvedValue({ success: true }),
-        onLocaleChanged: vi.fn((_callback: (locale: Locale) => void) => vi.fn()),
+        onLocaleChanged: vi.fn((_callback: (locale: Locale) => void) =>
+          vi.fn(),
+        ),
       },
     });
 
@@ -58,7 +60,13 @@ describe("SecurityStatsPanel", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(createElement(I18nProvider, null, createElement(SecurityStatsPanel, { range })));
+      root.render(
+        createElement(
+          I18nProvider,
+          null,
+          createElement(SecurityStatsPanel, { range }),
+        ),
+      );
     });
     await waitForUi();
     await waitForUi();
@@ -66,7 +74,13 @@ describe("SecurityStatsPanel", () => {
 
   const rerenderWithRange = async (range: AnalyticsRange): Promise<void> => {
     await act(async () => {
-      root.render(createElement(I18nProvider, null, createElement(SecurityStatsPanel, { range })));
+      root.render(
+        createElement(
+          I18nProvider,
+          null,
+          createElement(SecurityStatsPanel, { range }),
+        ),
+      );
     });
     await waitForUi();
     await waitForUi();
@@ -110,7 +124,12 @@ describe("SecurityStatsPanel", () => {
   it("pluralizes the masked counts separately", async () => {
     await render(
       vi.fn().mockResolvedValue(
-        stats({ secretMasked: 1, maskedValues: 1, maskedPlaceholders: 2, eventCount: 1 }),
+        stats({
+          secretMasked: 1,
+          maskedValues: 1,
+          maskedPlaceholders: 2,
+          eventCount: 1,
+        }),
       ),
     );
 
@@ -121,7 +140,9 @@ describe("SecurityStatsPanel", () => {
   });
 
   it("names pre-upgrade events rather than reporting no activity", async () => {
-    await render(vi.fn().mockResolvedValue(stats({ legacyEvents: 2, eventCount: 2 })));
+    await render(
+      vi.fn().mockResolvedValue(stats({ legacyEvents: 2, eventCount: 2 })),
+    );
 
     const text = container.textContent ?? "";
     expect(text).toContain("2 earlier events are not in the counts above");
@@ -136,7 +157,9 @@ describe("SecurityStatsPanel", () => {
 
   /** Zeros would read as "no guard ever fired" — a different claim entirely. */
   it("shows the error state when the bridge rejects, never zeros", async () => {
-    await render(vi.fn().mockRejectedValue(new Error("Malformed security stats reply")));
+    await render(
+      vi.fn().mockRejectedValue(new Error("Malformed security stats reply")),
+    );
 
     const text = container.textContent ?? "";
     expect(text).toContain("Couldn't read guard activity.");
@@ -144,7 +167,10 @@ describe("SecurityStatsPanel", () => {
   });
 
   it("refetches with the new range when the shared pills change", async () => {
-    await render(vi.fn().mockResolvedValue(stats({ blockedByApp: 1, eventCount: 1 })), "all");
+    await render(
+      vi.fn().mockResolvedValue(stats({ blockedByApp: 1, eventCount: 1 })),
+      "all",
+    );
 
     expect(getSecurityStats.mock.calls).toEqual([["all"]]);
 
@@ -156,7 +182,11 @@ describe("SecurityStatsPanel", () => {
   it("names a detected rule from the catalog rather than its raw id", async () => {
     await render(
       vi.fn().mockResolvedValue(
-        stats({ secretMasked: 1, eventCount: 1, ruleCounts: { "aws-access-key-id": 1 } }),
+        stats({
+          secretMasked: 1,
+          eventCount: 1,
+          ruleCounts: { "aws-access-key-id": 1 },
+        }),
       ),
     );
 

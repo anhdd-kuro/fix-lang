@@ -30,7 +30,9 @@ const readPresets = (): Preset[] =>
     .map((file) => {
       const css = readFileSync(`${PRESET_DIR}/${file}`, "utf8");
       const tokens = new Map<string, string>();
-      for (const [, name, value] of css.matchAll(/^\s*--([\w-]+):\s*([^;]+);/gm)) {
+      for (const [, name, value] of css.matchAll(
+        /^\s*--([\w-]+):\s*([^;]+);/gm,
+      )) {
         if (name !== undefined && value !== undefined && !tokens.has(name)) {
           tokens.set(name, value.trim());
         }
@@ -90,7 +92,10 @@ describe("select colour pairings across every generated theme", () => {
     // rather than merely re-asserted.
     const rows = [
       { state: { isFocused: false, isSelected: false }, background: "popover" },
-      { state: { isFocused: true, isSelected: false }, background: "secondary" },
+      {
+        state: { isFocused: true, isSelected: false },
+        background: "secondary",
+      },
       { state: { isFocused: false, isSelected: true }, background: "primary" },
     ];
 

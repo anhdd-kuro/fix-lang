@@ -1,0 +1,2742 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`autocomplete usage store read-back equivalence > completionTokens = -0 > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": -0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": -0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > completionTokens = -Infinity > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > completionTokens = Infinity (1e400) > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > completionTokens = array > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > completionTokens = boolean > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > completionTokens = fraction > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 2.5,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 2.5,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > completionTokens = negative > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": -4,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": -4,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > completionTokens = null > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > completionTokens = object > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > completionTokens = string > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > completionTokens missing > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > date = -0 > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > date = -Infinity > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > date = Infinity (1e400) > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > date = array > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > date = boolean > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > date = fraction > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > date = negative > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > date = null > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > date = object > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > date = string > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "3",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "3",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > date missing > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > estimatedCostUsd = -0 > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": -0,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": -0,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > estimatedCostUsd = -Infinity > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > estimatedCostUsd = Infinity (1e400) > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > estimatedCostUsd = array > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > estimatedCostUsd = boolean > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > estimatedCostUsd = fraction > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 2.5,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 2.5,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > estimatedCostUsd = negative > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": -4,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": -4,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > estimatedCostUsd = null > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > estimatedCostUsd = object > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > estimatedCostUsd = string > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > estimatedCostUsd missing > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > one day is array > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 0,
+      "requests": 0,
+      "responses": 0,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 0,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > one day is empty object > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 0,
+      "requests": 0,
+      "responses": 0,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 0,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > one day is extra key > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > one day is legacy day without responses > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 5,
+    "responses": 5,
+    "tokenlessResponses": 5,
+    "unpricedResponses": 5,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 0,
+      "requests": 5,
+      "responses": 5,
+      "tokenlessResponses": 5,
+      "unpricedResponses": 5,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > one day is null > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 0,
+      "requests": 0,
+      "responses": 0,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 0,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > one day is number > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 0,
+      "requests": 0,
+      "responses": 0,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 0,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > one day is string > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 0,
+      "requests": 0,
+      "responses": 0,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 0,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > one day is valid > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > promptTokens = -0 > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": -0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": -0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > promptTokens = -Infinity > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > promptTokens = Infinity (1e400) > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > promptTokens = array > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > promptTokens = boolean > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > promptTokens = fraction > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 2.5,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 2.5,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > promptTokens = negative > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": -4,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": -4,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > promptTokens = null > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > promptTokens = object > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > promptTokens = string > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > promptTokens missing > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > requests = -0 > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": -0,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": -0,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > requests = -Infinity > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 0,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 0,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > requests = Infinity (1e400) > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 0,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 0,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > requests = array > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 0,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 0,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > requests = boolean > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 0,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 0,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > requests = fraction > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 2.5,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 2.5,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > requests = negative > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": -4,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": -4,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > requests = null > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 0,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 0,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > requests = object > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 0,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 0,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > requests = string > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 0,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 0,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > requests missing > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 0,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 0,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > responses = -0 > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": -0,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": -0,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > responses = -Infinity > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > responses = Infinity (1e400) > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > responses = array > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > responses = boolean > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > responses = fraction > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 2.5,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 2.5,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > responses = negative > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": -4,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": -4,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > responses = null > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > responses = object > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > responses = string > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > responses missing > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 0,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0,
+      "promptTokens": 0,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > the days node is absent > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "days": [],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > the days node is array of days > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > the days node is boolean > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "days": [],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > the days node is empty array > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "days": [],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > the days node is empty object > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "days": [],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > the days node is null > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "days": [],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > the days node is number > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "days": [],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > the days node is string > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 0,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0,
+    "promptTokens": 0,
+    "requests": 0,
+    "responses": 0,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 0,
+  },
+  "days": [],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > tokenlessResponses = -0 > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": -0,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": -0,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > tokenlessResponses = -Infinity > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > tokenlessResponses = Infinity (1e400) > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > tokenlessResponses = array > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > tokenlessResponses = boolean > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > tokenlessResponses = fraction > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 2.5,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 2.5,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > tokenlessResponses = negative > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": -4,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": -4,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > tokenlessResponses = null > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > tokenlessResponses = object > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > tokenlessResponses = string > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > tokenlessResponses missing > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 0,
+      "unpricedResponses": 1,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > unpricedResponses = -0 > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": -0,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": -0,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > unpricedResponses = -Infinity > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 0,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 0,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > unpricedResponses = Infinity (1e400) > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 0,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 0,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > unpricedResponses = array > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 0,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 0,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > unpricedResponses = boolean > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 0,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 0,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > unpricedResponses = fraction > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 2.5,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 2.5,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > unpricedResponses = negative > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": -4,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": -4,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > unpricedResponses = null > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 0,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 0,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > unpricedResponses = object > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 0,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 0,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > unpricedResponses = string > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 0,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 0,
+    },
+  ],
+}
+`;
+
+exports[`autocomplete usage store read-back equivalence > unpricedResponses missing > verdict 1`] = `
+{
+  "day": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 1,
+    "unpricedResponses": 0,
+  },
+  "days": [
+    {
+      "completionTokens": 12,
+      "date": "2026-07-31",
+      "estimatedCostUsd": 0.02,
+      "promptTokens": 40,
+      "requests": 3,
+      "responses": 3,
+      "tokenlessResponses": 1,
+      "unpricedResponses": 0,
+    },
+  ],
+}
+`;

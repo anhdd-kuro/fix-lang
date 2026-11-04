@@ -11,10 +11,7 @@ type SkeletonProps = {
 
 export const Skeleton = ({ className }: SkeletonProps) => (
   <div
-    className={twJoin(
-      "animate-pulse rounded bg-muted/60",
-      className,
-    )}
+    className={twJoin("animate-pulse rounded bg-muted/60", className)}
     aria-hidden="true"
   />
 );
@@ -39,7 +36,11 @@ export const SkeletonCard = ({ rows = 2, className }: SkeletonCardProps) => (
 );
 
 export const UsagePanelSkeleton = ({ ariaLabel }: { ariaLabel: string }) => (
-  <div className="flex h-full flex-col gap-3 overflow-y-auto p-1" aria-busy="true" aria-label={ariaLabel}>
+  <div
+    className="flex h-full flex-col gap-3 overflow-y-auto p-1"
+    aria-busy="true"
+    aria-label={ariaLabel}
+  >
     <div className="flex items-center gap-2">
       <div className="flex gap-1">
         <Skeleton className="h-6 w-10 rounded-sm" />

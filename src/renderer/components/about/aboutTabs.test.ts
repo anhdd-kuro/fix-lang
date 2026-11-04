@@ -38,7 +38,6 @@ describe("isAboutTabId", () => {
     expect(isAboutTabId("about")).toBe(false);
     expect(isAboutTabId(null)).toBe(false);
     expect(isAboutTabId(undefined)).toBe(false);
-    expect(isAboutTabId(0)).toBe(false);
   });
 });
 

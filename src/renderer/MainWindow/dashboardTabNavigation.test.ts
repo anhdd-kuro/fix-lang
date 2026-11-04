@@ -36,7 +36,10 @@ const navigationTargets = (): { file: string; tabId: string }[] =>
   sourceFiles(RENDERER_ROOT).flatMap((file) => {
     const source = readFileSync(file, "utf8");
     return [...source.matchAll(/showMainWindowTab\(\s*"([^"]+)"/g)].map(
-      (match) => ({ file: file.slice(RENDERER_ROOT.length + 1), tabId: match[1] }),
+      (match) => ({
+        file: file.slice(RENDERER_ROOT.length + 1),
+        tabId: match[1],
+      }),
     );
   });
 
@@ -56,7 +59,8 @@ describe("dashboard tab navigation targets", () => {
 
   it("only ever navigates to a tab that exists", () => {
     const unknown = navigationTargets().filter(
-      (target) => !knownTabIds.has(target.tabId as (typeof DASHBOARD_TABS)[number]["id"]),
+      (target) =>
+        !knownTabIds.has(target.tabId as (typeof DASHBOARD_TABS)[number]["id"]),
     );
 
     expect(unknown).toEqual([]);

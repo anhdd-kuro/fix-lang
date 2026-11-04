@@ -29,20 +29,22 @@ const NOW = new Date(2024, 5, 20, 10, 0, 0); // 2024-06-20
 describe("groupKeyForEntry", () => {
   it("prefers resolvedModel over model", () => {
     expect(
-      groupKeyForEntry(entry({ model: "alias", resolvedModel: "openai/gpt-4o" }))
+      groupKeyForEntry(
+        entry({ model: "alias", resolvedModel: "openai/gpt-4o" }),
+      ),
     ).toBe("openai/gpt-4o");
   });
   it("falls back to model when resolvedModel is absent/blank", () => {
     expect(groupKeyForEntry(entry({ model: "anthropic/claude" }))).toBe(
-      "anthropic/claude"
+      "anthropic/claude",
     );
-    expect(
-      groupKeyForEntry(entry({ model: "m", resolvedModel: "   " }))
-    ).toBe("m");
+    expect(groupKeyForEntry(entry({ model: "m", resolvedModel: "   " }))).toBe(
+      "m",
+    );
   });
   it("returns the unknown sentinel when both are absent", () => {
     expect(groupKeyForEntry(entry({ model: undefined }))).toBe(
-      UNKNOWN_MODEL_ID
+      UNKNOWN_MODEL_ID,
     );
   });
 });
@@ -132,8 +134,14 @@ describe("perModelBreakdown", () => {
 
   it("groups alias entries under their resolved id (alias indirection hidden)", () => {
     const rows = perModelBreakdown([
-      entry({ model: "~openai/gpt-mini-latest", resolvedModel: "openai/gpt-5.4-mini" }),
-      entry({ model: "openai/gpt-5.4-mini", resolvedModel: "openai/gpt-5.4-mini" }),
+      entry({
+        model: "~openai/gpt-mini-latest",
+        resolvedModel: "openai/gpt-5.4-mini",
+      }),
+      entry({
+        model: "openai/gpt-5.4-mini",
+        resolvedModel: "openai/gpt-5.4-mini",
+      }),
     ]);
     expect(rows).toHaveLength(1);
     expect(rows[0].model).toBe("openai/gpt-5.4-mini");
@@ -174,9 +182,21 @@ describe("perModelBreakdown input/output split", () => {
 describe("tokensPerDay", () => {
   it("produces a dense daily token series (oldest first) over the window", () => {
     const entries = [
-      entry({ timestamp: at(2024, 6, 20, 9), promptTokens: 10, completionTokens: 5 }),
-      entry({ timestamp: at(2024, 6, 20, 11), promptTokens: 1, completionTokens: 1 }),
-      entry({ timestamp: at(2024, 6, 18, 9), promptTokens: 4, completionTokens: 0 }),
+      entry({
+        timestamp: at(2024, 6, 20, 9),
+        promptTokens: 10,
+        completionTokens: 5,
+      }),
+      entry({
+        timestamp: at(2024, 6, 20, 11),
+        promptTokens: 1,
+        completionTokens: 1,
+      }),
+      entry({
+        timestamp: at(2024, 6, 18, 9),
+        promptTokens: 4,
+        completionTokens: 0,
+      }),
     ];
     const bars = tokensPerDay(entries, "7d", NOW);
     expect(bars).toHaveLength(7);

@@ -9,7 +9,10 @@ import {
   removeHistoryEntry,
   setLastActionHistory,
 } from "~/features/history/store/historyStore";
-import type { HistoryEntry, HistoryFeatureId } from "~/features/history/store/historyStore";
+import type {
+  HistoryEntry,
+  HistoryFeatureId,
+} from "~/features/history/store/historyStore";
 
 type SyncHistoryPayload = {
   featureId: HistoryFeatureId;
@@ -84,16 +87,18 @@ export function setupHistoryManagerHandlers() {
       }: {
         featureId: HistoryFeatureId;
         entry: HistoryEntry;
-      }
+      },
     ) => {
       try {
         syncHistory({ type: "add", featureId, entry });
         return { success: true };
       } catch (error) {
         console.error(`Failed to add history entry for ${featureId}:`, error);
+        // SAFETY: not narrowed — the store calls in reach throw `Error`s, and a
+        // non-Error is read for `.message` exactly as before this comment.
         return { success: false, error: (error as Error).message };
       }
-    }
+    },
   );
 
   ipcMain.handle(
@@ -106,7 +111,7 @@ export function setupHistoryManagerHandlers() {
       }: {
         featureId: HistoryFeatureId;
         entry: HistoryEntry;
-      }
+      },
     ) => {
       try {
         syncHistory({ type: "remove", featureId, entry });
@@ -114,11 +119,13 @@ export function setupHistoryManagerHandlers() {
       } catch (error) {
         console.error(
           `Failed to remove history entry for ${featureId}:`,
-          error
+          error,
         );
+        // SAFETY: not narrowed — the store calls in reach throw `Error`s, and a
+        // non-Error is read for `.message` exactly as before this comment.
         return { success: false, error: (error as Error).message };
       }
-    }
+    },
   );
 
   ipcMain.handle("get-history", async (_event, featureId: HistoryFeatureId) => {
@@ -126,7 +133,7 @@ export function setupHistoryManagerHandlers() {
       const history = getHistory(featureId);
       const sortedLastByTimestamp = history.sort(
         (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       );
       return sortedLastByTimestamp;
     } catch (error) {
@@ -143,9 +150,11 @@ export function setupHistoryManagerHandlers() {
         return { success: true };
       } catch (error) {
         console.error("Error clearing history:", error);
+        // SAFETY: not narrowed — the store calls in reach throw `Error`s, and a
+        // non-Error is read for `.message` exactly as before this comment.
         return { success: false, error: (error as Error).message };
       }
-    }
+    },
   );
 
   ipcMain.on("sync-history", async (_event, { featureId }) => {
@@ -174,8 +183,10 @@ export function setupHistoryManagerHandlers() {
         return { success: true };
       } catch (error) {
         console.error("Error setting last action history:", error);
+        // SAFETY: not narrowed — the store calls in reach throw `Error`s, and a
+        // non-Error is read for `.message` exactly as before this comment.
         return { success: false, error: (error as Error).message };
       }
-    }
+    },
   );
 }

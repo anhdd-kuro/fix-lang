@@ -1,0 +1,150 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`isProviderConnectInput — pinned edge-case outputs > matches the recorded verdict for every edge payload 1`] = `
+[
+  [
+    "undefined",
+    false,
+  ],
+  [
+    "null",
+    false,
+  ],
+  [
+    "0",
+    false,
+  ],
+  [
+    "string",
+    false,
+  ],
+  [
+    "function",
+    false,
+  ],
+  [
+    "boxed string",
+    false,
+  ],
+  [
+    "empty array",
+    false,
+  ],
+  [
+    "array carrying fields",
+    true,
+  ],
+  [
+    "inherited fields",
+    true,
+  ],
+  [
+    "null prototype",
+    true,
+  ],
+  [
+    "class instance",
+    true,
+  ],
+  [
+    "bare provider",
+    true,
+  ],
+  [
+    "constructor provider",
+    false,
+  ],
+  [
+    "boxed provider",
+    false,
+  ],
+  [
+    "every string field",
+    true,
+  ],
+  [
+    "explicit undefined fields",
+    true,
+  ],
+  [
+    "null apiKey",
+    false,
+  ],
+  [
+    "numeric secretKey",
+    false,
+  ],
+  [
+    "numeric region",
+    false,
+  ],
+  [
+    "numeric projectId",
+    false,
+  ],
+  [
+    "boxed apiKey",
+    false,
+  ],
+  [
+    "padded host",
+    true,
+  ],
+  [
+    "blank host",
+    true,
+  ],
+  [
+    "scheme host",
+    true,
+  ],
+  [
+    "numeric host",
+    false,
+  ],
+  [
+    "null host",
+    false,
+  ],
+  [
+    "string port",
+    true,
+  ],
+  [
+    "padded string port",
+    true,
+  ],
+  [
+    "blank string port",
+    true,
+  ],
+  [
+    "fractional port",
+    false,
+  ],
+  [
+    "NaN port",
+    false,
+  ],
+  [
+    "zero port",
+    true,
+  ],
+  [
+    "out-of-range port",
+    true,
+  ],
+  [
+    "boolean port",
+    false,
+  ],
+  [
+    "null port",
+    false,
+  ],
+  [
+    "hex string port",
+    true,
+  ],
+]
+`;

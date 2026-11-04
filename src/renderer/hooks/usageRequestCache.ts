@@ -41,6 +41,10 @@ export const readUsageCache = <T>(
   const entry = cacheByProfile.get(key.profileId)?.get(requestKey(key));
   if (!entry) return null;
   return {
+    // SAFETY: an entry is only written by `requestUsageData` with the payload
+    // its loader resolved for this `provider:range` key, and each provider's
+    // hook (`useOpenAIUsage` / `useOpenRouterAnalytics`) reads and writes only
+    // its own provider's key with its own payload type.
     data: entry.data as T,
     fresh: cacheIsFresh(entry.stampedAt, now, ttlMs),
   };
@@ -68,7 +72,11 @@ export const requestUsageData = <T>({
   requestsByProfile.set(key.profileId, profileRequests);
 
   const inFlight = profileRequests.get(keyWithinProfile);
-  if (inFlight) return inFlight as Promise<T>;
+  if (inFlight) {
+    // SAFETY: same key discipline as `readUsageCache` — the in-flight promise
+    // under this key was started by a loader for this provider's payload type.
+    return inFlight as Promise<T>;
+  }
 
   const generation = generationFor(key.profileId);
   const request = load().then((data) => {

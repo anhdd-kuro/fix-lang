@@ -61,7 +61,9 @@ export const effectiveModelRef = (preset: CorrectionPreset): string =>
  * the same failure by another route: `fixGrammar` re-resolves at SUBMIT, so a
  * settings edit in between would leave the row quoting a prompt nobody sent.
  */
-export const resolveCorrectionPreset = (presetId?: string): CorrectionPreset => {
+export const resolveCorrectionPreset = (
+  presetId?: string,
+): CorrectionPreset => {
   const correctionSettings = getProfileSetting("settingsCorrect");
   const selectedPreset = presetId
     ? correctionSettings.presets.find((preset) => preset.id === presetId)
@@ -190,7 +192,10 @@ export const fixGrammar = async (
       ),
       userPrompt: buildCorrectionUserPrompt(text, preset),
       model: effectiveModel,
-      reasoning: resolveReasoningEffort(preset.reasoning, getDefaultReasoningEffort()),
+      reasoning: resolveReasoningEffort(
+        preset.reasoning,
+        getDefaultReasoningEffort(),
+      ),
     });
 
     console.log(`Correction used preset: ${preset.name}`);

@@ -157,10 +157,13 @@ export type AutocompleteAskContext = {
  * by the user, and translating it would make the prompt — and with it the cache
  * key — depend on the app's display language.
  */
-const CONTEXT_SOURCE_LABELS: Record<AskContextSource, string> = {
+const CONTEXT_SOURCE_LABELS = {
   selection: "selected text",
   clipboard: "from clipboard",
-};
+} satisfies Record<AskContextSource, string>;
+
+/** A framed prompt section plus how many source characters it carries. */
+type PromptBlock = { block: string; length: number };
 
 export type AutocompletePromptInput = {
   /** Text before the caret. */
@@ -198,7 +201,7 @@ export type AutocompletePromptInput = {
  */
 const buildAskContextBlock = (
   context: AutocompleteAskContext | undefined,
-): { block: string; length: number } => {
+): PromptBlock => {
   const windowed = context?.text.slice(0, CONTEXT_WINDOW_CHARS) ?? "";
   if (!context || !windowed) return { block: "", length: 0 };
   return {
@@ -223,7 +226,7 @@ const buildAskContextBlock = (
  */
 const buildEnvironmentBlock = (
   environment: string | undefined,
-): { block: string; length: number } => {
+): PromptBlock => {
   const windowed = environment?.slice(0, ENVIRONMENT_WINDOW_CHARS) ?? "";
   if (!windowed) return { block: "", length: 0 };
   return {
@@ -254,19 +257,21 @@ const buildEnvironmentBlock = (
  * or an "(none)" placeholder emitted for a bare question would invalidate every
  * cached suggestion and re-bill the cheapest path the feature has.
  */
-export const buildAutocompletePrompt = ({
-  prefix,
-  suffix = "",
-  context,
-  environment,
-}: AutocompletePromptInput): {
+export type AutocompletePrompt = {
   systemPrompt: string;
   userPrompt: string;
   /** Characters of attached context actually placed in the prompt; `0` for none. */
   contextLength: number;
   /** Characters of the environment block actually placed in the prompt; `0` for none. */
   environmentLength: number;
-} => {
+};
+
+export const buildAutocompletePrompt = ({
+  prefix,
+  suffix = "",
+  context,
+  environment,
+}: AutocompletePromptInput): AutocompletePrompt => {
   const windowedPrefix = prefix.slice(-PREFIX_WINDOW_CHARS);
   const windowedSuffix = suffix.slice(0, SUFFIX_WINDOW_CHARS);
   const askContext = buildAskContextBlock(context);

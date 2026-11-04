@@ -28,13 +28,15 @@ export const ABOUT_TABS: readonly AboutTabMeta[] = Object.freeze([
 
 export const DEFAULT_ABOUT_TAB_ID: AboutTabId = "updates";
 
-export const isAboutTabId = (value: unknown): value is AboutTabId =>
-  ABOUT_TABS.some((tab) => tab.id === value);
+export const isAboutTabId = (
+  value: string | null | undefined,
+): value is AboutTabId => ABOUT_TABS.some((tab) => tab.id === value);
 
 /**
  * Resolve which sub-tab renders. Anything that is not a live tab id — null on
  * first render, a stale id from a renamed tab — falls back to the default
  * rather than blanking the panel.
  */
-export const resolveActiveAboutTab = (current: unknown): AboutTabId =>
-  isAboutTabId(current) ? current : DEFAULT_ABOUT_TAB_ID;
+export const resolveActiveAboutTab = (
+  current: string | null | undefined,
+): AboutTabId => (isAboutTabId(current) ? current : DEFAULT_ABOUT_TAB_ID);

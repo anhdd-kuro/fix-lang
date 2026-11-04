@@ -6,13 +6,17 @@
  * `api_key|authorization|bearer|token|secret|password|clipboard|selected_text|
  * original_text` — case-insensitively, and with ZERO separator for
  * `selected[-_]?text`. It does it silently, with no error, so the obvious names
- * (`secretCount`, `tokensMasked`, `clipboardAgeMs`) persist as `"[REDACTED]"`
+ * (`secretCount`, `tokensMasked`, `clipboardChanged`) persist as `"[REDACTED]"`
  * and the metric is destroyed without anybody noticing. This test documents why
  * the approved names are what they are, and it runs the REAL redactor rather
  * than a copy of the regex.
  */
 import { describe, expect, it } from "vitest";
-import { redactLogContext, redactLogMessage, type LogContext } from "~/features/logs/shared/logging";
+import {
+  redactLogContext,
+  redactLogMessage,
+  type LogContext,
+} from "~/features/logs/shared/logging";
 import { SECRET_GUARD_MODES } from "./secretGuardSettings";
 import { SECRET_RULES } from "./secretRules";
 
@@ -24,16 +28,18 @@ const APPROVED: LogContext = {
   guardEvent: "blocked",
   guardReason: "denied-app",
   deniedBundleId: "com.1password.1password",
-  selectionAgeMs: 41_000,
-  ageLimitMs: 5_000,
   textLength: 24_812,
   charLimit: 20_000,
   matchCount: 3,
-  ruleIds: ["authorization-header", "private-key-block", "credential-assignment"],
+  ruleIds: [
+    "authorization-header",
+    "private-key-block",
+    "credential-assignment",
+  ],
   guardMode: "mask",
   appliedMode: "popup",
   gateDecision: "confirmed",
-  reason: "stale-clipboard",
+  reason: "partial-mask",
   placeholderCount: 2,
   missingCount: 1,
   confirmMs: 1_450,
@@ -48,9 +54,6 @@ const APPROVED: LogContext = {
  * the approved name that replaces it.
  */
 const REJECTED: readonly (readonly [string, string])[] = [
-  ["clipboardAgeMs", "selectionAgeMs"],
-  ["clipboardStale", "guardReason"],
-  ["clipboardMaxAgeMs", "ageLimitMs"],
   ["clipboardChanged", "selectionChanged"],
   ["selectedTextLength", "textLength"],
   ["selectedtextLength", "textLength"],
@@ -88,8 +91,12 @@ describe("approved log keys", () => {
    * Pinned because the next reader will correctly flinch at it.
    */
   it("keeps `stale-clipboard` as a value even though it would be fatal as a key", () => {
-    expect(redactLogContext({ reason: "stale-clipboard" })).toEqual({ reason: "stale-clipboard" });
-    expect(redactLogContext({ "stale-clipboard": 1 })).toEqual({ "stale-clipboard": REDACTED });
+    expect(redactLogContext({ reason: "stale-clipboard" })).toEqual({
+      reason: "stale-clipboard",
+    });
+    expect(redactLogContext({ "stale-clipboard": 1 })).toEqual({
+      "stale-clipboard": REDACTED,
+    });
   });
 });
 
@@ -109,8 +116,12 @@ describe("rejected log keys", () => {
    * a spread would look like it worked in half the cases.
    */
   it("blanks half the rule ids and silently keeps the rest when spread into key positions", () => {
-    const redacted = redactLogContext(Object.fromEntries(SECRET_RULES.map((r) => [r.id, 1])));
-    const blanked = Object.keys(redacted).filter((key) => redacted[key] === REDACTED);
+    const redacted = redactLogContext(
+      Object.fromEntries(SECRET_RULES.map((r) => [r.id, 1])),
+    );
+    const blanked = Object.keys(redacted).filter(
+      (key) => redacted[key] === REDACTED,
+    );
     expect(blanked.sort()).toEqual(
       [
         "authorization-header",

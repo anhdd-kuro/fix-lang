@@ -10,15 +10,15 @@ tray tooltip, overlay/error popup).
 
 ## Locked Decisions
 
-| Decision | Choice | Why |
-| --- | --- | --- |
-| Library | Hand-rolled typed module in `src/features/i18n/shared/` | No new dep; works in main + preload + renderer + vitest; repo already hand-rolls stores (no zustand) |
-| Catalog format | **JSON**, flat dotted keys, one file per locale | `keyof typeof en` gives a compile-time key union with `resolveJsonModule` (already on in `tsconfig.json`) |
-| Locale state | `electron-store` + IPC broadcast, mirroring `themeStore` / `ipc/features/theme.ts` | Tray, dashboard, PromptGen, overlay stay in sync; main process can translate too |
-| Detection | `app.getLocale()` in main → `ja` if it starts with `ja`, else `en`; user override persisted | Single source of truth in main; renderer never guesses |
-| JA content | Real 日本語 for every key in scope (丁寧語, macOS conventions) | No placeholder debt |
-| Plurals | `Intl.PluralRules` category suffixes (`key_one` / `key_other`) | JA has only `other`; EN needs two; scales to `zero/two/few/many` untouched |
-| Direction | `dir` carried in locale metadata (`ltr` for both), applied to `<html>` | RTL-ready without doing RTL work now |
+| Decision       | Choice                                                                                      | Why                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Library        | Hand-rolled typed module in `src/features/i18n/shared/`                                     | No new dep; works in main + preload + renderer + vitest; repo already hand-rolls stores (no zustand)      |
+| Catalog format | **JSON**, flat dotted keys, one file per locale                                             | `keyof typeof en` gives a compile-time key union with `resolveJsonModule` (already on in `tsconfig.json`) |
+| Locale state   | `electron-store` + IPC broadcast, mirroring `themeStore` / `ipc/features/theme.ts`          | Tray, dashboard, PromptGen, overlay stay in sync; main process can translate too                          |
+| Detection      | `app.getLocale()` in main → `ja` if it starts with `ja`, else `en`; user override persisted | Single source of truth in main; renderer never guesses                                                    |
+| JA content     | Real 日本語 for every key in scope (丁寧語, macOS conventions)                              | No placeholder debt                                                                                       |
+| Plurals        | `Intl.PluralRules` category suffixes (`key_one` / `key_other`)                              | JA has only `other`; EN needs two; scales to `zero/two/few/many` untouched                                |
+| Direction      | `dir` carried in locale metadata (`ltr` for both), applied to `<html>`                      | RTL-ready without doing RTL work now                                                                      |
 
 ### Non-goals
 
@@ -115,7 +115,7 @@ Missing keys in JA files fall back to English at runtime — every EN key need n
 ### Type-safety boundary (read before coding)
 
 - `keyof typeof EN_CATALOG` **does** give a literal key union — keys are type-checked at compile time via `export type TranslationKey = keyof typeof EN_CATALOG`.
-- JSON string *values* are widened to `string` by TypeScript, so placeholder names **cannot** be
+- JSON string _values_ are widened to `string` by TypeScript, so placeholder names **cannot** be
   derived into typed `t()` params. Params are `Record<string, string | number>`, and correctness is
   enforced by (a) a placeholder-parity test across locales and (b) a dev-mode warning when an
   unreplaced `{token}` survives interpolation. Do not try to template-literal your way out of this.
@@ -329,7 +329,10 @@ export function RefreshModelsButton({ provider }: { provider: string }) {
 Plural form — define both categories in `en`, only `_other` in `ja`:
 
 ```json
-{ "history.count_one": "{count} correction", "history.count_other": "{count} corrections" }
+{
+  "history.count_one": "{count} correction",
+  "history.count_other": "{count} corrections"
+}
 ```
 
 ```tsx
@@ -350,7 +353,9 @@ export function LanguageSelect() {
       {t("settings.general.language.label")}
       <select
         value={locale}
-        onChange={(event) => void setLocale(event.target.value as typeof locale)}
+        onChange={(event) =>
+          void setLocale(event.target.value as typeof locale)
+        }
       >
         {LOCALE_CODES.map((code) => (
           <option key={code} value={code}>
@@ -371,9 +376,9 @@ notification from the main process is already translated.
 
 ```tsx
 const { formatNumber, formatDateTime, formatCurrency } = useI18n();
-formatNumber(1234567);          // en: 1,234,567   ja: 1,234,567
+formatNumber(1234567); // en: 1,234,567   ja: 1,234,567
 formatDateTime(entry.createdAt); // en: Jul 25, 2026, 3:04 PM   ja: 2026年7月25日 15:04
-formatCurrency(0.0123, "USD");  // en: $0.01   ja: $0.01 (JPY when the provider bills JPY)
+formatCurrency(0.0123, "USD"); // en: $0.01   ja: $0.01 (JPY when the provider bills JPY)
 ```
 
 ### Main process

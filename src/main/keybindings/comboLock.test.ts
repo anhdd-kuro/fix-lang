@@ -8,7 +8,11 @@
  * later run is not stuck locked out forever.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ComboLockBusyError, resetComboLockForTests, withComboLock } from "./comboLock";
+import {
+  ComboLockBusyError,
+  resetComboLockForTests,
+  withComboLock,
+} from "./comboLock";
 
 describe("withComboLock", () => {
   beforeEach(() => {

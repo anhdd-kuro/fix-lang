@@ -23,22 +23,24 @@
  * nothing. Every count is a count of times a guard acted, and dividing one by a
  * transform count from history compares different populations.
  */
+import { z } from "zod";
+import { schemaGuard } from "~/features/core/shared/schemaGuard";
 import type { LogEntry } from "~/features/logs/shared/logging";
 
 /** Matches the dashboard's shared analytics range pills (`AnalyticsRange`). */
-export type SecurityStatsRange = "all" | "30d" | "7d";
+export const SecurityStatsRangeSchema = z.enum(["all", "30d", "7d"]);
 
-export const SECURITY_STATS_RANGES: readonly SecurityStatsRange[] = ["all", "30d", "7d"];
+export type SecurityStatsRange = z.infer<typeof SecurityStatsRangeSchema>;
 
-const RANGE_DAYS: Record<Exclude<SecurityStatsRange, "all">, number> = {
+export const SECURITY_STATS_RANGES: readonly SecurityStatsRange[] =
+  SecurityStatsRangeSchema.options;
+
+const RANGE_DAYS = {
   "30d": 30,
   "7d": 7,
-};
+} satisfies Record<Exclude<SecurityStatsRange, "all">, number>;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-export const isSecurityStatsRange = (value: unknown): value is SecurityStatsRange =>
-  typeof value === "string" && SECURITY_STATS_RANGES.includes(value as SecurityStatsRange);
 
 /**
  * Written to the `guardEvent` context key. `context-dropped` is Ask's outcome
@@ -53,8 +55,6 @@ export const SECRET_MASK_SCOPE = "secretGuard.mask";
 export type SecurityStats = {
   blockedByApp: number;
   declinedLargeSelection: number;
-  declinedStaleClipboard: number;
-  declinedUnknownClipboardAge: number;
   askContextDropped: number;
   secretConfirmed: number;
   secretDeclined: number;
@@ -77,8 +77,6 @@ export type SecurityStats = {
 export const EMPTY_SECURITY_STATS: SecurityStats = Object.freeze({
   blockedByApp: 0,
   declinedLargeSelection: 0,
-  declinedStaleClipboard: 0,
-  declinedUnknownClipboardAge: 0,
   askContextDropped: 0,
   secretConfirmed: 0,
   secretDeclined: 0,
@@ -92,21 +90,28 @@ export const EMPTY_SECURITY_STATS: SecurityStats = Object.freeze({
   eventCount: 0,
 });
 
+const ContextStringSchema = z.string();
+
+/** `z.number()` accepts exactly the finite numbers. */
+const ContextNumberSchema = z.number();
+
 const contextString = (entry: LogEntry, key: string): string | null => {
-  const value = entry.context?.[key];
-  return typeof value === "string" ? value : null;
+  const value = ContextStringSchema.safeParse(entry.context?.[key]);
+  return value.success ? value.data : null;
 };
 
 const contextCount = (entry: LogEntry, key: string): number => {
-  const value = entry.context?.[key];
-  return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? Math.floor(value)
-    : 0;
+  const value = ContextNumberSchema.safeParse(entry.context?.[key]);
+  return value.success && value.data > 0 ? Math.floor(value.data) : 0;
 };
 
 const contextRuleIds = (entry: LogEntry): string[] => {
   const value = entry.context?.ruleIds;
-  return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((id) => {
+    const ruleId = ContextStringSchema.safeParse(id);
+    return ruleId.success ? [ruleId.data] : [];
+  });
 };
 
 /**
@@ -115,15 +120,19 @@ const contextRuleIds = (entry: LogEntry): string[] => {
  */
 export const isSecurityEvent = (entry: LogEntry): boolean => {
   if (entry.scope === SECRET_MASK_SCOPE) return true;
-  if (entry.scope === SECRET_GATE_SCOPE) return contextString(entry, "gateDecision") !== null;
+  if (entry.scope === SECRET_GATE_SCOPE)
+    return contextString(entry, "gateDecision") !== null;
   return (
-    contextString(entry, "guardEvent") !== null || contextString(entry, "guardReason") !== null
+    contextString(entry, "guardEvent") !== null ||
+    contextString(entry, "guardReason") !== null
   );
 };
 
 /** String compare is correct here: `logService` writes ISO-8601 UTC timestamps. */
 const newerTimestamp = (current: string | null, candidate: string): string =>
-  current === null || candidate.localeCompare(current) > 0 ? candidate : current;
+  current === null || candidate.localeCompare(current) > 0
+    ? candidate
+    : current;
 
 type MutableStats = {
   -readonly [Key in keyof SecurityStats]: Key extends "ruleCounts"
@@ -136,7 +145,10 @@ const blankStats = (): MutableStats => ({
   ruleCounts: {},
 });
 
-const countSelectionGuardEvent = (stats: MutableStats, entry: LogEntry): boolean => {
+const countSelectionGuardEvent = (
+  stats: MutableStats,
+  entry: LogEntry,
+): boolean => {
   const event = contextString(entry, "guardEvent");
   const reason = contextString(entry, "guardReason");
 
@@ -157,22 +169,19 @@ const countSelectionGuardEvent = (stats: MutableStats, entry: LogEntry): boolean
 
   // An unrecognised reason is dropped, never folded into a neighbouring bucket:
   // a new confirm reason must surface as a missing metric, not an inflated one.
+  // That includes the retired `stale-clipboard` / `unknown-clipboard-age`
+  // declines still sitting in older log archives.
   if (reason === "large-selection") {
     stats.declinedLargeSelection += 1;
-    return true;
-  }
-  if (reason === "stale-clipboard") {
-    stats.declinedStaleClipboard += 1;
-    return true;
-  }
-  if (reason === "unknown-clipboard-age") {
-    stats.declinedUnknownClipboardAge += 1;
     return true;
   }
   return false;
 };
 
-const countSecretGateEvent = (stats: MutableStats, entry: LogEntry): boolean => {
+const countSecretGateEvent = (
+  stats: MutableStats,
+  entry: LogEntry,
+): boolean => {
   const decision = contextString(entry, "gateDecision");
 
   if (decision === "confirmed") {
@@ -194,7 +203,9 @@ const countSecretGateEvent = (stats: MutableStats, entry: LogEntry): boolean => 
 };
 
 /** Order-independent, so day files may arrive in any order. */
-export const summarizeSecurityStats = (entries: Iterable<LogEntry>): SecurityStats => {
+export const summarizeSecurityStats = (
+  entries: Iterable<LogEntry>,
+): SecurityStats => {
   const stats = blankStats();
 
   const countOne = (entry: LogEntry): boolean => {
@@ -224,11 +235,17 @@ export const topSecurityRules = (
 ): { ruleId: string; count: number }[] =>
   Object.entries(stats.ruleCounts)
     .map(([ruleId, count]) => ({ ruleId, count }))
-    .sort((left, right) => right.count - left.count || left.ruleId.localeCompare(right.ruleId))
+    .sort(
+      (left, right) =>
+        right.count - left.count || left.ruleId.localeCompare(right.ruleId),
+    )
     .slice(0, Math.max(0, Math.floor(limit)));
 
 /** `now` is injected to keep callers and tests deterministic. */
-export const securityStatsCutoff = (range: SecurityStatsRange, now: Date): Date | null =>
+export const securityStatsCutoff = (
+  range: SecurityStatsRange,
+  now: Date,
+): Date | null =>
   range === "all" ? null : new Date(now.getTime() - RANGE_DAYS[range] * DAY_MS);
 
 /**
@@ -237,7 +254,10 @@ export const securityStatsCutoff = (range: SecurityStatsRange, now: Date): Date 
  * it. Reading a surplus file costs a filter pass; dropping one loses events.
  * `entryInRange` is what makes the window exact.
  */
-export const dayFolderInRange = (dayKey: string, cutoff: Date | null): boolean => {
+export const dayFolderInRange = (
+  dayKey: string,
+  cutoff: Date | null,
+): boolean => {
   if (cutoff === null) return true;
   const oneDayBefore = new Date(cutoff.getTime() - DAY_MS);
   const year = String(oneDayBefore.getFullYear());
@@ -252,38 +272,41 @@ export const entryInRange = (entry: LogEntry, cutoff: Date | null): boolean => {
   return Number.isFinite(at) && at >= cutoff.getTime();
 };
 
-const isNonNegativeInteger = (value: unknown): value is number =>
-  typeof value === "number" && Number.isInteger(value) && value >= 0;
+/** Any size: `Number.isInteger`, not `.int()`, which caps at the safe range. */
+const CountSchema = z
+  .number()
+  .refine((value) => Number.isInteger(value) && value >= 0);
 
-const isRuleCounts = (value: unknown): value is Record<string, number> =>
-  typeof value === "object" &&
-  value !== null &&
-  !Array.isArray(value) &&
-  Object.values(value).every(isNonNegativeInteger);
+/** Any non-array, non-function object (a Date included) — not only a plain one. */
+const ObjectRecordSchema = z.looseObject({});
 
-const COUNT_KEYS: readonly (keyof SecurityStats)[] = [
-  "blockedByApp",
-  "declinedLargeSelection",
-  "declinedStaleClipboard",
-  "declinedUnknownClipboardAge",
-  "askContextDropped",
-  "secretConfirmed",
-  "secretDeclined",
-  "secretMasked",
-  "maskedValues",
-  "maskedPlaceholders",
-  "restoreFailures",
-  "legacyEvents",
-  "eventCount",
-];
+const isObjectRecord = schemaGuard(ObjectRecordSchema);
+
+/**
+ * Every own enumerable value a count. Checked against the ORIGINAL record's
+ * `Object.values` — not the zod copy, which drops an own `__proto__` key — and
+ * not with `z.record`, which refuses non-plain objects and inspects symbol and
+ * non-enumerable keys too; the object itself is the parse result.
+ */
+const RuleCountsSchema = z.custom<Record<string, number>>(
+  (value) =>
+    isObjectRecord(value) &&
+    Object.values(value).every((count) => CountSchema.safeParse(count).success),
+);
 
 /** Validated independently on both sides of the IPC boundary. */
-export const isSecurityStats = (value: unknown): value is SecurityStats => {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
-  const record = value as Record<string, unknown>;
-  return (
-    COUNT_KEYS.every((key) => isNonNegativeInteger(record[key])) &&
-    isRuleCounts(record.ruleCounts) &&
-    (record.lastEventAt === null || typeof record.lastEventAt === "string")
-  );
-};
+export const SecurityStatsSchema = z.looseObject({
+  blockedByApp: CountSchema,
+  declinedLargeSelection: CountSchema,
+  askContextDropped: CountSchema,
+  secretConfirmed: CountSchema,
+  secretDeclined: CountSchema,
+  secretMasked: CountSchema,
+  maskedValues: CountSchema,
+  maskedPlaceholders: CountSchema,
+  restoreFailures: CountSchema,
+  legacyEvents: CountSchema,
+  ruleCounts: RuleCountsSchema,
+  lastEventAt: z.string().nullable(),
+  eventCount: CountSchema,
+});

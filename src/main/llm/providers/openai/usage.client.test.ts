@@ -7,6 +7,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { createOpenAIUsageClient } from "./usage.client";
+import type { JsonObject, JsonValue } from "~/main/jsonValue";
 
 const NOW = new Date("2026-07-28T15:04:05.000Z");
 const KEY = "sk-admin-secret";
@@ -14,10 +15,10 @@ const KEY = "sk-admin-secret";
 type StubResponse = {
   ok: boolean;
   status: number;
-  json: () => Promise<unknown>;
+  json: () => Promise<JsonValue>;
 };
 
-const okResponse = (body: unknown): StubResponse => ({
+const okResponse = (body: JsonValue): StubResponse => ({
   ok: true,
   status: 200,
   json: async () => body,
@@ -37,7 +38,7 @@ const emptyPage = {
 };
 
 const clientWith = (
-  fetchImpl: (url: string, init: unknown) => Promise<StubResponse>,
+  fetchImpl: (url: string, init: RequestInit) => Promise<StubResponse>,
   key: string | null = KEY,
 ) =>
   createOpenAIUsageClient({
@@ -114,7 +115,9 @@ describe("createOpenAIUsageClient", () => {
     // costs + completions + project costs. The empty project card bills no
     // extra /projects request — there is no row a name could land on.
     expect(seen).toHaveLength(3);
-    expect(seen.every((r) => r.headers.Authorization === `Bearer ${KEY}`)).toBe(true);
+    expect(seen.every((r) => r.headers.Authorization === `Bearer ${KEY}`)).toBe(
+      true,
+    );
     expect(JSON.stringify(usage)).not.toContain(KEY);
   });
 
@@ -131,17 +134,17 @@ describe("createOpenAIUsageClient", () => {
       .filter((url) => url.includes("/costs"))
       .map((url) => new URL(url));
     const costs =
-      costsUrls.find((url) => url.searchParams.get("group_by") === "line_item") ??
-      new URL("https://example.invalid");
+      costsUrls.find(
+        (url) => url.searchParams.get("group_by") === "line_item",
+      ) ?? new URL("https://example.invalid");
     const completions = new URL(
       urls.find((url) => url.includes("/usage/completions")) ?? "",
     );
 
     // Both cost groupings are requested separately so either can fail alone.
-    expect(costsUrls.map((url) => url.searchParams.get("group_by")).sort()).toEqual([
-      "line_item",
-      "project_id",
-    ]);
+    expect(
+      costsUrls.map((url) => url.searchParams.get("group_by")).sort(),
+    ).toEqual(["line_item", "project_id"]);
     // 7d window ending on 2026-07-28 UTC starts at 2026-07-22T00:00:00Z; the
     // midnight alignment is what keeps a mid-afternoon refresh returning the
     // same buckets as a morning one.
@@ -176,26 +179,32 @@ describe("createOpenAIUsageClient", () => {
         { amount: { value: amount, currency: "usd" }, line_item: "gpt-5" },
       ],
     });
-    const pages: Record<string, unknown> = {
-      "": {
-        object: "page",
-        data: [bucket(Date.UTC(2026, 6, 22) / 1000, 1)],
-        has_more: true,
-        next_page: "cursor-2",
-      },
-      "cursor-2": {
-        object: "page",
-        data: [bucket(Date.UTC(2026, 6, 23) / 1000, 2)],
-        has_more: false,
-        next_page: null,
-      },
-    };
+    const pages = new Map<string, JsonValue>([
+      [
+        "",
+        {
+          object: "page",
+          data: [bucket(Date.UTC(2026, 6, 22) / 1000, 1)],
+          has_more: true,
+          next_page: "cursor-2",
+        },
+      ],
+      [
+        "cursor-2",
+        {
+          object: "page",
+          data: [bucket(Date.UTC(2026, 6, 23) / 1000, 2)],
+          has_more: false,
+          next_page: null,
+        },
+      ],
+    ]);
     const requestedPages: string[] = [];
 
     const client = clientWith(async (url) => {
       const page = new URL(url).searchParams.get("page") ?? "";
       requestedPages.push(page);
-      return okResponse(pages[page]);
+      return okResponse(pages.get(page) ?? null);
     });
 
     const result = await client.getCosts("7d");
@@ -259,7 +268,7 @@ describe("createOpenAIUsageClient", () => {
 describe("createOpenAIUsageClient project spend", () => {
   const projectCostPage = (
     rows: { amount: number; project_id: string }[],
-  ): unknown => ({
+  ): JsonObject => ({
     object: "page",
     data: [
       {
@@ -276,9 +285,9 @@ describe("createOpenAIUsageClient project spend", () => {
   });
 
   const projectList = (
-    data: unknown[],
-    extra: Record<string, unknown> = {},
-  ): unknown => ({
+    data: JsonValue[],
+    extra: JsonObject = {},
+  ): JsonObject => ({
     object: "list",
     data,
     has_more: false,
@@ -335,7 +344,9 @@ describe("createOpenAIUsageClient project spend", () => {
     const requested: (string | null)[] = [];
     const client = clientWith(async (url) => {
       if (!url.includes("/projects")) {
-        return okResponse(projectCostPage([{ amount: 1, project_id: "proj_b" }]));
+        return okResponse(
+          projectCostPage([{ amount: 1, project_id: "proj_b" }]),
+        );
       }
       const after = new URL(url).searchParams.get("after");
       requested.push(after);

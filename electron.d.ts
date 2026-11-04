@@ -4,6 +4,7 @@ import type { ElectronAPI } from "./src/preload";
 
 // Extend the global Window interface
 declare global {
+  // oxlint-disable-next-line typescript/consistent-type-definitions -- only an interface can merge into the global Window
   interface Window {
     electronAPI: ElectronAPI;
   }

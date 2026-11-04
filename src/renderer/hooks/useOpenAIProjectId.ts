@@ -14,7 +14,9 @@ import { useEffect, useState } from "react";
 import { sanitizeOpenAIProjectId } from "~/features/providers/shared/openaiProject";
 
 export const useOpenAIProjectId = (): string | null | undefined => {
-  const [projectId, setProjectId] = useState<string | null | undefined>(undefined);
+  const [projectId, setProjectId] = useState<string | null | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     let mounted = true;

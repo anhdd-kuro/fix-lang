@@ -26,19 +26,20 @@ export const fetchBedrockModels = async (
   });
   const response = await client.send(new ListFoundationModelsCommand({}));
   const models = response.modelSummaries ?? [];
-  return models
-    .filter(
-      (entry) =>
-        typeof entry.modelId === "string" &&
-        entry.modelId.length > 0 &&
-        (entry.outputModalities ?? []).includes("TEXT"),
-    )
-    .map((entry) => ({
-      id: entry.modelId as string,
-      name: entry.modelName ?? (entry.modelId as string),
-      created: entry.modelLifecycle?.creationTime
-        ? Math.floor(entry.modelLifecycle.creationTime.getTime() / 1000)
-        : 0,
-      provider: "bedrock" as const,
-    }));
+  return models.flatMap((entry) => {
+    const modelId = entry.modelId;
+    if (!modelId || !(entry.outputModalities ?? []).includes("TEXT")) {
+      return [];
+    }
+    return [
+      {
+        id: modelId,
+        name: entry.modelName ?? modelId,
+        created: entry.modelLifecycle?.creationTime
+          ? Math.floor(entry.modelLifecycle.creationTime.getTime() / 1000)
+          : 0,
+        provider: "bedrock" as const,
+      },
+    ];
+  });
 };

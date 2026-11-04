@@ -103,9 +103,7 @@ export default function ModelManagerDialog({
       // Update the status of the model being installed
       setRecommendedModels((prev) =>
         prev.map((model) =>
-          model.name === modelName
-            ? { ...model, status: "installing" as ModelInstallStatus }
-            : model,
+          model.name === modelName ? { ...model, status: "installing" } : model,
         ),
       );
 
@@ -129,7 +127,7 @@ export default function ModelManagerDialog({
       if (result.success) {
         // Give it a moment to complete registration
         setTimeout(() => {
-          refreshModels();
+          void refreshModels();
         }, 1000);
       }
     } catch (error) {
@@ -156,7 +154,7 @@ export default function ModelManagerDialog({
         // Close the confirmation dialog
         setDeleteConfirmation({ isOpen: false });
         // Refresh the model list
-        refreshModels();
+        void refreshModels();
       } else {
         alert(
           t("models.manager.deleteFailedAlert", {
@@ -177,7 +175,8 @@ export default function ModelManagerDialog({
   // Load models when the dialog opens
   useEffect(() => {
     if (isOpen) {
-      loadModels();
+      // oxlint-disable-next-line react/set-state-in-effect -- loading models on open is IPC synchronization; the hook owns its loading state
+      void loadModels();
     }
   }, [isOpen, loadModels]);
 
@@ -185,7 +184,7 @@ export default function ModelManagerDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
       <div className="bg-card rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-card-control-border">
@@ -391,7 +390,7 @@ export default function ModelManagerDialog({
 
         {/* Delete Confirmation Dialog */}
         {deleteConfirmation.isOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
             <div className="bg-card rounded-lg shadow-xl p-6 max-w-md w-full">
               <h3 className="text-xl font-semibold text-foreground mb-4">
                 {t("models.manager.confirmDelete.title")}

@@ -14,22 +14,35 @@ export const appearanceFeature = {
 
   setAppearanceFontSize: (
     fontSize: FontSizeId,
-  ): Promise<{ success: boolean; error?: string; typography?: AppearanceTypography }> =>
-    ipcRenderer.invoke("set-appearance-font-size", fontSize),
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    typography?: AppearanceTypography;
+  }> => ipcRenderer.invoke("set-appearance-font-size", fontSize),
 
   setAppearanceFontFamily: (
     fontFamily: FontFamilyId,
-  ): Promise<{ success: boolean; error?: string; typography?: AppearanceTypography }> =>
-    ipcRenderer.invoke("set-appearance-font-family", fontFamily),
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    typography?: AppearanceTypography;
+  }> => ipcRenderer.invoke("set-appearance-font-family", fontFamily),
 
   setAppearanceCustomFontSize: (
     customFontSize: string,
-  ): Promise<{ success: boolean; error?: string; typography?: AppearanceTypography }> =>
-    ipcRenderer.invoke("set-appearance-custom-font-size", customFontSize),
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    typography?: AppearanceTypography;
+  }> => ipcRenderer.invoke("set-appearance-custom-font-size", customFontSize),
 
   setAppearanceCustomFontFamily: (
     customFontFamily: string,
-  ): Promise<{ success: boolean; error?: string; typography?: AppearanceTypography }> =>
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    typography?: AppearanceTypography;
+  }> =>
     ipcRenderer.invoke("set-appearance-custom-font-family", customFontFamily),
 
   onAppearanceTypographyChanged: (

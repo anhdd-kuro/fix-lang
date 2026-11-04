@@ -14,7 +14,8 @@ import { scanForSecrets } from "./detectSecrets";
 const ENTROPY_ON = { highEntropyRule: true } as const;
 
 const GIT_SHA = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
-const SHA256_DIGEST = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+const SHA256_DIGEST =
+  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 const UUID = "550e8400-e29b-41d4-a716-446655440000";
 const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
@@ -30,12 +31,18 @@ describe("the high-entropy rule", () => {
       ["a 40-hex git SHA", GIT_SHA],
       ["a 64-hex sha256 digest", SHA256_DIGEST],
       ["a UUID", UUID],
-      ["an inline data:image payload", `<img src="data:image/png;base64,${PNG_BASE64}">`],
+      [
+        "an inline data:image payload",
+        `<img src="data:image/png;base64,${PNG_BASE64}">`,
+      ],
       ["a lockfile integrity line", `  "integrity": "${SRI_HASH}",`],
       ["minified JavaScript", MINIFIED_JS],
       ["a 300-character run", RANDOM_44.repeat(7)],
     ])("%s", (_description, text) => {
-      expect(scanForSecrets(text, ENTROPY_ON)).toEqual({ matches: [], ruleIds: [] });
+      expect(scanForSecrets(text, ENTROPY_ON)).toEqual({
+        matches: [],
+        ruleIds: [],
+      });
     });
   });
 
@@ -59,7 +66,10 @@ describe("the high-entropy rule", () => {
   });
 
   it("stays silent unless it is switched on", () => {
-    expect(scanForSecrets(`value ${RANDOM_44} end`)).toEqual({ matches: [], ruleIds: [] });
+    expect(scanForSecrets(`value ${RANDOM_44} end`)).toEqual({
+      matches: [],
+      ruleIds: [],
+    });
   });
 
   it("does not carve an over-long run into accepted pieces", () => {

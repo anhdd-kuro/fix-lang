@@ -8,20 +8,29 @@
  * except for a reachable Ollama, where empty is the user's own deletion.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-const { openAIModelsListMock, getLocalModelsMock, probeOllamaMock } = vi.hoisted(() => ({
-  openAIModelsListMock: vi.fn(),
-  getLocalModelsMock: vi.fn().mockResolvedValue([]),
-  probeOllamaMock: vi.fn().mockResolvedValue({ reachable: true, models: [] }),
-}));
+const { openAIModelsListMock, getLocalModelsMock, probeOllamaMock } =
+  vi.hoisted(() => ({
+    openAIModelsListMock: vi.fn(),
+    getLocalModelsMock: vi.fn().mockResolvedValue([]),
+    probeOllamaMock: vi.fn().mockResolvedValue({ reachable: true, models: [] }),
+  }));
+/** What electron-store persists: JSON. */
+type StoredValue =
+  | string
+  | number
+  | boolean
+  | null
+  | StoredValue[]
+  | { [key: string]: StoredValue };
 // Stateful mock of electron-store so seeded profiles/currentProfileId are
 // readable by the real apiStore.ts helpers, and writes are observable.
 vi.mock("electron-store", () => {
   class MockStore {
-    private data: Record<string, unknown> = {};
-    get(key: string, defaultValue?: unknown) {
+    private data: Record<string, StoredValue> = {};
+    get(key: string, defaultValue?: StoredValue) {
       return key in this.data ? this.data[key] : defaultValue;
     }
-    set(key: string, value: unknown) {
+    set(key: string, value: StoredValue) {
       this.data[key] = value;
     }
     store = {};
@@ -69,12 +78,17 @@ vi.mock("~/main/llm/models/discover", () => ({
   probeOllama: probeOllamaMock,
 }));
 vi.mock("~/main/llm/providers/ollama/client", () => ({
-  createOllamaClient: () => ({ chat: vi.fn() }), ollamaClient: { chat: vi.fn() },
+  createOllamaClient: () => ({ chat: vi.fn() }),
+  ollamaClient: { chat: vi.fn() },
 }));
 // Imports (after mocks) — the real implementation under test.
 import { apiStore, getProfiles } from "~/features/providers/store/apiStore";
 import { fetchAvailableModels, fetchModelsForProviders } from "./shared";
-import type { Model, Profile, SettingsStore } from "~/features/providers/store/apiStore";
+import type {
+  Model,
+  Profile,
+  SettingsStore,
+} from "~/features/providers/store/apiStore";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -176,7 +190,9 @@ describe("fetchAvailableModels — cache persistence", () => {
     expect(models).toContainEqual(existingOllama);
     expect(models.some((m) => m.id === "openai/gpt-4o")).toBe(false);
     expect(
-      models.some((m) => m.id === "openai/gpt-4.1-mini" && m.provider === "openai"),
+      models.some(
+        (m) => m.id === "openai/gpt-4.1-mini" && m.provider === "openai",
+      ),
     ).toBe(true);
   });
 
@@ -313,7 +329,12 @@ describe("fetchAvailableModels — strict validation", () => {
     seedProfile(existing);
     openAIModelsListMock.mockRejectedValue(new Error("401 Unauthorized"));
 
-    const result = await fetchAvailableModels("stale-or-revoked-key", "openai", false, false);
+    const result = await fetchAvailableModels(
+      "stale-or-revoked-key",
+      "openai",
+      false,
+      false,
+    );
 
     expect(result).toEqual(existing);
   });

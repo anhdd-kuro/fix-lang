@@ -56,16 +56,21 @@ describe("LanguageTabs", () => {
     // deliberately does NOT flip state directly — main persists and
     // re-broadcasts, and that broadcast is the only thing that moves the
     // provider. Tests drive it via `broadcast()` below.
-    (window as unknown as { electronAPI: unknown }).electronAPI = {
-      getLocale: async () => ({ locale: initialLocale }),
-      setLocale,
-      onLocaleChanged: (cb: (locale: string) => void) => {
-        localeListeners.push(cb);
-        return () => {
-          localeListeners = localeListeners.filter((l) => l !== cb);
-        };
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: {
+        getLocale: async () => ({ locale: initialLocale }),
+        setLocale,
+        onLocaleChanged: (cb: (locale: string) => void) => {
+          localeListeners.push(cb);
+          return () => {
+            localeListeners = localeListeners.filter((l) => l !== cb);
+          };
+        },
       },
-    };
+    });
 
     await act(async () => {
       root.render(

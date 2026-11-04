@@ -16,6 +16,7 @@
  * content is only visible next to the text the suggestion will be appended to —
  * see `stripPrefixOverlap`.
  */
+import { z } from "zod";
 
 /** Longest suggestion shown. Beyond this it stops reading as a completion. */
 export const MAX_SUGGESTION_CHARS = 200;
@@ -28,7 +29,7 @@ export const MAX_SUGGESTION_CHARS = 200;
  * the text is, and a lone `\r` would survive into the textarea value as a
  * phantom line break.
  */
-// eslint-disable-next-line no-control-regex -- stripping C0/C1 controls is the point
+// oxlint-disable-next-line no-control-regex -- stripping C0/C1 controls is the point
 const CONTROL_CHARACTERS = /[\x00-\x08\x0b-\x1f\x7f-\x9f]/g;
 
 /**
@@ -75,7 +76,11 @@ const QUOTE_PAIRS: readonly (readonly [string, string])[] = [
  */
 const stripWrappingQuotes = (text: string): string => {
   for (const [open, close] of QUOTE_PAIRS) {
-    if (text.length > open.length && text.startsWith(open) && text.endsWith(close)) {
+    if (
+      text.length > open.length &&
+      text.startsWith(open) &&
+      text.endsWith(close)
+    ) {
       return text.slice(open.length, text.length - close.length);
     }
   }
@@ -183,7 +188,8 @@ const stripPrefixOverlap = (suggestion: string, prefix: string): string => {
     const overlapLength = prefix.length - start;
     if (overlapLength > suggestion.length) continue;
     if (
-      prefix.slice(start).toLowerCase() === suggestion.slice(0, overlapLength).toLowerCase()
+      prefix.slice(start).toLowerCase() ===
+      suggestion.slice(0, overlapLength).toLowerCase()
     ) {
       return suggestion.slice(overlapLength);
     }
@@ -208,12 +214,18 @@ const stripPrefixOverlap = (suggestion: string, prefix: string): string => {
  * to open with a space to continue after a word, but a trailing space would put
  * the caret past a gap the user never typed.
  */
-export const sanitizeSuggestion = (raw: unknown, prefix: string): string | null => {
-  if (typeof raw !== "string") {
+export const sanitizeSuggestion = <Input>(
+  raw: Input,
+  prefix: string,
+): string | null => {
+  const text = z.string().safeParse(raw);
+  if (!text.success) {
     return null;
   }
 
-  const unfenced = raw.replace(LEADING_FENCE, "").replace(TRAILING_FENCE, "");
+  const unfenced = text.data
+    .replace(LEADING_FENCE, "")
+    .replace(TRAILING_FENCE, "");
   const unquoted = stripWrappingQuotes(
     unfenced
       .replace(CONTROL_CHARACTERS, "")
@@ -226,7 +238,9 @@ export const sanitizeSuggestion = (raw: unknown, prefix: string): string | null 
   // invisible character that would otherwise hide it from the comparison. The
   // cap that follows only ever removes from the tail, so it cannot resurrect one.
   const deduplicated = stripPrefixOverlap(unquoted, prefix);
-  const capped = deduplicated.slice(0, MAX_SUGGESTION_CHARS).replace(TRAILING_WHITESPACE, "");
+  const capped = deduplicated
+    .slice(0, MAX_SUGGESTION_CHARS)
+    .replace(TRAILING_WHITESPACE, "");
 
   return capped.length > 0 ? capped : null;
 };

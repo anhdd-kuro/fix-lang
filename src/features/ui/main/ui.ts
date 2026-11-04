@@ -102,7 +102,7 @@ export const registerUiHandlers = () => {
         console.error("Error reading clipboard:", error);
         return "";
       }
-    }
+    },
   );
 
   ipcMain.handle(
@@ -117,7 +117,7 @@ export const registerUiHandlers = () => {
           error: error instanceof Error ? error.message : "Unknown error",
         };
       }
-    }
+    },
   );
 
   // Dialog handlers
@@ -125,7 +125,7 @@ export const registerUiHandlers = () => {
     "show-message-box",
     async (
       event: Electron.IpcMainInvokeEvent,
-      options: Electron.MessageBoxOptions
+      options: Electron.MessageBoxOptions,
     ) => {
       try {
         const parentWindow =
@@ -138,7 +138,7 @@ export const registerUiHandlers = () => {
         console.error("Error showing message box:", error);
         return { response: 0, checkboxChecked: false };
       }
-    }
+    },
   );
 
   // External links
@@ -163,7 +163,7 @@ export const registerUiHandlers = () => {
           error: error instanceof Error ? error.message : "Unknown error",
         };
       }
-    }
+    },
   );
 
   // Window handling
@@ -178,7 +178,7 @@ export const registerUiHandlers = () => {
         console.error("Error getting window ID:", error);
         return null;
       }
-    }
+    },
   );
 
   ipcMain.on("restart-app", () => {
@@ -198,7 +198,7 @@ export const registerUiHandlers = () => {
       withMainWindow((win) => {
         win.webContents.send("open-dashboard-tab", tabId, subTabId);
       });
-    }
+    },
   );
 
   ipcMain.handle("close-current-window", (_event) => {

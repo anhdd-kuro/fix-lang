@@ -7,17 +7,15 @@ import {
 } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  Button,
-  type ButtonProps,
-  type ButtonVariant,
-} from "./Button";
+import { Button, type ButtonProps, type ButtonVariant } from "./Button";
 
 type Equal<Left, Right> =
-  (<Value>() => Value extends Left ? 1 : 2) extends
-  (<Value>() => Value extends Right ? 1 : 2)
-    ? (<Value>() => Value extends Right ? 1 : 2) extends
-        (<Value>() => Value extends Left ? 1 : 2)
+  (<Value>() => Value extends Left ? 1 : 2) extends <
+    Value,
+  >() => Value extends Right ? 1 : 2
+    ? (<Value>() => Value extends Right ? 1 : 2) extends <
+        Value,
+      >() => Value extends Left ? 1 : 2
       ? true
       : false
     : false;
@@ -221,8 +219,7 @@ describe("Button", () => {
 
   it("lets caller geometry and normal color classes take precedence", async () => {
     const button = await render({
-      className:
-        "px-2 px-4 bg-secondary text-secondary-foreground",
+      className: "px-2 px-4 bg-secondary text-secondary-foreground",
     });
 
     expect(button.className).toContain("px-4");

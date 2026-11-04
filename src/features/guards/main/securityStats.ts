@@ -17,12 +17,15 @@ import {
   dayFolderInRange,
   entryInRange,
   isSecurityEvent,
-  isSecurityStatsRange,
+  SecurityStatsRangeSchema,
   securityStatsCutoff,
   summarizeSecurityStats,
 } from "~/features/guards/shared/securityStats";
 import { logService } from "~/main/logging/logService";
-import type { SecurityStats, SecurityStatsRange } from "~/features/guards/shared/securityStats";
+import type {
+  SecurityStats,
+  SecurityStatsRange,
+} from "~/features/guards/shared/securityStats";
 import type { LogEntry } from "~/features/logs/shared/logging";
 
 /** `now` is injected to keep the range window deterministic in tests. */
@@ -53,11 +56,15 @@ export const collectSecurityStats = async (
 export const registerSecurityStatsHandlers = (): void => {
   ipcMain.handle(
     "get-security-stats",
-    async (_event: Electron.IpcMainInvokeEvent, range: unknown): Promise<SecurityStats> => {
-      if (!isSecurityStatsRange(range)) {
+    async (
+      _event: Electron.IpcMainInvokeEvent,
+      range,
+    ): Promise<SecurityStats> => {
+      const parsedRange = SecurityStatsRangeSchema.safeParse(range);
+      if (!parsedRange.success) {
         throw new Error("Malformed security stats range");
       }
-      return collectSecurityStats(range);
+      return collectSecurityStats(parsedRange.data);
     },
   );
 };

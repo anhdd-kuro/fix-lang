@@ -1,7 +1,7 @@
 /**
  * @file usage.parsers.ts
  * @description PURE, defensive parsers for the OpenAI Admin usage/costs API.
- * Each takes ALREADY-parsed JSON (`unknown`) — fetch belongs to the client — and
+ * Each takes ALREADY-parsed JSON (`JsonValue`) — fetch belongs to the client — and
  * returns a `CardResult` so one failing endpoint cannot sink the panel. Never
  * throws on shape drift: garbage yields `{ ok:false, reason:"parse_error" }`.
  *
@@ -12,43 +12,42 @@
  * would put an estimate next to real billed dollars with nothing marking it as
  * one; that is deliberately not done here.
  */
-import type { UsageCostSlice, UsageDailyPoint, UsageModelRow } from "~/features/usage/shared/usage";
+import type {
+  UsageCostSlice,
+  UsageDailyPoint,
+  UsageModelRow,
+} from "~/features/usage/shared/usage";
+import {
+  isJsonObject,
+  type JsonObject,
+  type JsonValue,
+} from "~/main/jsonValue";
+import {
+  readUsageNumber as asNumber,
+  readUsageString as asString,
+} from "~/main/llm/providers/usageFieldReaders";
 
 /** Independent per-card result — mirrors the OpenRouter parsers' contract. */
 export type CardResult<T> =
   | { ok: true; data: T }
   | { ok: false; reason: "unauthorized" | "unavailable" | "parse_error" };
 
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === "object" && v !== null && !Array.isArray(v);
-
-const asNumber = (v: unknown): number | null => {
-  if (typeof v === "number" && Number.isFinite(v)) return v;
-  if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v))) {
-    return Number(v);
-  }
-  return null;
-};
-
-const asString = (v: unknown): string | null =>
-  typeof v === "string" ? v : null;
-
 /**
  * A `{ object: "page", data: [buckets] }` envelope. Returns null (→ parse_error
  * upstream) rather than an empty list for a non-page payload: "no buckets" and
  * "not a page at all" must not read identically.
  */
-const bucketsOf = (json: unknown): Record<string, unknown>[] | null => {
-  if (!isRecord(json) || !Array.isArray(json.data)) return null;
-  return json.data.filter(isRecord);
+const bucketsOf = (json: JsonValue): JsonObject[] | null => {
+  if (!isJsonObject(json) || !Array.isArray(json.data)) return null;
+  return json.data.filter(isJsonObject);
 };
 
 /** Items of a `{ object: "list", data: [...] }` envelope — same guard as a page. */
 const itemsOf = bucketsOf;
 
 /** Cursor for the next page, or null when the page is the last one. */
-export const nextPageCursor = (json: unknown): string | null => {
-  if (!isRecord(json)) return null;
+export const nextPageCursor = (json: JsonValue): string | null => {
+  if (!isJsonObject(json)) return null;
   if (json.has_more !== true) return null;
   return asString(json.next_page);
 };
@@ -59,21 +58,21 @@ export const nextPageCursor = (json: unknown): string | null => {
  * admin list endpoints with `after=<last_id>`. Swapping the two silently
  * re-requests page one forever instead of erroring.
  */
-export const nextAfterCursor = (json: unknown): string | null => {
-  if (!isRecord(json)) return null;
+export const nextAfterCursor = (json: JsonValue): string | null => {
+  if (!isJsonObject(json)) return null;
   if (json.has_more !== true) return null;
   return asString(json.last_id);
 };
 
 /** UTC day key of a bucket's `start_time` (unix seconds). */
-const bucketDay = (bucket: Record<string, unknown>): string | null => {
+const bucketDay = (bucket: JsonObject): string | null => {
   const startTime = asNumber(bucket.start_time);
   if (startTime === null) return null;
   return new Date(startTime * 1000).toISOString().slice(0, 10);
 };
 
-const resultsOf = (bucket: Record<string, unknown>): Record<string, unknown>[] =>
-  Array.isArray(bucket.results) ? bucket.results.filter(isRecord) : [];
+const resultsOf = (bucket: JsonObject): JsonObject[] =>
+  Array.isArray(bucket.results) ? bucket.results.filter(isJsonObject) : [];
 
 // ---------------------------------------------------------------------------
 // Costs — /v1/organization/costs?group_by=line_item
@@ -92,13 +91,13 @@ export type OpenAICosts = {
  * currencies into one "USD" total would be worse than labelling the account's own
  * numbers.
  */
-const amountOf = (result: Record<string, unknown>): number => {
+const amountOf = (result: JsonObject): number => {
   const amount = result.amount;
-  if (isRecord(amount)) return asNumber(amount.value) ?? 0;
+  if (isJsonObject(amount)) return asNumber(amount.value) ?? 0;
   return asNumber(amount) ?? 0;
 };
 
-export const parseCosts = (json: unknown): CardResult<OpenAICosts> => {
+export const parseCosts = (json: JsonValue): CardResult<OpenAICosts> => {
   const buckets = bucketsOf(json);
   if (buckets === null) return { ok: false, reason: "parse_error" };
 
@@ -164,7 +163,7 @@ export type OpenAIProjectCosts = {
 };
 
 export const parseProjectCosts = (
-  json: unknown,
+  json: JsonValue,
 ): CardResult<OpenAIProjectCosts> => {
   const buckets = bucketsOf(json);
   if (buckets === null) return { ok: false, reason: "parse_error" };
@@ -191,14 +190,17 @@ export const parseProjectCosts = (
   return { ok: true, data: { totalUsd, projects } };
 };
 
+/** Project id → display name, as `/organization/projects` lists them. */
+export type OpenAIProjectNames = Record<string, string>;
+
 /** id → display name from `/organization/projects`. Unnamed entries are skipped. */
 export const parseProjectNames = (
-  json: unknown,
-): CardResult<Record<string, string>> => {
+  json: JsonValue,
+): CardResult<OpenAIProjectNames> => {
   const items = itemsOf(json);
   if (items === null) return { ok: false, reason: "parse_error" };
 
-  const names: Record<string, string> = {};
+  const names: OpenAIProjectNames = {};
   for (const item of items) {
     const id = asString(item.id);
     const name = asString(item.name);
@@ -210,7 +212,7 @@ export const parseProjectNames = (
 /** Attaches resolved names without mutating the parsed rows. */
 export const withProjectNames = (
   costs: OpenAIProjectCosts,
-  names: Readonly<Record<string, string>>,
+  names: Readonly<OpenAIProjectNames>,
 ): OpenAIProjectCosts => ({
   ...costs,
   projects: costs.projects.map((row) => ({
@@ -233,7 +235,7 @@ export type OpenAICompletionsUsage = {
 };
 
 export const parseCompletionsUsage = (
-  json: unknown,
+  json: JsonValue,
 ): CardResult<OpenAICompletionsUsage> => {
   const buckets = bucketsOf(json);
   if (buckets === null) return { ok: false, reason: "parse_error" };
@@ -256,15 +258,13 @@ export const parseCompletionsUsage = (
       totalRequests += requests;
 
       if (day !== null) {
-        const point =
-          byDay.get(day) ??
-          {
-            date: day,
-            requests: 0,
-            inputTokens: 0,
-            outputTokens: 0,
-            costUsd: null,
-          };
+        const point = byDay.get(day) ?? {
+          date: day,
+          requests: 0,
+          inputTokens: 0,
+          outputTokens: 0,
+          costUsd: null,
+        };
         point.requests += requests;
         point.inputTokens += inputTokens;
         point.outputTokens += outputTokens;
@@ -277,15 +277,13 @@ export const parseCompletionsUsage = (
         // but it cannot become a per-model row.
         continue;
       }
-      const row =
-        byModel.get(model) ??
-        {
-          model,
-          requests: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          costUsd: null,
-        };
+      const row = byModel.get(model) ?? {
+        model,
+        requests: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        costUsd: null,
+      };
       row.requests += requests;
       row.inputTokens += inputTokens;
       row.outputTokens += outputTokens;

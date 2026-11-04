@@ -49,6 +49,9 @@ export type SecretRuleContext = {
   groups: Record<string, string | undefined>;
 };
 
+/** Extra characters folded into a reported span on each side of the value. */
+export type SpanWidening = { before: number; after: number };
+
 export type SecretRule = {
   id: SecretRuleId;
   /** Always global; cloned per scan so `lastIndex` can never leak between scans. */
@@ -81,7 +84,7 @@ export type SecretRule = {
    * `spanWidening`. It runs on accepted matches BEFORE `maskable`, which reads
    * the character after the widened end.
    */
-  widen?: (context: SecretRuleContext) => { before: number; after: number };
+  widen?: (context: SecretRuleContext) => SpanWidening;
   /** Rules the user must switch on explicitly. */
   optIn?: boolean;
 };
@@ -168,7 +171,8 @@ export const isCredentialName = (name: string): boolean =>
  */
 const CREDENTIAL_WORDS: readonly string[] = [...CREDENTIAL_NAME_SEGMENTS];
 
-const capitalize = (word: string): string => `${word[0].toUpperCase()}${word.slice(1)}`;
+const capitalize = (word: string): string =>
+  `${word[0].toUpperCase()}${word.slice(1)}`;
 
 /**
  * Every alternative below begins with one of these, so the engine can rule an
@@ -178,7 +182,9 @@ const capitalize = (word: string): string => `${word[0].toUpperCase()}${word.sli
  * is what runs the tests, and it is free under V8, which is what ships.
  */
 const CREDENTIAL_WORD_INITIALS = [
-  ...new Set(CREDENTIAL_WORDS.flatMap((word) => [word[0], word[0].toUpperCase()])),
+  ...new Set(
+    CREDENTIAL_WORDS.flatMap((word) => [word[0], word[0].toUpperCase()]),
+  ),
 ].join("");
 
 const CREDENTIAL_NAME_GATE = [
@@ -246,7 +252,11 @@ const QUOTE_PARITY_LOOKBACK_CHARS = 256;
  * ``password={5GzCbw2NNxMw<`;F>q7{`` has none before it, so its backtick is a
  * character of the password and the span would have covered 14 of 21.
  */
-const sitsInsideOpenQuote = (text: string, valueStart: number, quote: string): boolean => {
+const sitsInsideOpenQuote = (
+  text: string,
+  valueStart: number,
+  quote: string,
+): boolean => {
   const limit = valueStart - QUOTE_PARITY_LOOKBACK_CHARS;
   let count = 0;
   for (let index = valueStart - 1; index >= 0 && index >= limit; index -= 1) {
@@ -312,7 +322,8 @@ const endsAtValueBoundary = (
   quote: string,
 ): boolean => {
   const next = text[valueEnd];
-  if (quote !== "") return next === quote && !isFollowedByValueText(text, valueEnd + 1);
+  if (quote !== "")
+    return next === quote && !isFollowedByValueText(text, valueEnd + 1);
   if (next === undefined) return true;
   if (VALUE_STOP.test(next) && !VALUE_QUOTE.test(next)) return true;
   if (!VALUE_QUOTE.test(next)) return false;
@@ -343,7 +354,7 @@ const LINE_BREAK = /[\r\n\u2028\u2029]/;
  * password itself, and the last such table still reported 12 truncations per
  * 100 000 as fully maskable.
  */
-const spanWidening = (quote: string): { before: number; after: number } => ({
+const spanWidening = (quote: string): SpanWidening => ({
   before: quote.length,
   after: quote.length,
 });
@@ -372,7 +383,10 @@ const URL_AUTHORITY_LOOKBACK_CHARS = 256;
  * request to a confirm. The cost is that a genuine URL nested in another URL's
  * query string is confirmed rather than masked.
  */
-const authorityReadingIsAmbiguous = (text: string, matchStart: number): boolean => {
+const authorityReadingIsAmbiguous = (
+  text: string,
+  matchStart: number,
+): boolean => {
   const limit = Math.max(0, matchStart - URL_AUTHORITY_LOOKBACK_CHARS);
   let runStart = matchStart;
   while (runStart > limit && !/\s/.test(text[runStart - 1])) runStart -= 1;
@@ -399,7 +413,11 @@ const authorityReadingIsAmbiguous = (text: string, matchStart: number): boolean 
  * is friction the user clears in one click; a false `maskable: true` is a
  * silent partial leak under a green label.
  */
-const spanCoversCredential = (text: string, valueEnd: number, quote: string): boolean => {
+const spanCoversCredential = (
+  text: string,
+  valueEnd: number,
+  quote: string,
+): boolean => {
   const next = text[valueEnd + quote.length];
   return next === undefined || LINE_BREAK.test(next);
 };
@@ -491,13 +509,21 @@ const isSubresourceIntegrity = (value: string): boolean =>
   /^(?:sha(?:256|384|512)|md5)-/i.test(value);
 
 const isDataUriPayload = (text: string, start: number): boolean =>
-  text.slice(Math.max(0, start - "base64,".length), start).toLowerCase() === "base64,";
+  text.slice(Math.max(0, start - "base64,".length), start).toLowerCase() ===
+  "base64,";
 
 const characterClassCount = (value: string): number =>
-  (/[a-z]/.test(value) ? 1 : 0) + (/[A-Z]/.test(value) ? 1 : 0) + (/\d/.test(value) ? 1 : 0);
+  (/[a-z]/.test(value) ? 1 : 0) +
+  (/[A-Z]/.test(value) ? 1 : 0) +
+  (/\d/.test(value) ? 1 : 0);
 
-export const acceptHighEntropyString = ({ value, text, start }: SecretRuleContext): boolean => {
-  if (value.length < MIN_ENTROPY_LENGTH || value.length > MAX_ENTROPY_LENGTH) return false;
+export const acceptHighEntropyString = ({
+  value,
+  text,
+  start,
+}: SecretRuleContext): boolean => {
+  if (value.length < MIN_ENTROPY_LENGTH || value.length > MAX_ENTROPY_LENGTH)
+    return false;
   if (isPureHexOrUuid(value)) return false;
   if (isSubresourceIntegrity(value)) return false;
   if (isDataUriPayload(text, start)) return false;
@@ -620,7 +646,8 @@ export const SECRET_RULES: readonly SecretRule[] = [
   },
   {
     id: "github-token",
-    pattern: /\b(?:gh[pousr]_[A-Za-z0-9]{36,251}|github_pat_[A-Za-z0-9_]{22,244})\b/g,
+    pattern:
+      /\b(?:gh[pousr]_[A-Za-z0-9]{36,251}|github_pat_[A-Za-z0-9_]{22,244})\b/g,
     span: "match",
     priority: 80,
   },
@@ -675,7 +702,8 @@ export const SECRET_RULES: readonly SecretRule[] = [
     id: "jwt",
     // TWO `eyJ` segments, not three dot-separated base64 runs — otherwise
     // version strings and file paths fire.
-    pattern: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}(?:\.[A-Za-z0-9_-]+)?/g,
+    pattern:
+      /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}(?:\.[A-Za-z0-9_-]+)?/g,
     span: "match",
     priority: 70,
   },
@@ -735,7 +763,12 @@ export const SECRET_RULES: readonly SecretRule[] = [
      */
     accept: ({ value, text, start, groups }) =>
       isCredentialName(groups.name ?? "") &&
-      endsAtValueBoundary(text, start, start + value.length, groups.quote ?? "") &&
+      endsAtValueBoundary(
+        text,
+        start,
+        start + value.length,
+        groups.quote ?? "",
+      ) &&
       !SPACELESS_SCRIPT_CHARACTER.test(value) &&
       !isPlaceholderValue(value),
     maskable: ({ value, text, start, groups }) =>

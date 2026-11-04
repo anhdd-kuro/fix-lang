@@ -19,11 +19,13 @@ const FIXED_SALT = () => "A1B2C3";
  * literals; every value below is fabricated, but the scanner cannot know that.
  * The joined value is byte-identical to what it replaced.
  */
-const credentialFixture = (...parts: readonly string[]): string => parts.join("");
+const credentialFixture = (...parts: readonly string[]): string =>
+  parts.join("");
 
 const AWS_DOC_ACCESS_KEY_ID = credentialFixture("AKIA", "IOSFODNN7EXAMPLE");
 
-const maskingOfOneKey = () => maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, { salt: FIXED_SALT });
+const maskingOfOneKey = () =>
+  maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, { salt: FIXED_SALT });
 
 /**
  * Each of these is a way a model has been observed to "helpfully" rewrite a
@@ -56,7 +58,9 @@ describe("restoreSecrets refuses a mangled placeholder", () => {
   });
 
   it("still accepts the exact placeholder", () => {
-    expect(restoreSecrets("id [[FIXLANG_SECRET_A1B2C3_01]] end", maskingOfOneKey())).toEqual({
+    expect(
+      restoreSecrets("id [[FIXLANG_SECRET_A1B2C3_01]] end", maskingOfOneKey()),
+    ).toEqual({
       ok: true,
       text: `id ${AWS_DOC_ACCESS_KEY_ID} end`,
     });
@@ -64,16 +68,19 @@ describe("restoreSecrets refuses a mangled placeholder", () => {
 });
 
 describe("resolveSecretGuardOutputMode", () => {
-  it.each(MANGLED_REPLIES)("forces popup after a %s placeholder, even on the paste path", (
-    _description,
-    reply,
-  ) => {
-    const restore = restoreSecrets(reply, maskingOfOneKey());
-    expect(resolveSecretGuardOutputMode("paste", restore.ok)).toBe("popup");
-  });
+  it.each(MANGLED_REPLIES)(
+    "forces popup after a %s placeholder, even on the paste path",
+    (_description, reply) => {
+      const restore = restoreSecrets(reply, maskingOfOneKey());
+      expect(resolveSecretGuardOutputMode("paste", restore.ok)).toBe("popup");
+    },
+  );
 
   it("leaves the resolved mode alone when the restore succeeded", () => {
-    const restore = restoreSecrets("id [[FIXLANG_SECRET_A1B2C3_01]] end", maskingOfOneKey());
+    const restore = restoreSecrets(
+      "id [[FIXLANG_SECRET_A1B2C3_01]] end",
+      maskingOfOneKey(),
+    );
     expect(resolveSecretGuardOutputMode("paste", restore.ok)).toBe("paste");
     expect(resolveSecretGuardOutputMode("popup", restore.ok)).toBe("popup");
   });
@@ -83,7 +90,10 @@ describe("resolveSecretGuardOutputMode", () => {
     ["popup", false, "popup"],
     ["paste", true, "paste"],
     ["popup", true, "popup"],
-  ] as const)("(%s, restoreOk=%s) resolves to %s", (resolved, restoreOk, expected) => {
-    expect(resolveSecretGuardOutputMode(resolved, restoreOk)).toBe(expected);
-  });
+  ] as const)(
+    "(%s, restoreOk=%s) resolves to %s",
+    (resolved, restoreOk, expected) => {
+      expect(resolveSecretGuardOutputMode(resolved, restoreOk)).toBe(expected);
+    },
+  );
 });

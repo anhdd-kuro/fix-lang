@@ -5,6 +5,7 @@
  */
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import { z } from "zod";
 import {
   logEntryMatchesLevels,
   logEntryMatchesSearch,
@@ -30,7 +31,9 @@ export const listDayFoldersNewestFirst = async (
   try {
     const names = await readdir(logsDirectory, { withFileTypes: true });
     return names
-      .filter((entry) => entry.isDirectory() && DAY_FOLDER_PATTERN.test(entry.name))
+      .filter(
+        (entry) => entry.isDirectory() && DAY_FOLDER_PATTERN.test(entry.name),
+      )
       .map((entry) => entry.name)
       .sort((left, right) => right.localeCompare(left));
   } catch {
@@ -59,28 +62,32 @@ export const readDayLogEntries = async (
   }
 };
 
-const normalizeQuery = (
-  request: LogQueryRequest,
-): {
+type NormalizedLogQuery = {
   beforeTimestamp: string | undefined;
   limit: number;
   levels: LogLevel[];
   search: string;
-} => {
-  const limitRaw = request.limit;
-  const limit =
-    typeof limitRaw === "number" && Number.isFinite(limitRaw)
-      ? Math.max(1, Math.min(500, Math.floor(limitRaw)))
-      : LOG_QUERY_PAGE_SIZE;
+};
+
+/** `z.number()` already refuses NaN and ±Infinity, so only finite limits pass. */
+const QueryLimitSchema = z.number();
+const QueryBeforeTimestampSchema = z.string().min(1);
+const QuerySearchSchema = z.string();
+
+const normalizeQuery = (request: LogQueryRequest): NormalizedLogQuery => {
+  const limitRaw = QueryLimitSchema.safeParse(request.limit);
+  const limit = limitRaw.success
+    ? Math.max(1, Math.min(500, Math.floor(limitRaw.data)))
+    : LOG_QUERY_PAGE_SIZE;
+  const beforeTimestamp = QueryBeforeTimestampSchema.safeParse(
+    request.beforeTimestamp,
+  );
+  const search = QuerySearchSchema.safeParse(request.search);
   return {
-    beforeTimestamp:
-      typeof request.beforeTimestamp === "string" &&
-      request.beforeTimestamp.length > 0
-        ? request.beforeTimestamp
-        : undefined,
+    beforeTimestamp: beforeTimestamp.success ? beforeTimestamp.data : undefined,
     limit,
     levels: normalizeLogLevels(request.levels),
-    search: typeof request.search === "string" ? request.search : "",
+    search: search.success ? search.data : "",
   };
 };
 
@@ -137,7 +144,8 @@ export const queryPersistedLogs = async (
     }
   }
 
-  const oldest = collected.length > 0 ? collected[collected.length - 1] : undefined;
+  const oldest =
+    collected.length > 0 ? collected[collected.length - 1] : undefined;
   return {
     entries: collected,
     nextCursor: oldest !== undefined ? oldest.timestamp : null,

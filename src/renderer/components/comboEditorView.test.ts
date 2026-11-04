@@ -63,7 +63,10 @@ const PRESETS: CorrectionPreset[] = [
   preset("ask", { name: "Ask AI", requiresInput: true }),
 ];
 
-const step = (presetId: string, overrides: Partial<ComboStep> = {}): ComboStep => ({
+const step = (
+  presetId: string,
+  overrides: Partial<ComboStep> = {},
+): ComboStep => ({
   id: `step-${presetId}`,
   presetId,
   ...overrides,
@@ -88,10 +91,13 @@ describe("createComboStep / createInitialComboSteps", () => {
 
   it(`seeds exactly ${COMBO_MIN_STEPS} steps from the first available presets`, () => {
     let counter = 0;
-    const steps = createInitialComboSteps(["correction", "translate", "ask"], () => {
-      counter += 1;
-      return `gen-${counter}`;
-    });
+    const steps = createInitialComboSteps(
+      ["correction", "translate", "ask"],
+      () => {
+        counter += 1;
+        return `gen-${counter}`;
+      },
+    );
 
     expect(steps).toEqual([
       { id: "gen-1", presetId: "correction" },
@@ -123,9 +129,9 @@ describe("nextComboDraftName / createComboDraft", () => {
   });
 
   it("skips a name already taken by an existing combo", () => {
-    expect(
-      nextComboDraftName([{ name: "Combo 1" }, { name: "Combo 2" }]),
-    ).toBe("Combo 3");
+    expect(nextComboDraftName([{ name: "Combo 1" }, { name: "Combo 2" }])).toBe(
+      "Combo 3",
+    );
   });
 
   it("builds a draft with an empty hotkey and schemaVersion 1", () => {
@@ -296,8 +302,7 @@ describe("reorderComboStepById", () => {
     step("c", { id: "id-c" }),
     step("d", { id: "id-d" }),
   ];
-  const ids = (result: readonly ComboStep[]) =>
-    result.map((entry) => entry.id);
+  const ids = (result: readonly ComboStep[]) => result.map((entry) => entry.id);
 
   it("resolves the dragged step by id, not by a cached start index", () => {
     // Mid-drag ↑/↓ can shuffle indices; looking up by id still moves the
@@ -339,12 +344,16 @@ describe("reorderComboStepById", () => {
 
 describe("canAddComboStep / addComboStep / removeComboStep", () => {
   it(`allows adding below ${COMBO_MAX_STEPS} steps`, () => {
-    const steps = Array.from({ length: COMBO_MAX_STEPS - 1 }, (_v, i) => step(`p${String(i)}`));
+    const steps = Array.from({ length: COMBO_MAX_STEPS - 1 }, (_v, i) =>
+      step(`p${String(i)}`),
+    );
     expect(canAddComboStep(steps)).toBe(true);
   });
 
   it(`blocks adding at ${COMBO_MAX_STEPS} steps — a hard product cap, not just a save-time error`, () => {
-    const steps = Array.from({ length: COMBO_MAX_STEPS }, (_v, i) => step(`p${String(i)}`));
+    const steps = Array.from({ length: COMBO_MAX_STEPS }, (_v, i) =>
+      step(`p${String(i)}`),
+    );
     expect(canAddComboStep(steps)).toBe(false);
   });
 
@@ -401,7 +410,10 @@ describe("setComboStepInlineInput", () => {
   it("sets the inlineInput on the targeted step only", () => {
     const steps = [step("ask", { id: "s-ask" }), step("correction")];
     const next = setComboStepInlineInput(steps, 0, "What's the weather?");
-    expect(next[0]).toEqual({ ...steps[0], inlineInput: "What's the weather?" });
+    expect(next[0]).toEqual({
+      ...steps[0],
+      inlineInput: "What's the weather?",
+    });
     expect(next[1]).toBe(steps[1]);
   });
 
@@ -485,7 +497,9 @@ describe("comboErrorMessage", () => {
   });
 
   it("resolves missing-inline-input with the preset's display name", () => {
-    const withAskStep = combo({ steps: [step("ask", { id: "s-ask" }), step("correction")] });
+    const withAskStep = combo({
+      steps: [step("ask", { id: "s-ask" }), step("correction")],
+    });
     const error: ComboValidationError = {
       code: "missing-inline-input",
       message: "",
@@ -562,7 +576,11 @@ describe("collectComboErrors / hasBlockingComboErrors", () => {
 
   it("blocks when even one combo among several is invalid", () => {
     const valid = combo();
-    const invalid = combo({ id: "combo-2", name: "", steps: [step("correction")] });
+    const invalid = combo({
+      id: "combo-2",
+      name: "",
+      steps: [step("correction")],
+    });
 
     const errors = collectComboErrors([valid, invalid], PRESETS);
 
@@ -574,13 +592,20 @@ describe("collectComboErrors / hasBlockingComboErrors", () => {
     const invalid = combo({ name: "", steps: [step("correction")] });
     const errors = collectComboErrors([invalid], PRESETS);
 
-    expect(errors.get(invalid.id)?.map((error) => error.code).sort()).toEqual(
-      ["name-empty", "step-count"].sort(),
-    );
+    expect(
+      errors
+        .get(invalid.id)
+        ?.map((error) => error.code)
+        .sort(),
+    ).toEqual(["name-empty", "step-count"].sort());
   });
 
   it("reports errors for EVERY invalid combo, not just one — 'shows every error at once'", () => {
-    const invalidA = combo({ id: "combo-a", name: "", steps: [step("correction")] });
+    const invalidA = combo({
+      id: "combo-a",
+      name: "",
+      steps: [step("correction")],
+    });
     const invalidB = combo({
       id: "combo-b",
       name: "B",
@@ -603,7 +628,9 @@ describe("collectComboErrors / hasBlockingComboErrors", () => {
 
     const errors = collectComboErrors([saved, draft], PRESETS);
 
-    expect(errors.get("combo-2")?.map((e) => e.code)).toEqual(["name-duplicate"]);
+    expect(errors.get("combo-2")?.map((e) => e.code)).toEqual([
+      "name-duplicate",
+    ]);
   });
 });
 
@@ -685,7 +712,10 @@ describe("buildComboTabs", () => {
 });
 
 describe("reconcileSelectedComboId", () => {
-  const combos = [{ id: "combo-a", name: "A" }, { id: "combo-b", name: "B" }];
+  const combos = [
+    { id: "combo-a", name: "A" },
+    { id: "combo-b", name: "B" },
+  ];
 
   it("keeps a selection that still exists after a reload", () => {
     expect(reconcileSelectedComboId(combos, "combo-b")).toBe("combo-b");
@@ -735,7 +765,11 @@ describe("selectedComboIdAfterRemoval", () => {
 
   it("reports no selection once the last remaining combo is deleted", () => {
     expect(
-      selectedComboIdAfterRemoval([{ id: "combo-a", name: "A" }], "combo-a", "combo-a"),
+      selectedComboIdAfterRemoval(
+        [{ id: "combo-a", name: "A" }],
+        "combo-a",
+        "combo-a",
+      ),
     ).toBeNull();
   });
 

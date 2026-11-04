@@ -194,14 +194,18 @@ export const resolveComboSteps = (
   combo: ComboPreset,
   settings: CorrectionSettings,
 ): ResolvedComboStep[] => {
-  const errors = validateCombo(combo, settings.presets, settings.combos ?? []).filter(
-    (error) => EXECUTABLE_VALIDATION_CODES.has(error.code),
-  );
+  const errors = validateCombo(
+    combo,
+    settings.presets,
+    settings.combos ?? [],
+  ).filter((error) => EXECUTABLE_VALIDATION_CODES.has(error.code));
   if (errors.length > 0) {
     throw new ComboValidationFailedError(combo, errors);
   }
 
-  const presetById = new Map(settings.presets.map((preset) => [preset.id, preset]));
+  const presetById = new Map(
+    settings.presets.map((preset) => [preset.id, preset]),
+  );
 
   return combo.steps.map((step) => {
     const preset = presetById.get(step.presetId);
@@ -465,16 +469,15 @@ export const runCombo = async (
     // Ask path passes no `TransformContext`, and a first-step Ask that did
     // would be answering under a source-app hint the same preset never sees
     // when run by its own hotkey.
-    const context: TransformContext | undefined = resolved.preset.requiresInput
-      ? undefined
-      : index === 0
-        ? {
-            activeAppName,
-            ...(userMetadata ? { userMetadata } : {}),
-          }
-        : userMetadata
-          ? { userMetadata }
-          : undefined;
+    let context: TransformContext | undefined;
+    if (!resolved.preset.requiresInput) {
+      if (index === 0) {
+        context = { activeAppName };
+        if (userMetadata) context.userMetadata = userMetadata;
+      } else if (userMetadata) {
+        context = { userMetadata };
+      }
+    }
 
     const stepTimeoutMs = Math.min(COMBO_STEP_TIMEOUT_MS, remainingBudgetMs);
     let result: FixGrammarResult;
@@ -486,7 +489,9 @@ export const runCombo = async (
           new ComboStepError(
             resolved.step,
             index,
-            stepTimeoutMs < COMBO_STEP_TIMEOUT_MS ? "combo-timeout" : "step-timeout",
+            stepTimeoutMs < COMBO_STEP_TIMEOUT_MS
+              ? "combo-timeout"
+              : "step-timeout",
           ),
         signal,
       );
@@ -547,7 +552,8 @@ export const runCombo = async (
   // own preset value — design (E3) states markdownOutput "applies to the
   // final step only" without saying where the value comes from when the
   // combo itself does not set one.
-  const markdownOutput = combo.markdownOutput ?? lastPreset.markdownOutput ?? false;
+  const markdownOutput =
+    combo.markdownOutput ?? lastPreset.markdownOutput ?? false;
 
   // f1 — the loop's own checks only ever run BEFORE a step starts, so a
   // cancel that lands after the last step's `fixGrammar` call already

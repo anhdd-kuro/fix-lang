@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { z } from "zod";
 import { msg, type Message } from "~/features/i18n/shared/message";
 import { Button } from "./Button";
 import CopyButton from "./CopyButton";
 import { Spinner } from "./Spinner";
 import { useI18n } from "../i18n/useI18n";
-import type { UpdateState } from "~/features/update/shared/update";
+import type {
+  UpdateActionResult,
+  UpdateState,
+} from "~/features/update/shared/update";
 
 /** Author GitHub profile — opened from the About tab header icon. */
 const GITHUB_PROFILE_URL = "https://github.com/anhdd-kuro";
@@ -136,6 +140,9 @@ const initialState: UpdateState = {
 
 const updateApi = () => window.electronAPI;
 
+/** A resolved action that main reported as failed (`{ success: false }`). */
+const FailedActionResultSchema = z.object({ success: z.literal(false) });
+
 const BYTES_PER_MEGABYTE = 1024 * 1024;
 
 /**
@@ -173,21 +180,21 @@ export const SettingUpdates = () => {
 
     // Subscribe before requesting the snapshot so a newer event cannot be
     // overwritten if the initial IPC response arrives later.
-    const unsubscribe = api.onUpdateStateChanged((next) => {
+    const unsubscribe = api.onUpdateStateChanged((nextState) => {
       receivedLiveState = true;
       if (mounted) {
         setActionPending(false);
         setMountLoadError(null);
-        setState(next);
+        setState(nextState);
       }
     });
 
     void api
       .getUpdateState()
-      .then((next) => {
+      .then((nextState) => {
         if (mounted && !receivedLiveState) {
           setMountLoadError(null);
-          setState(next);
+          setState(nextState);
         }
       })
       .catch(() => {
@@ -204,7 +211,7 @@ export const SettingUpdates = () => {
   }, []);
 
   const run = async (
-    request: () => Promise<unknown>,
+    request: () => Promise<UpdateState | UpdateActionResult>,
     failureMessage: Message,
   ) => {
     if (actionPending) return;
@@ -224,12 +231,7 @@ export const SettingUpdates = () => {
     setActionPending(true);
     try {
       const result = await request();
-      if (
-        typeof result === "object" &&
-        result !== null &&
-        "success" in result &&
-        result.success === false
-      ) {
+      if (FailedActionResultSchema.safeParse(result).success) {
         reportFailure();
         return;
       }

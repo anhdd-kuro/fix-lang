@@ -21,10 +21,14 @@ vi.mock("electron", () => ({
     show = vi.fn();
   },
   ipcMain: { handle: vi.fn(), on: vi.fn() },
-  app: { getPath: vi.fn().mockReturnValue("/tmp"), getLocale: vi.fn().mockReturnValue("en-US"), getSystemLocale: vi.fn().mockReturnValue("en-US") },
+  app: {
+    getPath: vi.fn().mockReturnValue("/tmp"),
+    getLocale: vi.fn().mockReturnValue("en-US"),
+    getSystemLocale: vi.fn().mockReturnValue("en-US"),
+  },
 }));
 vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
+  // oxlint-disable-next-line typescript/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return {
     ...real,
@@ -36,13 +40,16 @@ vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
 });
 vi.mock("~/features/correction/store/keybindingStore", () => ({
   keybindingStore: {
-    getKeyBindings: vi
-      .fn()
-      .mockReturnValue({ promptGen: "Control+Shift+P", profileSwitch: "Control+Shift+S" }),
+    getKeyBindings: vi.fn().mockReturnValue({
+      promptGen: "Control+Shift+P",
+      profileSwitch: "Control+Shift+S",
+    }),
   },
 }));
 vi.mock("~/features/correction/store/outputModeStore", () => ({
-  outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("popup") },
+  outputModeStore: {
+    getCorrectionOutputMode: vi.fn().mockReturnValue("popup"),
+  },
 }));
 vi.mock("../../utils", () => ({
   getHighlightedTextWithActiveApp: vi
@@ -62,7 +69,9 @@ vi.mock("../webViewWindows", () => ({
 vi.mock("../webViewWindows/correctionResultWindow", () => ({
   showCorrectionResultWindow: vi.fn(),
 }));
-vi.mock("../webViewWindows/askInputWindow", () => ({ showAskInputWindow: vi.fn() }));
+vi.mock("../webViewWindows/askInputWindow", () => ({
+  showAskInputWindow: vi.fn(),
+}));
 vi.mock("./askFlow", () => ({ runAskFlow: vi.fn() }));
 vi.mock("./askEnvironment", () => ({
   resolveAskEnvironment: vi.fn().mockResolvedValue({
@@ -73,22 +82,29 @@ vi.mock("./askEnvironment", () => ({
     timeZone: "Asia/Tokyo",
     recentTransforms: [],
   }),
-  buildAskDirectives: vi.fn().mockReturnValue("App locale: en\nSystem language: en-US"),
+  buildAskDirectives: vi
+    .fn()
+    .mockReturnValue("App locale: en\nSystem language: en-US"),
 }));
 vi.mock("./utils", () => ({
   checkShortcut: vi.fn(),
   handleError: vi.fn(),
   // Passthrough: this suite exercises cost snapshot wiring, not throttle.
-  withHotkeyThrottle: (_accelerator: string, handler: () => unknown) => handler,
+  withHotkeyThrottle: (
+    _accelerator: string,
+    handler: () => void | Promise<void>,
+  ) => handler,
 }));
 // `notifications/error` reaches `overlay.html?asset`, which vite cannot parse
 // as JS under vitest. Stub that leaf so `LocalizedError` stays real.
-vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({ showErrorPopup: vi.fn() }));
+vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
+  showErrorPopup: vi.fn(),
+}));
 import { syncHistory } from "~/features/history/main/history";
 import { getProfileSetting } from "~/features/providers/store/apiStore";
 import { fixGrammar } from "../ai.request";
 import { registerCorrectionShortcut } from "./correction";
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, WebContents } from "electron";
 import type { Mock } from "vitest";
 import type { Model, ProviderId } from "~/features/providers/store/apiStore";
 
@@ -142,11 +158,19 @@ const CORRECTION_SETTINGS = {
   selectedPresetId: "correction-default",
 };
 
-const fakeMainWindow = () =>
-  ({
+/** The two members the hotkey path touches; everything else is never read. */
+type FakeMainWindow = {
+  isDestroyed: BrowserWindow["isDestroyed"];
+  webContents: Pick<WebContents, "send">;
+};
+
+const fakeMainWindow = (): BrowserWindow => {
+  const fake: FakeMainWindow = {
     isDestroyed: () => false,
     webContents: { send: vi.fn() },
-  }) as unknown as BrowserWindow;
+  };
+  return fake as BrowserWindow;
+};
 
 const runHotkey = async (provider: ProviderId | undefined) => {
   (getProfileSetting as Mock).mockImplementation((key: string) =>

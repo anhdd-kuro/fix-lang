@@ -44,7 +44,9 @@ export const UsagePanel = ({
   requestedProvider = null,
 }: UsagePanelProps) => {
   const { t } = useI18n();
-  const [subTabs, setSubTabs] = useState<ReturnType<typeof buildUsageSubTabs>>([]);
+  const [subTabs, setSubTabs] = useState<ReturnType<typeof buildUsageSubTabs>>(
+    [],
+  );
   // The sub-tab the user last clicked, stamped so it can be compared against an
   // incoming `requestedProvider`. Whichever intent is NEWER wins.
   const [userChoice, setUserChoice] = useState<{
@@ -106,7 +108,7 @@ export const UsagePanel = ({
 
   return (
     <div className="flex h-full flex-col gap-3">
-      <nav
+      <div
         className="flex gap-1"
         role="tablist"
         aria-label={t("usage.subTabs.ariaLabel")}
@@ -135,7 +137,7 @@ export const UsagePanel = ({
             </Button>
           );
         })}
-      </nav>
+      </div>
 
       <div
         className="min-h-0 flex-1"
@@ -147,7 +149,10 @@ export const UsagePanel = ({
           <OpenAIUsagePanel key={accountKey} onOpenSettings={onOpenSettings} />
         )}
         {activeKey === "openrouter" && (
-          <OpenRouterUsagePanel key={accountKey} onOpenSettings={onOpenSettings} />
+          <OpenRouterUsagePanel
+            key={accountKey}
+            onOpenSettings={onOpenSettings}
+          />
         )}
         {activeKey === "autocomplete" && <AutocompletePanel />}
         {activeKey === "providers" && (

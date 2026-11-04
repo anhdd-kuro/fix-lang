@@ -162,7 +162,8 @@ export const hasLegacyApiKey = async (): Promise<boolean> => {
 };
 
 const activeProfileId = async (): Promise<string | null> => {
-  const { getCurrentProfileId } = await import("~/features/providers/store/apiStore");
+  const { getCurrentProfileId } =
+    await import("~/features/providers/store/apiStore");
   return getCurrentProfileId() || null;
 };
 

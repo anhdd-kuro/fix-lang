@@ -47,7 +47,9 @@ export const OutputModeTabs: React.FC<OutputModeTabsProps> = ({
   const [saveStatus, setSaveStatus] = useState<StatusDescriptor | null>(null);
   const [saveIsError, setSaveIsError] = useState(false);
   const [saving, setSaving] = useState(false);
-  const savedStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const cancelSavedStatusTimer = () => {
     if (savedStatusTimerRef.current !== null) {
@@ -67,7 +69,9 @@ export const OutputModeTabs: React.FC<OutputModeTabsProps> = ({
         if (mounted && showSaveStatus) {
           setSaveIsError(true);
           setSaveStatus(
-            wrappedError(messageLabel("settings.general.outputMode.unavailable")),
+            wrappedError(
+              messageLabel("settings.general.outputMode.unavailable"),
+            ),
           );
         }
       });
@@ -83,12 +87,14 @@ export const OutputModeTabs: React.FC<OutputModeTabsProps> = ({
           setMode(value);
         }
       })
-      .catch((error: unknown) => {
-        console.error("OutputModeTabs: Error loading output mode:", error);
+      .catch((cause: unknown) => {
+        console.error("OutputModeTabs: Error loading output mode:", cause);
         if (mounted && showSaveStatus) {
           setSaveIsError(true);
           setSaveStatus(
-            wrappedError(messageLabel("settings.general.outputMode.unavailable")),
+            wrappedError(
+              messageLabel("settings.general.outputMode.unavailable"),
+            ),
           );
         }
       });

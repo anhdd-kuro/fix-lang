@@ -6,21 +6,36 @@ import {
   selectOptionSurface,
   withThemeColors,
 } from "./selectOptionSurface";
-import type { CSSObjectWithLabel, Theme } from "react-select";
+import {
+  defaultTheme,
+  type CSSObjectWithLabel,
+  type Theme,
+} from "react-select";
 
 describe("option surface", () => {
-  const REACT_SELECT_BLUES = ["#DEEBFF", "#B2D4FF", "#2684FF", "hsl(0, 0%, 20%)"];
+  const REACT_SELECT_BLUES = [
+    "#DEEBFF",
+    "#B2D4FF",
+    "#2684FF",
+    "hsl(0, 0%, 20%)",
+  ];
   const base = { label: "option" } as CSSObjectWithLabel;
 
   it("themes the focused row instead of react-select's hardcoded light blue", () => {
-    const focused = selectOptionStyle(base, { isFocused: true, isSelected: false });
+    const focused = selectOptionStyle(base, {
+      isFocused: true,
+      isSelected: false,
+    });
     expect(focused.backgroundColor).toBe("var(--secondary)");
     expect(focused.color).toBe("var(--secondary-foreground)");
     expect(REACT_SELECT_BLUES).not.toContain(focused.backgroundColor);
   });
 
   it("themes the selected row, and keeps it on press", () => {
-    const selected = selectOptionStyle(base, { isFocused: true, isSelected: true });
+    const selected = selectOptionStyle(base, {
+      isFocused: true,
+      isSelected: true,
+    });
     expect(selected.backgroundColor).toBe("var(--primary)");
     expect(selected.color).toBe("var(--primary-foreground)");
     // react-select's `:active` affordance is its own blue (`primary50`) unless
@@ -32,7 +47,10 @@ describe("option surface", () => {
   });
 
   it("keeps a hovered-but-unselected press themed", () => {
-    const focused = selectOptionStyle(base, { isFocused: true, isSelected: false });
+    const focused = selectOptionStyle(base, {
+      isFocused: true,
+      isSelected: false,
+    });
     expect(focused[":active"]).toEqual({
       backgroundColor: "var(--secondary)",
       color: "var(--secondary-foreground)",
@@ -40,7 +58,10 @@ describe("option surface", () => {
   });
 
   it("leaves a resting row transparent over the menu's own foreground", () => {
-    const resting = selectOptionStyle(base, { isFocused: false, isSelected: false });
+    const resting = selectOptionStyle(base, {
+      isFocused: false,
+      isSelected: false,
+    });
     expect(resting.backgroundColor).toBe("transparent");
     expect(resting.color).toBe("var(--popover-foreground)");
     expect(resting.cursor).toBe("pointer");
@@ -92,7 +113,9 @@ describe("option surface", () => {
     ];
     for (const { state, bg } of pairs) {
       expect(selectOptionSurface(state).color).toBe(`var(--${bg}-foreground)`);
-      expect(selectOptionSurface(state).className).toContain(`text-${bg}-foreground`);
+      expect(selectOptionSurface(state).className).toContain(
+        `text-${bg}-foreground`,
+      );
     }
   });
 
@@ -108,7 +131,11 @@ describe("option surface", () => {
       "bg-transparent text-popover-foreground",
     );
     expect(
-      selectOptionClassName({ isFocused: true, isSelected: true, isDisabled: true }),
+      selectOptionClassName({
+        isFocused: true,
+        isSelected: true,
+        isDisabled: true,
+      }),
     ).toBe("bg-transparent text-muted-foreground");
   });
 
@@ -131,16 +158,7 @@ describe("option surface", () => {
 });
 
 describe("withThemeColors", () => {
-  const reactSelectTheme = {
-    colors: {
-      primary: "#2684FF",
-      primary75: "#4C9AFF",
-      primary50: "#B2D4FF",
-      primary25: "#DEEBFF",
-      neutral0: "hsl(0, 0%, 100%)",
-      danger: "#DE350B",
-    },
-  } as unknown as Theme;
+  const reactSelectTheme: Theme = defaultTheme;
 
   it("remaps every react-select blue onto a theme var", () => {
     const { colors } = withThemeColors(reactSelectTheme);
@@ -152,4 +170,3 @@ describe("withThemeColors", () => {
     expect(colors.danger).toBe("var(--destructive)");
   });
 });
-

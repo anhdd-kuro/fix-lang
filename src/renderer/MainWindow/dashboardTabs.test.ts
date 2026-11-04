@@ -140,9 +140,9 @@ describe("applyPresetFilter", () => {
   });
 
   it("excludes legacy (undefined presetName) entries from named filters", () => {
-    expect(applyPresetFilter(entries, "Translate").map((e) => e.original)).toEqual([
-      "b",
-    ]);
+    expect(
+      applyPresetFilter(entries, "Translate").map((e) => e.original),
+    ).toEqual(["b"]);
   });
 });
 

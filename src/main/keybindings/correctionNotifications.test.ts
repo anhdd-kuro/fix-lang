@@ -39,6 +39,8 @@ describe("buildCorrectionGoodJobNotification", () => {
       body: tJa("notifications.correction.goodJob.body"),
     });
     // Prove the locale actually changed the wording.
-    expect(result.title).not.toBe(tEn("notifications.correction.goodJob.title"));
+    expect(result.title).not.toBe(
+      tEn("notifications.correction.goodJob.title"),
+    );
   });
 });

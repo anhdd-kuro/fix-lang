@@ -22,9 +22,9 @@ export type FeatureFlags = Record<FeatureId, boolean>;
  * Feature id -> CLI/env tag. The CLI form is `--<tag>`, the env form is a bare
  * `<tag>` inside `FIXLANG_FEATURES`.
  */
-export const FEATURE_TAGS: Readonly<Record<FeatureId, string>> = {
+export const FEATURE_TAGS = {
   promptGen: "promptgen",
-};
+} satisfies Readonly<Record<FeatureId, string>>;
 
 /** Enables every feature when it appears in `FIXLANG_FEATURES`. */
 export const FEATURE_ENV_ALL = "all";
@@ -32,16 +32,21 @@ export const FEATURE_ENV_ALL = "all";
 /** Env var read by {@link parseFeatureFlags}. */
 export const FEATURE_ENV_VAR = "FIXLANG_FEATURES";
 
-const TAG_TO_ID: Readonly<Record<string, FeatureId>> = Object.freeze(
-  Object.fromEntries(
-    FEATURE_IDS.map((id) => [FEATURE_TAGS[id], id] as const),
-  ) as Record<string, FeatureId>,
+/**
+ * A `Map`, not an object literal: the lookup key comes from argv/env, and an
+ * object would answer `"constructor"` or `"toString"` with an inherited
+ * Object.prototype member instead of "no such feature".
+ */
+const TAG_TO_ID: ReadonlyMap<string, FeatureId> = new Map(
+  FEATURE_IDS.map((id) => [FEATURE_TAGS[id], id] as const),
 );
 
 const TRUTHY_VALUES = new Set(["", "true", "1", "yes", "on"]);
 const FALSY_VALUES = new Set(["false", "0", "no", "off"]);
 
 const allDisabled = (): FeatureFlags =>
+  // SAFETY: one `[id, false]` entry per element of FEATURE_IDS, which is
+  // exactly the key set of `FeatureFlags = Record<FeatureId, boolean>`.
   Object.fromEntries(FEATURE_IDS.map((id) => [id, false])) as FeatureFlags;
 
 /**
@@ -62,7 +67,7 @@ const parseCliToken = (
   const negated = rawName.startsWith("no-");
   const name = negated ? rawName.slice(3) : rawName;
 
-  const id = TAG_TO_ID[name];
+  const id = TAG_TO_ID.get(name);
   if (!id) return null;
 
   let enabled: boolean;
@@ -100,7 +105,7 @@ export const parseFeatureFlags = (input: {
         for (const id of FEATURE_IDS) flags[id] = true;
         continue;
       }
-      const id = TAG_TO_ID[tag];
+      const id = TAG_TO_ID.get(tag);
       if (id) flags[id] = true;
     }
   }
@@ -118,8 +123,16 @@ export const parseFeatureFlags = (input: {
  * Runtime accessor for the PromptGen feature.
  *
  * `__FEATURE_PROMPT_GEN__` is injected by `electron.vite.config.ts` via
- * `define`. The `typeof` guard keeps this `false` under vitest, where no
- * bundler define exists.
+ * `define`, which rewrites the bare identifier below into a literal. Under
+ * vitest no bundler define exists, so reading it throws a ReferenceError and
+ * this answers `false`. It must stay a bare identifier: `"…" in globalThis`
+ * would escape the rewrite and read `false` in every build.
  */
-export const isPromptGenEnabled = (): boolean =>
-  typeof __FEATURE_PROMPT_GEN__ !== "undefined" && __FEATURE_PROMPT_GEN__;
+export const isPromptGenEnabled = (): boolean => {
+  try {
+    const flag = __FEATURE_PROMPT_GEN__;
+    return flag === undefined ? false : flag;
+  } catch {
+    return false;
+  }
+};

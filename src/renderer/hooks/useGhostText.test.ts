@@ -93,6 +93,7 @@ describe("useGhostText", () => {
   let liveSurface: GhostTextSurfaceState | null = null;
 
   const Harness = () => {
+    // oxlint-disable-next-line react/globals -- test harness hands the hook result out to the test body
     hook = useGhostText({ readSurface: () => liveSurface });
     return null;
   };
@@ -143,7 +144,9 @@ describe("useGhostText", () => {
 
   /** The `requestId` the hook actually put on the wire for a given call. */
   const sentRequest = (callIndex = 0): AutocompleteSuggestRequest =>
-    requestAutocompleteSuggestion.mock.calls[callIndex]?.[0] as AutocompleteSuggestRequest;
+    requestAutocompleteSuggestion.mock.calls[
+      callIndex
+    ]?.[0] as AutocompleteSuggestRequest;
 
   /** Types `text` (caret at the end) and lets the debounce dispatch. */
   const typeAndSettle = async (text: string): Promise<void> => {
@@ -208,10 +211,16 @@ describe("useGhostText", () => {
     let resolveSecond!: (reply: AutocompleteSuggestReply) => void;
     requestAutocompleteSuggestion
       .mockImplementationOnce(
-        () => new Promise<AutocompleteSuggestReply>((resolve) => (resolveFirst = resolve)),
+        () =>
+          new Promise<AutocompleteSuggestReply>(
+            (resolve) => (resolveFirst = resolve),
+          ),
       )
       .mockImplementationOnce(
-        () => new Promise<AutocompleteSuggestReply>((resolve) => (resolveSecond = resolve)),
+        () =>
+          new Promise<AutocompleteSuggestReply>(
+            (resolve) => (resolveSecond = resolve),
+          ),
       );
 
     const first = "abcdefghijkl";
@@ -367,7 +376,10 @@ describe("useGhostText", () => {
       expect(requestAutocompleteSuggestion).toHaveBeenCalledTimes(1);
 
       await act(async () => {
-        pending.resolve({ requestId: inFlight.requestId, suggestion: "stale ghost" });
+        pending.resolve({
+          requestId: inFlight.requestId,
+          suggestion: "stale ghost",
+        });
       });
       await flushMicrotasks();
 
@@ -388,7 +400,10 @@ describe("useGhostText", () => {
         vi.advanceTimersByTime(GHOST_TEXT_DEBOUNCE_MS * 2);
       });
       await act(async () => {
-        pending.resolve({ requestId: inFlight.requestId, suggestion: "orphan ghost" });
+        pending.resolve({
+          requestId: inFlight.requestId,
+          suggestion: "orphan ghost",
+        });
       });
       await flushMicrotasks();
 
@@ -407,7 +422,10 @@ describe("useGhostText", () => {
         hook?.notifyBlur();
       });
       await act(async () => {
-        pending.resolve({ requestId: inFlight.requestId, suggestion: "post-blur ghost" });
+        pending.resolve({
+          requestId: inFlight.requestId,
+          suggestion: "post-blur ghost",
+        });
       });
       await flushMicrotasks();
 
@@ -425,7 +443,10 @@ describe("useGhostText", () => {
         hook?.clear();
       });
       await act(async () => {
-        pending.resolve({ requestId: inFlight.requestId, suggestion: "revenant ghost" });
+        pending.resolve({
+          requestId: inFlight.requestId,
+          suggestion: "revenant ghost",
+        });
       });
       await flushMicrotasks();
 
@@ -443,7 +464,10 @@ describe("useGhostText", () => {
         hook?.notifyCompositionStart();
       });
       await act(async () => {
-        pending.resolve({ requestId: inFlight.requestId, suggestion: "mid-composition ghost" });
+        pending.resolve({
+          requestId: inFlight.requestId,
+          suggestion: "mid-composition ghost",
+        });
       });
       await flushMicrotasks();
 
@@ -603,10 +627,11 @@ describe("useGhostText", () => {
       // Echoes the id rather than pinning it: this test drives more than one
       // invalidation before the request that matters, so the live id is not 1.
       requestAutocompleteSuggestion.mockImplementation(
-        async (request: AutocompleteSuggestRequest) => ({
-          requestId: request.requestId,
-          suggestion: "ghost text",
-        } satisfies AutocompleteSuggestReply),
+        async (request: AutocompleteSuggestRequest) =>
+          ({
+            requestId: request.requestId,
+            suggestion: "ghost text",
+          }) satisfies AutocompleteSuggestReply,
       );
 
       // Below MIN_PREFIX_CHARS nothing is armed and nothing is anchored.
@@ -944,7 +969,10 @@ describe("useGhostText", () => {
 
       await act(async () => {
         change(
-          droppedPrefixHead + keptPrefixTail + keptSuffixHead + droppedSuffixTail,
+          droppedPrefixHead +
+            keptPrefixTail +
+            keptSuffixHead +
+            droppedSuffixTail,
           caret,
         );
         vi.advanceTimersByTime(GHOST_TEXT_DEBOUNCE_MS);
@@ -1145,7 +1173,10 @@ describe("useGhostText", () => {
           change("abcdefghijklmno", 15);
         });
         await act(async () => {
-          pending.resolve({ requestId: inFlight.requestId, suggestion: "stale ghost" });
+          pending.resolve({
+            requestId: inFlight.requestId,
+            suggestion: "stale ghost",
+          });
         });
         await flushMicrotasks();
 
@@ -1173,7 +1204,10 @@ describe("useGhostText", () => {
         const inFlight = sentRequest();
         moveSurfaceSilently("abcdefghijkl", 3);
         await act(async () => {
-          pending.resolve({ requestId: inFlight.requestId, suggestion: " continues" });
+          pending.resolve({
+            requestId: inFlight.requestId,
+            suggestion: " continues",
+          });
         });
         await flushMicrotasks();
 
@@ -1215,7 +1249,11 @@ describe("useGhostText", () => {
           },
         );
 
-        for (const text of ["abcdefghijkl", "abcdefghijklm", "abcdefghijklmn"]) {
+        for (const text of [
+          "abcdefghijkl",
+          "abcdefghijklm",
+          "abcdefghijklmn",
+        ]) {
           await typeAndSettle(text);
         }
 
@@ -1240,7 +1278,10 @@ describe("useGhostText", () => {
           change(`${secret} continued`, secret.length + 10);
         });
         await act(async () => {
-          pending.resolve({ requestId: inFlight.requestId, suggestion: secret });
+          pending.resolve({
+            requestId: inFlight.requestId,
+            suggestion: secret,
+          });
         });
         await flushMicrotasks();
 

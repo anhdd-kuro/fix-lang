@@ -1,6 +1,9 @@
 // OpenAI usage preload functionality (Usage tab)
 import { ipcRenderer } from "electron";
-import { normalizeUsageRange, type UsageRange } from "~/features/usage/shared/usage";
+import {
+  normalizeUsageRange,
+  type UsageRange,
+} from "~/features/usage/shared/usage";
 import type { OpenAIUsage } from "~/main/llm/providers/openai/usage.client";
 
 /**

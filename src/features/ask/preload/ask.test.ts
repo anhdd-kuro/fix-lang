@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { askFeature } from "./ask";
+import type { ipcRenderer } from "electron";
 
 const electronMocks = vi.hoisted(() => ({
   invoke: vi.fn(),
@@ -11,6 +12,13 @@ const electronMocks = vi.hoisted(() => ({
 vi.mock("electron", () => ({
   ipcRenderer: electronMocks,
 }));
+
+/**
+ * Electron types every IPC payload as `any`, and these tests send deliberately
+ * malformed ones, so Electron's own wire type is the honest one for them.
+ */
+type IpcWireValue = Parameters<Parameters<typeof ipcRenderer.on>[1]>[1];
+type Listener = (event: undefined, payload: IpcWireValue) => void;
 
 describe("ask preload boundary", () => {
   beforeEach(() => {
@@ -26,10 +34,7 @@ describe("ask preload boundary", () => {
         "ask-input-data",
         expect.any(Function),
       );
-      const listener = electronMocks.on.mock.calls[0][1] as (
-        event: unknown,
-        payload: unknown,
-      ) => void;
+      const listener = electronMocks.on.mock.calls[0][1] as Listener;
 
       listener(undefined, { presetId: "ask", context: "selected text" });
       expect(callback).toHaveBeenCalledWith({
@@ -49,10 +54,7 @@ describe("ask preload boundary", () => {
     ])("drops a malformed ask-input-data payload: %j", (payload) => {
       const callback = vi.fn();
       askFeature.onAskInputData(callback);
-      const listener = electronMocks.on.mock.calls[0][1] as (
-        event: unknown,
-        payload: unknown,
-      ) => void;
+      const listener = electronMocks.on.mock.calls[0][1] as Listener;
 
       listener(undefined, payload);
       expect(callback).not.toHaveBeenCalled();
@@ -67,10 +69,7 @@ describe("ask preload boundary", () => {
     it("passes the system prompt and the appended directives through verbatim", () => {
       const callback = vi.fn();
       askFeature.onAskInputData(callback);
-      const listener = electronMocks.on.mock.calls[0][1] as (
-        event: unknown,
-        payload: unknown,
-      ) => void;
+      const listener = electronMocks.on.mock.calls[0][1] as Listener;
 
       const payload = {
         presetId: "ask",
@@ -85,8 +84,14 @@ describe("ask preload boundary", () => {
 
     it.each([
       ["systemPrompt", { presetId: "ask", context: "", systemPrompt: 42 }],
-      ["systemPrompt as an object", { presetId: "ask", context: "", systemPrompt: {} }],
-      ["contextDirectives", { presetId: "ask", context: "", contextDirectives: null }],
+      [
+        "systemPrompt as an object",
+        { presetId: "ask", context: "", systemPrompt: {} },
+      ],
+      [
+        "contextDirectives",
+        { presetId: "ask", context: "", contextDirectives: null },
+      ],
       [
         "contextDirectives as an array",
         { presetId: "ask", context: "", contextDirectives: ["App locale: en"] },
@@ -94,10 +99,7 @@ describe("ask preload boundary", () => {
     ])("rejects a non-string %s", (_description, payload) => {
       const callback = vi.fn();
       askFeature.onAskInputData(callback);
-      const listener = electronMocks.on.mock.calls[0][1] as (
-        event: unknown,
-        payload: unknown,
-      ) => void;
+      const listener = electronMocks.on.mock.calls[0][1] as Listener;
 
       listener(undefined, payload);
 
@@ -148,7 +150,7 @@ describe("ask preload boundary", () => {
         expect.any(Function),
       );
       const listener = electronMocks.on.mock.calls[0][1] as (
-        event: unknown,
+        event: undefined,
       ) => void;
 
       listener(undefined);
@@ -177,10 +179,7 @@ describe("ask preload boundary", () => {
         "ask-result-data",
         expect.any(Function),
       );
-      const listener = electronMocks.on.mock.calls[0][1] as (
-        event: unknown,
-        payload: unknown,
-      ) => void;
+      const listener = electronMocks.on.mock.calls[0][1] as Listener;
 
       listener(undefined, {
         question: "What does this mean?",
@@ -197,10 +196,7 @@ describe("ask preload boundary", () => {
     it("passes through the optional presetName when it is a string", () => {
       const callback = vi.fn();
       askFeature.onAskResultData(callback);
-      const listener = electronMocks.on.mock.calls[0][1] as (
-        event: unknown,
-        payload: unknown,
-      ) => void;
+      const listener = electronMocks.on.mock.calls[0][1] as Listener;
 
       listener(undefined, {
         presetName: "Ask AI",
@@ -219,10 +215,7 @@ describe("ask preload boundary", () => {
     it("passes through the optional input when it is a string", () => {
       const callback = vi.fn();
       askFeature.onAskResultData(callback);
-      const listener = electronMocks.on.mock.calls[0][1] as (
-        event: unknown,
-        payload: unknown,
-      ) => void;
+      const listener = electronMocks.on.mock.calls[0][1] as Listener;
 
       listener(undefined, {
         question: "q",
@@ -241,10 +234,7 @@ describe("ask preload boundary", () => {
     it("accepts a payload that omits input entirely", () => {
       const callback = vi.fn();
       askFeature.onAskResultData(callback);
-      const listener = electronMocks.on.mock.calls[0][1] as (
-        event: unknown,
-        payload: unknown,
-      ) => void;
+      const listener = electronMocks.on.mock.calls[0][1] as Listener;
 
       listener(undefined, { question: "q", answer: "a", markdown: false });
       expect(callback).toHaveBeenCalledTimes(1);
@@ -263,10 +253,7 @@ describe("ask preload boundary", () => {
     ])("drops a malformed ask-result-data payload: %j", (payload) => {
       const callback = vi.fn();
       askFeature.onAskResultData(callback);
-      const listener = electronMocks.on.mock.calls[0][1] as (
-        event: unknown,
-        payload: unknown,
-      ) => void;
+      const listener = electronMocks.on.mock.calls[0][1] as Listener;
 
       listener(undefined, payload);
       expect(callback).not.toHaveBeenCalled();

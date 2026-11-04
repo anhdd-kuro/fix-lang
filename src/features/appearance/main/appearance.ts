@@ -4,10 +4,10 @@
  */
 import { BrowserWindow, ipcMain } from "electron";
 import {
-  isFontFamilyId,
-  isFontSizeId,
-  isValidCustomFontFamily,
-  isValidCustomFontSize,
+  CustomFontFamilySchema,
+  CustomFontSizeSchema,
+  FontFamilyIdSchema,
+  FontSizeIdSchema,
   type AppearanceTypography,
 } from "~/features/appearance/shared/typography";
 import { appearanceStore } from "~/features/appearance/store/appearanceStore";
@@ -51,75 +51,75 @@ export const registerAppearanceHandlers = (): void => {
     appearanceStore.getTypography(),
   );
 
-  ipcMain.handle("set-appearance-font-size", async (_event, raw: unknown) => {
-    if (!isFontSizeId(raw)) {
+  ipcMain.handle("set-appearance-font-size", async (_event, raw) => {
+    const fontSize = FontSizeIdSchema.safeParse(raw);
+    if (!fontSize.success) {
       return {
         success: false,
         error: "Invalid font size",
       };
     }
 
-    const typography = appearanceStore.setFontSize(raw);
+    const typography = appearanceStore.setFontSize(fontSize.data);
     broadcastAppearanceTypography(typography);
     return { success: true, typography };
   });
 
-  ipcMain.handle("set-appearance-font-family", async (_event, raw: unknown) => {
-    if (!isFontFamilyId(raw)) {
+  ipcMain.handle("set-appearance-font-family", async (_event, raw) => {
+    const fontFamily = FontFamilyIdSchema.safeParse(raw);
+    if (!fontFamily.success) {
       return {
         success: false,
         error: "Invalid font family",
       };
     }
 
-    const typography = appearanceStore.setFontFamily(raw);
+    const typography = appearanceStore.setFontFamily(fontFamily.data);
     broadcastAppearanceTypography(typography);
     return { success: true, typography };
   });
 
-  ipcMain.handle(
-    "set-appearance-custom-font-size",
-    async (_event, raw: unknown) => {
-      if (!isValidCustomFontSize(raw)) {
-        return {
-          success: false,
-          error: "Invalid custom font size",
-        };
-      }
+  ipcMain.handle("set-appearance-custom-font-size", async (_event, raw) => {
+    const customFontSize = CustomFontSizeSchema.safeParse(raw);
+    if (!customFontSize.success) {
+      return {
+        success: false,
+        error: "Invalid custom font size",
+      };
+    }
 
-      const typography = appearanceStore.setCustomFontSize(raw);
-      if (typography === null) {
-        return {
-          success: false,
-          error: "Invalid custom font size",
-        };
-      }
+    const typography = appearanceStore.setCustomFontSize(customFontSize.data);
+    if (typography === null) {
+      return {
+        success: false,
+        error: "Invalid custom font size",
+      };
+    }
 
-      broadcastAppearanceTypography(typography);
-      return { success: true, typography };
-    },
-  );
+    broadcastAppearanceTypography(typography);
+    return { success: true, typography };
+  });
 
-  ipcMain.handle(
-    "set-appearance-custom-font-family",
-    async (_event, raw: unknown) => {
-      if (!isValidCustomFontFamily(raw)) {
-        return {
-          success: false,
-          error: "Invalid custom font family",
-        };
-      }
+  ipcMain.handle("set-appearance-custom-font-family", async (_event, raw) => {
+    const customFontFamily = CustomFontFamilySchema.safeParse(raw);
+    if (!customFontFamily.success) {
+      return {
+        success: false,
+        error: "Invalid custom font family",
+      };
+    }
 
-      const typography = appearanceStore.setCustomFontFamily(raw);
-      if (typography === null) {
-        return {
-          success: false,
-          error: "Invalid custom font family",
-        };
-      }
+    const typography = appearanceStore.setCustomFontFamily(
+      customFontFamily.data,
+    );
+    if (typography === null) {
+      return {
+        success: false,
+        error: "Invalid custom font family",
+      };
+    }
 
-      broadcastAppearanceTypography(typography);
-      return { success: true, typography };
-    },
-  );
+    broadcastAppearanceTypography(typography);
+    return { success: true, typography };
+  });
 };

@@ -21,7 +21,9 @@ export const StatCard = ({ label, value, hint }: StatCardProps) => {
       <div className="mt-1 text-xl font-semibold text-foreground tabular-nums">
         {value}
       </div>
-      {hint && <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>}
+      {hint && (
+        <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>
+      )}
     </div>
   );
 };

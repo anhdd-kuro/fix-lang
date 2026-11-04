@@ -19,7 +19,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { GhostTextOverlay } from "./GhostTextOverlay";
 
-const source = readFileSync(join(import.meta.dirname, "GhostTextOverlay.tsx"), "utf-8");
+const source = readFileSync(
+  join(import.meta.dirname, "GhostTextOverlay.tsx"),
+  "utf-8",
+);
 
 // Comments are stripped before matching — this file's own header explains the
 // trap by naming both symbols, so a raw substring search would be satisfied
@@ -59,9 +62,7 @@ describe("GhostTextOverlay", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(
-        createElement(GhostTextOverlay, { scrollTop: 0, ...props }),
-      );
+      root.render(createElement(GhostTextOverlay, { scrollTop: 0, ...props }));
     });
   };
 
@@ -100,7 +101,8 @@ describe("GhostTextOverlay", () => {
   it("renders a suggestion containing markdown-like syntax completely literally", async () => {
     await render({
       typed: "click ",
-      suggestion: "[here](javascript:alert(1)) and ![x](https://evil.example/x.png)",
+      suggestion:
+        "[here](javascript:alert(1)) and ![x](https://evil.example/x.png)",
     });
 
     expect(container.textContent).toBe(
@@ -113,7 +115,11 @@ describe("GhostTextOverlay", () => {
   // 02/f1. Without this the mirror clips at offset zero while "Tab to accept"
   // still shows, so Tab inserts model output the user never saw.
   it("offsets the mirror by the textarea's scrollTop so a scrolled ghost stays in view", async () => {
-    await render({ typed: "line ".repeat(80), suggestion: "tail", scrollTop: 96 });
+    await render({
+      typed: "line ".repeat(80),
+      suggestion: "tail",
+      scrollTop: 96,
+    });
 
     expect(mirror()?.style.transform).toBe("translateY(-96px)");
   });

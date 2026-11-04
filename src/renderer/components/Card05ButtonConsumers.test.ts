@@ -216,7 +216,8 @@ const consumers = [
       variant: '"ghost"',
       "aria-label": '{t("models.select.refetch")}',
       title: '{t("models.select.refetch")}',
-      className: '{twJoin("rounded leading-none", compact ? "px-2.5 py-2 text-lg" : "px-2.5 py-1.5 text-base",)}',
+      className:
+        '{twJoin("rounded leading-none", compact ? "px-2.5 py-2 text-lg" : "px-2.5 py-1.5 text-base",)}',
       onClick: "{() => fetchModels(true)}",
       disabled: "{modelsLoading}",
     },

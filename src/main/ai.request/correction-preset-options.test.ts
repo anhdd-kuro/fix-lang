@@ -30,7 +30,7 @@ vi.mock("electron", () => ({
 vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
   // We want the real normalizeCorrectionSettings for the normalize tests,
   // but mock getProfileSetting so fixGrammar tests work independently.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
+  // oxlint-disable-next-line typescript/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return {
     ...real,
@@ -66,13 +66,18 @@ import {
 import { effectiveModelRef, fixGrammar } from "./correction";
 import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
-import type { CorrectionPreset, CorrectionSettings } from "~/features/providers/store/apiStore";
+import type {
+  CorrectionPreset,
+  CorrectionSettings,
+} from "~/features/providers/store/apiStore";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const makePreset = (overrides: Partial<CorrectionPreset> = {}): CorrectionPreset => ({
+const makePreset = (
+  overrides: Partial<CorrectionPreset> = {},
+): CorrectionPreset => ({
   id: "test-preset-1",
   name: "Test Preset",
   hotkey: "Control+Shift+T",
@@ -127,7 +132,6 @@ describe("fixGrammar — per-preset reasoning", () => {
   });
 });
 
-
 describe("fixGrammar — prompt-optimization user prompt", () => {
   const PROMPT_OPTIMIZATION_REF = "openrouter::google/gemma-2-9b-it";
 
@@ -166,7 +170,9 @@ describe("fixGrammar — empty input early return", () => {
   });
 
   const withPresetModel = (model: string) => {
-    (getProfileSetting as Mock).mockReturnValue(makeSettings(makePreset({ model })));
+    (getProfileSetting as Mock).mockReturnValue(
+      makeSettings(makePreset({ model })),
+    );
   };
 
   it("reports the provider named by the preset's model ref", async () => {
@@ -266,21 +272,20 @@ describe("fixGrammar — Caveman intensity composed into the system prompt", () 
   // the way the implementation computes it would move in lockstep with a
   // mutated fragment and never catch the regression. The three literals below
   // are the ones `src/prompts/correction.ts` exports for each level.
-  const DIRECTIVE_BY_MODE: Record<string, string> = {
+  const DIRECTIVE_BY_MODE = {
     lite: DEFAULT_CAVEMAN_LITE_DIRECTIVE,
     full: DEFAULT_CAVEMAN_FULL_DIRECTIVE,
     ultra: DEFAULT_CAVEMAN_ULTRA_DIRECTIVE,
   };
 
   const setupCaveman = (extraOptions?: Record<string, string>) => {
-    setupMockSettings(
-      makePreset({
-        id: DEFAULT_CAVEMAN_PRESET_ID,
-        name: "Caveman",
-        systemPrompt: CAVEMAN_BASE_PROMPT,
-        ...(extraOptions ? { extraOptions } : {}),
-      }),
-    );
+    const overrides: Partial<CorrectionPreset> = {
+      id: DEFAULT_CAVEMAN_PRESET_ID,
+      name: "Caveman",
+      systemPrompt: CAVEMAN_BASE_PROMPT,
+    };
+    if (extraOptions) overrides.extraOptions = extraOptions;
+    setupMockSettings(makePreset(overrides));
   };
 
   const systemPromptOfLastCall = (): string =>
@@ -290,7 +295,7 @@ describe("fixGrammar — Caveman intensity composed into the system prompt", () 
     vi.clearAllMocks();
   });
 
-  it.each(["lite", "full", "ultra"])(
+  it.each(["lite", "full", "ultra"] as const)(
     "appends the %s directive, and only that one",
     async (mode) => {
       setupCaveman({ cavemanMode: mode });
@@ -388,7 +393,9 @@ describe("effectiveModelRef", () => {
   });
 
   it("returns the preset's own (trimmed) model ref when it has one", () => {
-    (getDefaultModelId as Mock).mockReturnValue("openrouter::should-not-be-used");
+    (getDefaultModelId as Mock).mockReturnValue(
+      "openrouter::should-not-be-used",
+    );
 
     expect(effectiveModelRef(makePreset({ model: "  openai::gpt-4o  " }))).toBe(
       "openai::gpt-4o",
@@ -399,13 +406,17 @@ describe("effectiveModelRef", () => {
   it("inherits the global default when the preset's model is empty", () => {
     (getDefaultModelId as Mock).mockReturnValue("ollama::llama3.2:3b");
 
-    expect(effectiveModelRef(makePreset({ model: "" }))).toBe("ollama::llama3.2:3b");
+    expect(effectiveModelRef(makePreset({ model: "" }))).toBe(
+      "ollama::llama3.2:3b",
+    );
   });
 
   it("inherits the global default when the preset's model is whitespace-only", () => {
     (getDefaultModelId as Mock).mockReturnValue("openai::gpt-4o");
 
-    expect(effectiveModelRef(makePreset({ model: "   " }))).toBe("openai::gpt-4o");
+    expect(effectiveModelRef(makePreset({ model: "   " }))).toBe(
+      "openai::gpt-4o",
+    );
   });
 
   it("propagates the inherit sentinel when the global default is also unset", () => {
@@ -477,4 +488,3 @@ describe("normalizeCorrectionSettings — reasoning field", () => {
     expect(preset?.reasoning).toBeUndefined();
   });
 });
-

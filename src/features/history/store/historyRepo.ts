@@ -102,14 +102,14 @@ export type HistoryRepo = {
    */
   getRecentByFeature: (
     featureId: HistoryFeatureId,
-    limit: number
+    limit: number,
   ) => RecentHistorySummary[];
   insert: (featureId: HistoryFeatureId, entry: HistoryEntry) => void;
   remove: (featureId: HistoryFeatureId, entry: HistoryEntry) => void;
   clear: (featureId: HistoryFeatureId) => void;
   overrideFeature: (
     featureId: HistoryFeatureId,
-    entries: HistoryEntry[]
+    entries: HistoryEntry[],
   ) => void;
   getByRange: (range: HistoryRangeQuery) => HistoryEntry[];
   /**
@@ -120,7 +120,7 @@ export type HistoryRepo = {
   migrateLegacyBuckets: (
     corrections: HistoryEntry[],
     promptGen: HistoryEntry[],
-    legacy: LegacyHistoryBuckets
+    legacy: LegacyHistoryBuckets,
   ) => boolean;
 };
 
@@ -167,7 +167,10 @@ export const rowToEntry = (row: HistoryRow): HistoryEntry => {
     entry.priceCompletion = row.price_completion;
   }
   if (row.cost_status !== null) {
-    // Stored as TEXT; the writer only ever persists the union values.
+    // SAFETY: not validated at runtime. `entryToParams` writes typed entries'
+    // union value or NULL (handled above); legacy-bucket entries are imported
+    // unvalidated, so an out-of-union string from old JSON passes through
+    // unchanged, as it did before.
     entry.costStatus = row.cost_status as HistoryEntry["costStatus"];
   }
   if (row.session_json !== null) {
@@ -190,7 +193,7 @@ export const rowToEntry = (row: HistoryRow): HistoryEntry => {
  * the caller skip legacy rows by asking whether the name is there.
  */
 export const rowToRecentSummary = (
-  row: RecentHistoryRow
+  row: RecentHistoryRow,
 ): RecentHistorySummary =>
   row.preset_name === null
     ? { timestamp: row.timestamp }
@@ -202,7 +205,7 @@ export const rowToRecentSummary = (
  */
 export const entryToParams = (
   featureId: HistoryFeatureId,
-  entry: HistoryEntry
+  entry: HistoryEntry,
 ): HistoryInsertParams => ({
   feature_id: featureId,
   original: entry.original,
@@ -249,10 +252,12 @@ const COST_COLUMNS: readonly { name: string; ddl: string }[] = [
  * (→ N/A). Safe to run repeatedly and on `:memory:`.
  */
 const ensureCostColumns = (db: DatabaseSync): void => {
+  // SAFETY: `PRAGMA table_info` yields one row per column, each with a TEXT
+  // `name` — SQLite's documented result shape for this pragma.
   const existing = new Set(
     (db.prepare("PRAGMA table_info(history)").all() as { name: string }[]).map(
-      (c) => c.name
-    )
+      (c) => c.name,
+    ),
   );
   for (const column of COST_COLUMNS) {
     if (!existing.has(column.name)) {
@@ -262,7 +267,7 @@ const ensureCostColumns = (db: DatabaseSync): void => {
   // Record the schema version (informational; the column guard is authoritative).
   db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(
     "schema_version",
-    "2"
+    "2",
   );
 };
 
@@ -280,10 +285,12 @@ const COMBO_COLUMNS: readonly { name: string; ddl: string }[] = [
 ];
 
 const ensureComboColumns = (db: DatabaseSync): void => {
+  // SAFETY: `PRAGMA table_info` yields one row per column, each with a TEXT
+  // `name` — SQLite's documented result shape for this pragma.
   const existing = new Set(
     (db.prepare("PRAGMA table_info(history)").all() as { name: string }[]).map(
-      (c) => c.name
-    )
+      (c) => c.name,
+    ),
   );
   for (const column of COMBO_COLUMNS) {
     if (!existing.has(column.name)) {
@@ -293,7 +300,7 @@ const ensureComboColumns = (db: DatabaseSync): void => {
   // Record the schema version (informational; the column guard is authoritative).
   db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(
     "schema_version",
-    "3"
+    "3",
   );
 };
 
@@ -344,17 +351,23 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
     `INSERT INTO history
        (feature_id, original, corrected, timestamp, prompt_tokens, completion_tokens, model, provider, resolved_model, preset_name, estimated_cost_usd, price_prompt, price_completion, cost_status, session_json, combo_run_id, combo_step_index)
      VALUES
-       (:feature_id, :original, :corrected, :timestamp, :prompt_tokens, :completion_tokens, :model, :provider, :resolved_model, :preset_name, :estimated_cost_usd, :price_prompt, :price_completion, :cost_status, :session_json, :combo_run_id, :combo_step_index)`
+       (:feature_id, :original, :corrected, :timestamp, :prompt_tokens, :completion_tokens, :model, :provider, :resolved_model, :preset_name, :estimated_cost_usd, :price_prompt, :price_completion, :cost_status, :session_json, :combo_run_id, :combo_step_index)`,
   );
 
-  const insertEntry = (featureId: HistoryFeatureId, entry: HistoryEntry): void => {
+  const insertEntry = (
+    featureId: HistoryFeatureId,
+    entry: HistoryEntry,
+  ): void => {
     insertStmt.run(entryToParams(featureId, entry));
   };
 
   const getByFeature = (featureId: HistoryFeatureId): HistoryEntry[] => {
+    // SAFETY: `SELECT *` on `history`, whose columns are `HistoryRow`'s plus
+    // the unread `id` — created and back-filled by `ensureSchema`, which
+    // `createHistoryRepo` runs before any read.
     const rows = db
       .prepare(
-        "SELECT * FROM history WHERE feature_id = ? ORDER BY timestamp DESC"
+        "SELECT * FROM history WHERE feature_id = ? ORDER BY timestamp DESC",
       )
       .all(featureId) as HistoryRow[];
     return rows.map(rowToEntry);
@@ -379,16 +392,19 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
    */
   const getRecentByFeature = (
     featureId: HistoryFeatureId,
-    limit: number
+    limit: number,
   ): RecentHistorySummary[] => {
     // `Math.trunc(NaN)` is `NaN`, and `Math.max(0, NaN)` is NaN too — which
     // SQLite binds as NULL, and `LIMIT NULL` means NO LIMIT: the unbounded read
     // this function exists to avoid, reached by passing a value that was never
     // a number.
-    const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.trunc(limit)) : 0;
+    const safeLimit = Number.isFinite(limit)
+      ? Math.max(0, Math.trunc(limit))
+      : 0;
+    // SAFETY: the SELECT names exactly `RecentHistoryRow`'s two columns.
     const rows = db
       .prepare(
-        "SELECT preset_name, timestamp FROM history WHERE feature_id = ? ORDER BY timestamp DESC LIMIT ?"
+        "SELECT preset_name, timestamp FROM history WHERE feature_id = ? ORDER BY timestamp DESC LIMIT ?",
       )
       .all(featureId, safeLimit) as RecentHistoryRow[];
     return rows.map(rowToRecentSummary);
@@ -401,7 +417,7 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
   const remove = (featureId: HistoryFeatureId, entry: HistoryEntry): void => {
     // Match removeHistoryEntry semantics: delete by timestamp within the feature.
     db.prepare(
-      "DELETE FROM history WHERE feature_id = ? AND timestamp = ?"
+      "DELETE FROM history WHERE feature_id = ? AND timestamp = ?",
     ).run(featureId, entry.timestamp);
   };
 
@@ -411,7 +427,7 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
 
   const overrideFeature = (
     featureId: HistoryFeatureId,
-    entries: HistoryEntry[]
+    entries: HistoryEntry[],
   ): void => {
     db.exec("BEGIN");
     try {
@@ -443,6 +459,7 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
       params.push(range.to);
     }
     const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    // SAFETY: `SELECT *` on `history` — same invariant as `getByFeature`.
     const rows = db
       .prepare(`SELECT * FROM history ${where} ORDER BY timestamp DESC`)
       .all(...params) as HistoryRow[];
@@ -450,6 +467,8 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
   };
 
   const isMigrated = (): boolean => {
+    // SAFETY: `meta.value` is TEXT (nullable), and the only use below is
+    // `=== "1"`, which a NULL fails exactly as an absent row does.
     const row = db
       .prepare("SELECT value FROM meta WHERE key = ?")
       .get(MIGRATION_META_KEY) as { value: string } | undefined;
@@ -459,7 +478,7 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
   const migrateLegacyBuckets = (
     corrections: HistoryEntry[],
     promptGen: HistoryEntry[],
-    legacy: LegacyHistoryBuckets
+    legacy: LegacyHistoryBuckets,
   ): boolean => {
     if (isMigrated()) {
       return false;
@@ -478,7 +497,7 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
       }
       db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(
         MIGRATION_META_KEY,
-        "1"
+        "1",
       );
       db.exec("COMMIT");
     } catch (error) {

@@ -1,0 +1,1340 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`getProfileSetting — stored-shape edge cases > bedrock entry carrying a host field on an array 1`] = `
+{
+  "bedrock": {
+    "host": "us-west-2",
+    "port": 0,
+  },
+  "ollama": {
+    "host": "localhost",
+    "port": 1,
+  },
+}
+`;
+
+exports[`getProfileSetting — stored-shape edge cases > legacy standalone-Translate settings 1`] = `
+[
+  [
+    "absent",
+    "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+  ],
+  [
+    "null",
+    "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+  ],
+  [
+    "string",
+    "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+  ],
+  [
+    "array",
+    "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+  ],
+  [
+    "empty object",
+    "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+  ],
+  [
+    "all fields valid",
+    "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (846)","model":"m","isBuiltIn":true}",
+  ],
+  [
+    "all fields wrong type",
+    "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+  ],
+  [
+    "explanation only",
+    "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+  ],
+]
+`;
+
+exports[`getProfileSetting — stored-shape edge cases > providerEndpoints 1`] = `
+[
+  [
+    "absent",
+    {
+      "endpoints": {},
+      "keys": [],
+    },
+  ],
+  [
+    "null",
+    {
+      "endpoints": {},
+      "keys": [],
+    },
+  ],
+  [
+    "string",
+    {
+      "endpoints": {},
+      "keys": [],
+    },
+  ],
+  [
+    "number",
+    {
+      "endpoints": {},
+      "keys": [],
+    },
+  ],
+  [
+    "array",
+    {
+      "endpoints": {},
+      "keys": [],
+    },
+  ],
+  [
+    "empty",
+    {
+      "endpoints": {},
+      "keys": [],
+    },
+  ],
+  [
+    "local endpoints in stored order",
+    {
+      "endpoints": {
+        "lmstudio": {
+          "host": "127.0.0.1",
+          "port": 1234,
+        },
+        "ollama": {
+          "host": "localhost",
+          "port": 11435,
+        },
+      },
+      "keys": [
+        "ollama",
+        "lmstudio",
+      ],
+    },
+  ],
+  [
+    "invalid local endpoints",
+    {
+      "endpoints": {},
+      "keys": [],
+    },
+  ],
+  [
+    "bedrock shapes",
+    {
+      "endpoints": {
+        "bedrock": {
+          "host": "us-west-2",
+          "port": 0,
+        },
+      },
+      "keys": [
+        "bedrock",
+      ],
+    },
+  ],
+  [
+    "bedrock object",
+    {
+      "endpoints": {
+        "bedrock": {
+          "host": "eu-central-1",
+          "port": 0,
+        },
+      },
+      "keys": [
+        "bedrock",
+      ],
+    },
+  ],
+  [
+    "bedrock invalid host",
+    {
+      "endpoints": {},
+      "keys": [],
+    },
+  ],
+  [
+    "bedrock non-string host",
+    {
+      "endpoints": {},
+      "keys": [],
+    },
+  ],
+  [
+    "bedrock array",
+    {
+      "endpoints": {},
+      "keys": [],
+    },
+  ],
+  [
+    "bedrock null",
+    {
+      "endpoints": {},
+      "keys": [],
+    },
+  ],
+  [
+    "cloud providers and unknown keys are dropped",
+    {
+      "endpoints": {},
+      "keys": [],
+    },
+  ],
+]
+`;
+
+exports[`normalizeCorrectionSettings — stored-shape edge cases > combos 1`] = `
+[
+  [
+    "not an array",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "garbage entries",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "valid combo with optional fields",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+        "{"keys":["id","name","hotkey","steps","outputMode","markdownOutput","schemaVersion"],"id":"c1","name":"Chain","hotkey":"Control+Shift+8","steps":[{"keys":["id","presetId"],"id":"s1","presetId":"correction"},{"keys":["id","presetId","inlineInput"],"id":"step-2","presetId":"ask","inlineInput":"  why?  "}],"outputMode":"popup","markdownOutput":true,"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "garbage optional fields",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"c2","name":"C2","hotkey":"","steps":[{"keys":["id","presetId"],"id":"step-1","presetId":"correction"}],"schemaVersion":1}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "schema versions",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"v0","name":"V0","hotkey":"","steps":[{"keys":["id","presetId"],"id":"step-1","presetId":"correction"}],"schemaVersion":1}",
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"v1","name":"V1","hotkey":"","steps":[{"keys":["id","presetId"],"id":"step-1","presetId":"correction"}],"schemaVersion":2}",
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"v2","name":"V2","hotkey":"","steps":[{"keys":["id","presetId"],"id":"step-1","presetId":"correction"}],"schemaVersion":1}",
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"v3","name":"V3","hotkey":"","steps":[{"keys":["id","presetId"],"id":"step-1","presetId":"correction"}],"schemaVersion":2}",
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"v4","name":"V4","hotkey":"","steps":[{"keys":["id","presetId"],"id":"step-1","presetId":"correction"}],"schemaVersion":1}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "colliding step ids",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"c3","name":"C3","hotkey":"","steps":[{"keys":["id","presetId"],"id":"step-2","presetId":"a"},{"keys":["id","presetId"],"id":"step-2-2","presetId":"b"},{"keys":["id","presetId"],"id":"step-2-3","presetId":"c"},{"keys":["id","presetId"],"id":"step-2-2-2","presetId":"d"}],"schemaVersion":1}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "one bad step drops the combo",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "invalid combo identity",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"z","name":"Z","hotkey":"","steps":[],"schemaVersion":1}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "array combo carrying fields",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"arr","name":"Arr","hotkey":"","steps":[{"keys":["id","presetId"],"id":"step-1","presetId":"a"}],"schemaVersion":1}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "array step carrying presetId",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"arrstep","name":"Arr step","hotkey":"","steps":[{"keys":["id","presetId"],"id":"step-1","presetId":"a"}],"schemaVersion":1}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+]
+`;
+
+exports[`normalizeCorrectionSettings — stored-shape edge cases > legacy (pre-preset) fields 1`] = `
+[
+  [
+    "all legacy strings",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"custom\\n\\nparaphrase… (18)","model":"legacy-model","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "blank legacy strings",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "non-string legacy model",
+    {
+      "threw": "TypeError",
+    },
+  ],
+  [
+    "non-string legacy userInput",
+    {
+      "threw": "TypeError",
+    },
+  ],
+  [
+    "falsy non-string legacy model",
+    {
+      "threw": "TypeError",
+    },
+  ],
+]
+`;
+
+exports[`normalizeCorrectionSettings — stored-shape edge cases > preset entries 1`] = `
+[
+  [
+    "null entry",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "number entry",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "string entry",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "array entry",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"preset-1","name":"Preset 1","hotkey":"","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":false}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "function entry",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "empty object entry",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"preset-1","name":"Preset 1","hotkey":"","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":false}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "boxed string entry",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"preset-1","name":"Preset 1","hotkey":"","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":false}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "custom with every optional field valid",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"custom-1","name":"Custom","hotkey":"Control+Shift+9","systemPrompt":"Be terse.… (9)","model":"openai::gpt-4o","isBuiltIn":false,"reasoning":"high","requiresInput":true,"outputMode":"paste","markdownOutput":false}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "custom with every optional field garbage",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"custom-2","name":"Preset 1","hotkey":"","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "built-in Ask with stored overrides",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"requiresInput":true,"outputMode":"inherit","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "built-in prompt optimization without reasoning",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"PO","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+]
+`;
+
+exports[`normalizeCorrectionSettings — stored-shape edge cases > preset ids, duplicates and wrong-typed strings 1`] = `
+[
+  [
+    "duplicate ids",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"x","name":"Preset 1","hotkey":"","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":false}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "numeric id",
+    {
+      "threw": "TypeError",
+    },
+  ],
+  [
+    "numeric name",
+    {
+      "threw": "TypeError",
+    },
+  ],
+  [
+    "falsy numeric name",
+    {
+      "threw": "TypeError",
+    },
+  ],
+  [
+    "numeric model",
+    {
+      "threw": "TypeError",
+    },
+  ],
+  [
+    "numeric systemPrompt",
+    {
+      "threw": "TypeError",
+    },
+  ],
+  [
+    "stored translate preset",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "stolen default hotkey",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"mine","name":"Preset 1","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":false}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+]
+`;
+
+exports[`normalizeCorrectionSettings — stored-shape edge cases > selectedPresetId 1`] = `
+[
+  [
+    "valid",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "summarize",
+    },
+  ],
+  [
+    "unknown id",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "number",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "boxed",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "padded",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+]
+`;
+
+exports[`normalizeCorrectionSettings — stored-shape edge cases > whole-value shapes 1`] = `
+[
+  [
+    "undefined",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "null",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "0",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "empty string",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "string",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "true",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "function",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "boxed string",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "empty array",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "array carrying presets",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"from-array","name":"From array","hotkey":"","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":false}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "empty object",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "presets not an array",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+  [
+    "empty presets",
+    {
+      "combos": [
+        "{"keys":["id","name","hotkey","steps","schemaVersion"],"id":"perfect-prompt","name":"Perfect prompt","hotkey":"","steps":[{"keys":["id","presetId"],"id":"perfect-prompt-step-1","presetId":"correction"},{"keys":["id","presetId"],"id":"perfect-prompt-step-2","presetId":"prompt-optimization"},{"keys":["id","presetId"],"id":"perfect-prompt-step-3","presetId":"caveman"}],"schemaVersion":2}",
+      ],
+      "keys": [
+        "presets",
+        "selectedPresetId",
+        "combos",
+      ],
+      "presets": [
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"correction","name":"Correction","hotkey":"Control+Shift+F","systemPrompt":"You are an expert text e… (1489)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"summarize","name":"Summarize","hotkey":"Control+Shift+S","systemPrompt":"You are an expert summar… (1251)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"prompt-optimization","name":"Prompt optimization","hotkey":"Control+Shift+D","systemPrompt":"# Prompt Optimizer\\n\\nTurn… (7503)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"translate","name":"Translate","hotkey":"Control+Shift+T","systemPrompt":"You are a bilingual tran… (762)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning"],"id":"business-writing","name":"Business Writing","hotkey":"Control+Shift+B","systemPrompt":"You are an expert busine… (3211)","model":"","isBuiltIn":true,"reasoning":"low"}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn"],"id":"structured-text","name":"Context-Aware Structured Text","hotkey":"Control+Shift+R","systemPrompt":"You are an expert at reo… (4279)","model":"","isBuiltIn":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","reasoning","requiresInput","outputMode","markdownOutput"],"id":"ask","name":"Ask AI","hotkey":"Control+Shift+A","systemPrompt":"You are an expert assist… (2449)","model":"","isBuiltIn":true,"reasoning":"low","requiresInput":true,"outputMode":"popup","markdownOutput":true}",
+        "{"keys":["id","name","hotkey","systemPrompt","model","isBuiltIn","extraOptions"],"id":"caveman","name":"Caveman","hotkey":"Control+Shift+C","systemPrompt":"You are an expert at com… (2271)","model":"","isBuiltIn":true,"extraOptions":{"cavemanMode":"full"}}",
+      ],
+      "selectedPresetId": "correction",
+    },
+  ],
+]
+`;

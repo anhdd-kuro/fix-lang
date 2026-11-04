@@ -6,7 +6,11 @@
  * Pure and electron-free. The salt generator is injected the same way
  * `latencyTimer` injects `now`.
  */
-import { isFullyMaskable, scanForSecrets, type SecretScanOptions } from "./detectSecrets";
+import {
+  isFullyMaskable,
+  scanForSecrets,
+  type SecretScanOptions,
+} from "./detectSecrets";
 import {
   buildSecretPlaceholder,
   SECRET_PLACEHOLDER_MARKER,
@@ -80,9 +84,14 @@ const defaultSalt = (): string =>
  * collide with the user's own text and a stale placeholder from an earlier
  * request can never match this one).
  */
-export const maskSecrets = (text: string, options?: MaskSecretsOptions): SecretMasking => {
+export const maskSecrets = (
+  text: string,
+  options?: MaskSecretsOptions,
+): SecretMasking => {
   const salt = (options?.salt ?? defaultSalt)();
-  const scan = scanForSecrets(text, { highEntropyRule: options?.highEntropyRule });
+  const scan = scanForSecrets(text, {
+    highEntropyRule: options?.highEntropyRule,
+  });
 
   if (scan.matches.length === 0) {
     return {
@@ -104,7 +113,8 @@ export const maskSecrets = (text: string, options?: MaskSecretsOptions): SecretM
   for (const match of scan.matches) {
     const value = text.slice(match.start, match.end);
     const existing = placeholderByValue.get(value);
-    const placeholder = existing ?? buildSecretPlaceholder(salt, placeholderByValue.size + 1);
+    const placeholder =
+      existing ?? buildSecretPlaceholder(salt, placeholderByValue.size + 1);
     if (existing === undefined) {
       placeholderByValue.set(value, placeholder);
       replacements.set(placeholder, value);
@@ -153,7 +163,9 @@ export const redactSecretsIrreversibly = (
   text: string,
   options?: SecretScanOptions,
 ): string => {
-  const scan = scanForSecrets(text, { highEntropyRule: options?.highEntropyRule });
+  const scan = scanForSecrets(text, {
+    highEntropyRule: options?.highEntropyRule,
+  });
   if (scan.matches.length === 0) return text;
 
   const pieces: string[] = [];
@@ -238,7 +250,10 @@ const isInsideLinkToken = (text: string, index: number): boolean => {
  * forces the popup and nothing is pasted. Refusing costs the user a paste;
  * accepting costs them the credential.
  */
-export const restoreSecrets = (reply: string, masking: SecretMasking): SecretRestoreResult => {
+export const restoreSecrets = (
+  reply: string,
+  masking: SecretMasking,
+): SecretRestoreResult => {
   if (masking.replacements.size === 0) {
     return { ok: true, text: reply };
   }
@@ -266,14 +281,20 @@ export const restoreSecrets = (reply: string, masking: SecretMasking): SecretRes
   }
 
   const relocatedCount = placeholders.filter((placeholder) => {
-    const wasInLink = occurrenceIndexes(masking.maskedText, placeholder).some((index) =>
-      isInsideLinkToken(masking.maskedText, index),
+    const wasInLink = occurrenceIndexes(masking.maskedText, placeholder).some(
+      (index) => isInsideLinkToken(masking.maskedText, index),
     );
     if (wasInLink) return false;
-    return occurrenceIndexes(reply, placeholder).some((index) => isInsideLinkToken(reply, index));
+    return occurrenceIndexes(reply, placeholder).some((index) =>
+      isInsideLinkToken(reply, index),
+    );
   }).length;
   if (relocatedCount > 0) {
-    return { ok: false, reason: "placeholder-relocated", missingCount: relocatedCount };
+    return {
+      ok: false,
+      reason: "placeholder-relocated",
+      missingCount: relocatedCount,
+    };
   }
 
   const restored = [...masking.replacements.entries()].reduce(
@@ -281,7 +302,8 @@ export const restoreSecrets = (reply: string, masking: SecretMasking): SecretRes
     reply,
   );
 
-  const residueMarker = `${SECRET_PLACEHOLDER_MARKER}${masking.salt}`.toLowerCase();
+  const residueMarker =
+    `${SECRET_PLACEHOLDER_MARKER}${masking.salt}`.toLowerCase();
   if (restored.toLowerCase().includes(residueMarker)) {
     return { ok: false, reason: "placeholder-residue", missingCount: 0 };
   }

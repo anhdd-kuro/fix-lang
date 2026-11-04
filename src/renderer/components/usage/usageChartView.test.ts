@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createFormatters, __resetFormatCachesForTests } from "~/features/i18n/shared/format";
+import {
+  createFormatters,
+  __resetFormatCachesForTests,
+} from "~/features/i18n/shared/format";
 import {
   costDonutSlices,
   dailyCostSeries,
@@ -47,7 +50,10 @@ describe("dailyTickLabel", () => {
 
     const { formatDate } = createFormatters("en");
     const correct = dailyTickLabel(formatDate, "2026-01-01");
-    const buggy = formatDate(new Date("2026-01-01"), { month: "short", day: "numeric" });
+    const buggy = formatDate(new Date("2026-01-01"), {
+      month: "short",
+      day: "numeric",
+    });
 
     expect(correct).toBe("Jan 1");
     expect(buggy).toBe("Dec 31");
@@ -125,12 +131,16 @@ describe("cost donut", () => {
     // Nothing is lost: head + remainder still sums to the full spend.
     const total = many.reduce((sum, item) => sum + item.costUsd, 0);
     const shown =
-      slices.reduce((sum, item) => sum + item.costUsd, 0) + (remainder?.costUsd ?? 0);
+      slices.reduce((sum, item) => sum + item.costUsd, 0) +
+      (remainder?.costUsd ?? 0);
     expect(shown).toBe(total);
   });
 
   it("returns nothing to chart when every slice is zero", () => {
-    expect(costDonutSlices([slice("a", 0)])).toEqual({ slices: [], remainder: null });
+    expect(costDonutSlices([slice("a", 0)])).toEqual({
+      slices: [],
+      remainder: null,
+    });
   });
 
   it("computes share to one decimal, and 0 for an empty total", () => {

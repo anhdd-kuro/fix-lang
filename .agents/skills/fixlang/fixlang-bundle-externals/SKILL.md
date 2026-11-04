@@ -1,6 +1,6 @@
 ---
 name: fixlang-bundle-externals
-description: "Use when adding, upgrading, or importing a runtime dependency (dependencies or devDependencies used at runtime), when debugging a packaged app that dies at launch or a window that loses IPC while dev/test/lint were all green, or when touching `build.files`, `electron.vite.config.ts` output format, or `scripts/check-bundle-externals.ts` / `src/features/core/shared/bundleExternals.ts`. Examples: \"add a new npm package\", \"packaged app crashes but dev works fine\", \"MODULE_NOT_FOUND in production\", \"why is app.asar so small now\"."
+description: 'Use when adding, upgrading, or importing a runtime dependency (dependencies or devDependencies used at runtime), when debugging a packaged app that dies at launch or a window that loses IPC while dev/test/lint were all green, or when touching `build.files`, `electron.vite.config.ts` output format, or `scripts/check-bundle-externals.ts` / `src/features/core/shared/bundleExternals.ts`. Examples: "add a new npm package", "packaged app crashes but dev works fine", "MODULE_NOT_FOUND in production", "why is app.asar so small now".'
 ---
 
 # FixLang — Bundle Externals Playbook
@@ -88,15 +88,15 @@ Everything below used to be written as if the only way to be wrong was to
 **miss** a require (false negative → shipped `MODULE_NOT_FOUND`). There is a
 second axis, and it has its own traps:
 
-| axis | symptom | cost |
-|---|---|---|
-| false negative | scanner exits 0, packaged app throws `MODULE_NOT_FOUND` | ships broken |
-| false positive | scanner exits 1 on code that resolves nothing | blocks a legitimate release |
+| axis           | symptom                                                 | cost                        |
+| -------------- | ------------------------------------------------------- | --------------------------- |
+| false negative | scanner exits 0, packaged app throws `MODULE_NOT_FOUND` | ships broken                |
+| false positive | scanner exits 1 on code that resolves nothing           | blocks a legitimate release |
 
 A false positive is loud and attributed (it names file and line), so it is the
 cheaper of the two — but it still stops a release, and the temptation when one
 fires mid-release is to reach for `ALLOWLIST`, which is the wrong lever and
-also would not help (an allowlist entry only silences a *bare specifier*, never
+also would not help (an allowlist entry only silences a _bare specifier_, never
 a `non-literal-argument`).
 
 **The false positive that shipped:** every local binding used to be keyed by
@@ -147,7 +147,7 @@ Consequences to keep in mind when editing:
 - **Cost is a per-file `Program`.** Scanning the real 2.3 MB `out/main/index.cjs`
   went 176 ms → ~340 ms; the 8 000-deep alias chain went 11 ms → ~27 ms against
   a 2 000 ms bound. Resolution is memoised per identifier node because both
-  alias passes visit the same nodes. If you make the scanner resolve *every*
+  alias passes visit the same nodes. If you make the scanner resolve _every_
   identifier rather than just binding sites and call callees, that is ~800 ms
   per file — a CPU-bound scan hangs CI rather than failing it.
 - **`fileLabel` is not the program's file name.** It is a repo-relative path
@@ -170,13 +170,13 @@ Traps, all of which have bitten:
 - **`(0, f)(x)` is everywhere** — 925 occurrences in today's `out/main/index.cjs`.
   Any new callee inspection must go through `unwrapExpression`, or it will not
   see the comma-operator form that bundlers actually emit.
-- **Bundlers rename both ends** of `createRequire` — the factory *and* its
+- **Bundlers rename both ends** of `createRequire` — the factory _and_ its
   result. Both are resolved through order-independent alias graphs; matching
   either by literal identifier text reintroduces the hole.
 - **Prove the negatives too.** A matrix that only checks `exit=1` cases cannot
   see a false positive at all — which is why one shipped. Run the
   append-to-a-real-bundle recipe above in both directions: hostile forms that
-  must exit 1, *and* innocent forms that must exit 0 (builtin and
+  must exit 1, _and_ innocent forms that must exit 0 (builtin and
   `electron/*` specifiers, `path.resolve`, Rollup's zero-arg shims, and
   same-name-different-scope reuse). The unit suite alone has now missed this
   class twice.
@@ -189,13 +189,13 @@ Also open, and all in `forEachBinding` / `destructuredAs` rather than in scope
 resolution — verified identical before and after the scope-aware change, so
 these are gaps, not regressions:
 
-| shape | why it is missed |
-|---|---|
-| `function f(g = require)` | a parameter's default value is not a `VariableDeclaration` or a plain assignment |
-| `function f({ g = require } = {})` | same, via a binding-pattern default |
-| `var [g] = [require]` | `destructuredAs` handles `ObjectBindingPattern` only, not array patterns |
-| `var { a: { b: g } } = …` | nested patterns are not walked, only top-level elements |
-| `g ||= require` | `plainAssignment` matches `EqualsToken` only, not logical assignment |
+| shape                              | why it is missed                                                                 |
+| ---------------------------------- | -------------------------------------------------------------------------------- |
+| `function f(g = require)`          | a parameter's default value is not a `VariableDeclaration` or a plain assignment |
+| `function f({ g = require } = {})` | same, via a binding-pattern default                                              |
+| `var [g] = [require]`              | `destructuredAs` handles `ObjectBindingPattern` only, not array patterns         |
+| `var { a: { b: g } } = …`          | nested patterns are not walked, only top-level elements                          |
+| `g                                 |                                                                                  | = require` | `plainAssignment` matches `EqualsToken` only, not logical assignment |
 
 Each is a false negative, so each is worth closing if you are already in here.
 Note the shared shape: **the binding walk enumerates two syntactic forms, and

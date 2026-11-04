@@ -1,7 +1,7 @@
 /**
  * @file parsers.ts
  * @description PURE, defensive parsers for OpenRouter account-analytics
- * endpoints (#59). Each takes the ALREADY-parsed JSON (`unknown`) — fetch is
+ * endpoints (#59). Each takes the ALREADY-parsed JSON (`JsonValue`) — fetch is
  * done by the client, never here — and returns a typed view-model wrapped in a
  * `CardResult` so each card degrades independently. Parsers NEVER throw on
  * shape drift, missing fields, or garbage: malformed input yields
@@ -12,6 +12,11 @@
  * live account to lock the fixtures (see #59 plan HITL #1 — flagged for QA).
  */
 import { utcDayKey, type UsageDailyPoint } from "~/features/usage/shared/usage";
+import { isJsonObject, type JsonValue } from "~/main/jsonValue";
+import {
+  readUsageNumber as asNumber,
+  readUsageString as asString,
+} from "~/main/llm/providers/usageFieldReaders";
 
 /** Independent per-card result so one failing endpoint doesn't sink the tab. */
 export type CardResult<T> =
@@ -21,28 +26,9 @@ export type CardResult<T> =
 /** Low-balance threshold (USD). Single source of truth (#59 plan HITL #2). */
 export const LOW_BALANCE_THRESHOLD_USD = 5;
 
-// ---------------------------------------------------------------------------
-// Safe accessors — narrow `unknown` without throwing.
-// ---------------------------------------------------------------------------
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === "object" && v !== null && !Array.isArray(v);
-
-const asNumber = (v: unknown): number | null => {
-  if (typeof v === "number" && Number.isFinite(v)) {
-    return v;
-  }
-  if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v))) {
-    return Number(v);
-  }
-  return null;
-};
-
-const asString = (v: unknown): string | null =>
-  typeof v === "string" ? v : null;
-
 /** Unwrap an optional `{ data: ... }` envelope (OpenRouter wraps most payloads). */
-const unwrapData = (json: unknown): unknown =>
-  isRecord(json) && "data" in json ? json.data : json;
+const unwrapData = (json: JsonValue): JsonValue | undefined =>
+  isJsonObject(json) && "data" in json ? json.data : json;
 
 // ---------------------------------------------------------------------------
 // Credits
@@ -59,9 +45,9 @@ export type Credits = {
  * Parse `/api/v1/credits`. Tolerant of either `{ total_credits, total_usage }`
  * (available = credits − usage) or a direct `limit_remaining`/`credits` field.
  */
-export const parseCredits = (json: unknown): CardResult<Credits> => {
+export const parseCredits = (json: JsonValue): CardResult<Credits> => {
   const data = unwrapData(json);
-  if (!isRecord(data)) {
+  if (!isJsonObject(data)) {
     return { ok: false, reason: "parse_error" };
   }
 
@@ -109,9 +95,9 @@ export type KeyUsage = {
  * `limit` (daily/weekly/monthly windows come from `/activity`; this card shows
  * the lifetime usage + limit the `/key` endpoint provides — #59 plan HITL #3).
  */
-export const parseKeyUsage = (json: unknown): CardResult<KeyUsage> => {
+export const parseKeyUsage = (json: JsonValue): CardResult<KeyUsage> => {
   const data = unwrapData(json);
-  if (!isRecord(data)) {
+  if (!isJsonObject(data)) {
     return { ok: false, reason: "parse_error" };
   }
 
@@ -165,9 +151,9 @@ export type Activity = {
  * completed UTC days relative to `now`. `now` injected for deterministic tests.
  */
 export const parseActivity = (
-  json: unknown,
+  json: JsonValue,
   range: "7d" | "30d",
-  now: Date = new Date()
+  now: Date = new Date(),
 ): CardResult<Activity> => {
   const data = unwrapData(json);
   if (!Array.isArray(data)) {
@@ -183,7 +169,7 @@ export const parseActivity = (
   const byModel = new Map<string, ActivityModelRow>();
   const byDay = new Map<string, UsageDailyPoint>();
   for (const raw of data) {
-    if (!isRecord(raw)) {
+    if (!isJsonObject(raw)) {
       continue; // skip garbage rows, never throw
     }
     const rawDate = asString(raw.date);
@@ -201,30 +187,27 @@ export const parseActivity = (
     // A row kept for the model table but missing a date can't join the daily
     // series; it is counted once, in the aggregate it can actually belong to.
     if (rawDate !== null) {
-      const day =
-        byDay.get(rawDate) ??
-        {
-          date: rawDate,
-          requests: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          costUsd: 0,
-        };
+      const day = byDay.get(rawDate) ?? {
+        date: rawDate,
+        requests: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        costUsd: 0,
+      };
       day.requests += asNumber(raw.requests) ?? 0;
       day.inputTokens += asNumber(raw.prompt_tokens) ?? 0;
       day.outputTokens += asNumber(raw.completion_tokens) ?? 0;
-      day.costUsd = (day.costUsd ?? 0) + (asNumber(raw.usage) ?? asNumber(raw.cost) ?? 0);
+      day.costUsd =
+        (day.costUsd ?? 0) + (asNumber(raw.usage) ?? asNumber(raw.cost) ?? 0);
       byDay.set(rawDate, day);
     }
-    const acc =
-      byModel.get(model) ??
-      {
-        model,
-        requests: 0,
-        promptTokens: 0,
-        completionTokens: 0,
-        costUsd: 0,
-      };
+    const acc = byModel.get(model) ?? {
+      model,
+      requests: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      costUsd: 0,
+    };
     acc.requests += asNumber(raw.requests) ?? 0;
     acc.promptTokens += asNumber(raw.prompt_tokens) ?? 0;
     acc.completionTokens += asNumber(raw.completion_tokens) ?? 0;
@@ -233,7 +216,9 @@ export const parseActivity = (
   }
 
   const rows = [...byModel.values()].sort((a, b) => b.requests - a.requests);
-  const daily = [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date));
+  const daily = [...byDay.values()].sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
   return { ok: true, data: { range, rows, daily } };
 };
 
@@ -265,7 +250,7 @@ export type EnabledKeys = {
  * `{ data: [...] }` or a bare array.
  */
 export const parseProvisioningKeys = (
-  json: unknown
+  json: JsonValue,
 ): CardResult<EnabledKeys> => {
   const data = unwrapData(json);
   if (!Array.isArray(data)) {
@@ -273,7 +258,7 @@ export const parseProvisioningKeys = (
   }
   const keys: ProvisioningKeyRow[] = [];
   for (const raw of data) {
-    if (!isRecord(raw)) {
+    if (!isJsonObject(raw)) {
       continue;
     }
     // A key is enabled unless explicitly disabled.

@@ -54,8 +54,8 @@ class LogService {
       level,
       scope: redactLogMessage(scope),
       message: redactLogMessage(message),
-      ...(context ? { context: redactLogContext(context) } : {}),
     };
+    if (context) entry.context = redactLogContext(context);
 
     this.entries = appendToRing(this.entries, entry, this.capacity);
     for (const listener of this.listeners) {

@@ -42,7 +42,10 @@ import {
   sharePercent,
 } from "./usageChartView";
 import { useI18n } from "../../i18n/useI18n";
-import type { UsageCostSlice, UsageDailyPoint } from "~/features/usage/shared/usage";
+import type {
+  UsageCostSlice,
+  UsageDailyPoint,
+} from "~/features/usage/shared/usage";
 
 ChartJS.register(
   BarController,
@@ -81,7 +84,7 @@ const EMBEDDED_CHART_HEIGHT_PX = 180;
 
 /** Resolve a CSS custom property to a color Chart.js can paint. */
 const readCssColor = (varName: string, fallback: string): string => {
-  if (typeof document === "undefined") return fallback;
+  if (!("document" in globalThis)) return fallback;
   const value = getComputedStyle(document.documentElement)
     .getPropertyValue(varName)
     .trim();
@@ -118,7 +121,9 @@ const ChartFrame = ({
   children: React.ReactNode;
 }) => (
   <div className="rounded-lg border border-card-control-border bg-card p-3">
-    <div className="mb-1 text-xs uppercase tracking-wide text-primary">{title}</div>
+    <div className="mb-1 text-xs uppercase tracking-wide text-primary">
+      {title}
+    </div>
     {children}
   </div>
 );
@@ -127,7 +132,11 @@ const EmptyNote = ({ text }: { text: string }) => (
   <div className="py-6 text-center text-sm text-muted-foreground">{text}</div>
 );
 
-export const UsageDailyCostChart = ({ points }: { points: UsageDailyPoint[] }) => {
+export const UsageDailyCostChart = ({
+  points,
+}: {
+  points: UsageDailyPoint[];
+}) => {
   const paletteTick = useThemePaletteTick();
   const { t, formatDate, formatCurrency } = useI18n();
 
@@ -213,7 +222,11 @@ export const UsageDailyCostChart = ({ points }: { points: UsageDailyPoint[] }) =
   );
 };
 
-export const UsageDailyTokenChart = ({ points }: { points: UsageDailyPoint[] }) => {
+export const UsageDailyTokenChart = ({
+  points,
+}: {
+  points: UsageDailyPoint[];
+}) => {
   const paletteTick = useThemePaletteTick();
   const { t, formatDate, formatNumber } = useI18n();
 

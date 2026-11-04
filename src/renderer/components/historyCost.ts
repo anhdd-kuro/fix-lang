@@ -46,7 +46,7 @@ const STANDARD_DISPLAY = {
  * and belong in `formatCostLabel`/`useI18n().formatNumber`.
  */
 export const resolveCostDisplay = (
-  entry: Pick<HistoryEntry, "costStatus" | "estimatedCostUsd">
+  entry: Pick<HistoryEntry, "costStatus" | "estimatedCostUsd">,
 ): CostDisplay => {
   if (entry.costStatus === "zero") {
     return { kind: "amount", valueUsd: 0, ...STANDARD_DISPLAY };
@@ -74,7 +74,7 @@ export const resolveCostDisplay = (
 export const formatCostLabel = (
   entry: Pick<HistoryEntry, "costStatus" | "estimatedCostUsd">,
   t: Translator,
-  formatNumber: Formatters["formatNumber"]
+  formatNumber: Formatters["formatNumber"],
 ): string => {
   const display = resolveCostDisplay(entry);
   if (display.kind === "na") {

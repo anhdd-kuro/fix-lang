@@ -18,7 +18,7 @@
  *     working-looking control that does nothing. It needs its own consumer.
  *   - A FREE-FORM option ("max N words") has no enumerable choice list. It
  *     needs `PresetPromptOptionDefinition` to become a discriminated union,
- *     plus branches in `recognizedChoiceValue`, `withPresetOptions` and the
+ *     plus branches in `ownChoiceValue`, `withPresetOptions` and the
  *     Settings control.
  *
  * A boolean absorbs fine as a two-choice string; the two cases above do not.
@@ -31,6 +31,11 @@
  * and the store's deliberately EMPTY `extraOptions` schema node without
  * needing per-type handling.
  */
+import { z } from "zod";
+import {
+  NonArrayObjectSchema,
+  schemaGuard,
+} from "~/features/core/shared/schemaGuard";
 import {
   DEFAULT_CAVEMAN_FULL_DIRECTIVE,
   DEFAULT_CAVEMAN_LITE_DIRECTIVE,
@@ -154,16 +159,17 @@ const PRESET_OPTION_DEFINITIONS: ReadonlyMap<
 // reaching past the `readonly` type would poison the answer for all of them.
 const NO_OPTIONS: readonly PresetPromptOptionDefinition[] = Object.freeze([]);
 
-/** Total over `unknown`: any id that declared nothing answers `[]`. */
-export const presetOptionDefinitions = (
-  presetId: unknown,
-): readonly PresetPromptOptionDefinition[] =>
-  typeof presetId === "string"
-    ? (PRESET_OPTION_DEFINITIONS.get(presetId) ?? NO_OPTIONS)
+/** Total over any input: an id that declared nothing, or no string id, answers `[]`. */
+export const presetOptionDefinitions = <PresetId>(
+  presetId: PresetId,
+): readonly PresetPromptOptionDefinition[] => {
+  const id = z.string().safeParse(presetId);
+  return id.success
+    ? (PRESET_OPTION_DEFINITIONS.get(id.data) ?? NO_OPTIONS)
     : NO_OPTIONS;
+};
 
-const isPlainRecord = (raw: unknown): raw is Record<string, unknown> =>
-  typeof raw === "object" && raw !== null && !Array.isArray(raw);
+const isNonArrayObject = schemaGuard(NonArrayObjectSchema);
 
 /**
  * Own DATA properties only. An inherited value is not something the user
@@ -179,19 +185,15 @@ const isPlainRecord = (raw: unknown): raw is Record<string, unknown> =>
  * object reaching this function would be a new call site, and that call site
  * is the thing to reconsider.
  */
-const ownDataValue = (raw: Record<string, unknown>, key: string): unknown => {
-  const descriptor = Object.getOwnPropertyDescriptor(raw, key);
-  return descriptor && "value" in descriptor ? descriptor.value : undefined;
-};
-
-const recognizedChoiceValue = (
+const ownChoiceValue = (
   definition: PresetPromptOptionDefinition,
-  candidate: unknown,
-): string | undefined =>
-  typeof candidate === "string" &&
-  definition.choices.some((choice) => choice.value === candidate)
-    ? candidate
-    : undefined;
+  descriptor: PropertyDescriptor | undefined,
+): string | undefined => {
+  if (!descriptor || !("value" in descriptor)) return undefined;
+  // Strict equality against a declared choice: only that exact string matches.
+  return definition.choices.find((choice) => choice.value === descriptor.value)
+    ?.value;
+};
 
 /**
  * Narrows a stored `extraOptions` blob to the keys the preset declares, each
@@ -206,18 +208,18 @@ const recognizedChoiceValue = (
  * Returns `undefined`, never `{}`, when nothing survives, so a preset with no
  * options emits no `extraOptions` key at all after normalization.
  */
-export const sanitizePresetOptions = (
-  presetId: unknown,
-  raw: unknown,
+export const sanitizePresetOptions = <PresetId, Stored>(
+  presetId: PresetId,
+  raw: Stored,
 ): Record<string, string> | undefined => {
   const definitions = presetOptionDefinitions(presetId);
-  if (definitions.length === 0 || !isPlainRecord(raw)) return undefined;
+  if (definitions.length === 0 || !isNonArrayObject(raw)) return undefined;
 
   const sanitized: Record<string, string> = {};
   for (const definition of definitions) {
-    const value = recognizedChoiceValue(
+    const value = ownChoiceValue(
       definition,
-      ownDataValue(raw, definition.key),
+      Object.getOwnPropertyDescriptor(raw, definition.key),
     );
     if (value !== undefined) sanitized[definition.key] = value;
   }
@@ -254,10 +256,13 @@ export const resolvePresetOptionValue = (
   if (!definition) return undefined;
 
   const stored = preset.extraOptions
-    ? ownDataValue(preset.extraOptions, optionKey)
+    ? ownChoiceValue(
+        definition,
+        Object.getOwnPropertyDescriptor(preset.extraOptions, optionKey),
+      )
     : undefined;
 
-  return recognizedChoiceValue(definition, stored) ?? definition.defaultValue;
+  return stored ?? definition.defaultValue;
 };
 
 /**

@@ -16,7 +16,9 @@ export const RECENT_ACTIVE_APPS_MAX = 12;
 let recent: ActiveApp[] = [];
 
 const isSameApp = (a: ActiveApp, b: ActiveApp): boolean =>
-  a.bundleId !== null && b.bundleId !== null ? a.bundleId === b.bundleId : a.name === b.name;
+  a.bundleId !== null && b.bundleId !== null
+    ? a.bundleId === b.bundleId
+    : a.name === b.name;
 
 /**
  * Move `app` to the front of the MRU, deduplicating a repeat sighting rather

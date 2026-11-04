@@ -4,6 +4,7 @@ import { normalizeForSearch } from "~/const";
 import { controlFocusBoxShadow } from "./Input";
 import { selectOptionStyle, withThemeColors } from "./selectOptionSurface";
 import type {
+  CSSObjectWithLabel,
   GroupBase,
   GroupHeadingProps,
   SelectComponentsConfig,
@@ -53,8 +54,12 @@ const DEFAULT_MENU_MAX_HEIGHT = 200;
 /** Replaces react-select's own heading, which ignores the theme CSS vars. */
 export const DefaultGroupHeading = <Option extends SearchableOption>({
   data,
-}: GroupHeadingProps<Option, false, GroupBase<Option>>): React.ReactElement | null => {
-  const label = typeof data.label === "string" ? data.label : "";
+}: GroupHeadingProps<
+  Option,
+  false,
+  GroupBase<Option>
+>): React.ReactElement | null => {
+  const label = data.label ?? "";
   if (label === "") return null;
   return (
     <div className="px-3 pt-2 pb-1 text-xxs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -177,15 +182,19 @@ export const SearchableSelect = <Option extends SearchableOption>({
             borderColor: "var(--ring)",
           },
         }),
-        menu: (base) => ({
-          ...base,
-          backgroundColor: "var(--popover)",
-          zIndex: menuPortal ? 9999 : 10,
-          borderRadius: "8px",
-          ...(menuPortal && menuWidth
-            ? { width: menuWidth, minWidth: menuWidth }
-            : {}),
-        }),
+        menu: (base) => {
+          const menuStyle: CSSObjectWithLabel = {
+            ...base,
+            backgroundColor: "var(--popover)",
+            zIndex: menuPortal ? 9999 : 10,
+            borderRadius: "8px",
+          };
+          if (menuPortal && menuWidth) {
+            menuStyle.width = menuWidth;
+            menuStyle.minWidth = menuWidth;
+          }
+          return menuStyle;
+        },
         menuList: (base) => ({
           ...base,
           maxHeight: menuPortal ? resolvedMaxHeight : base.maxHeight,

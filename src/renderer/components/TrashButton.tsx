@@ -27,7 +27,7 @@ export const TrashButton: React.FC<TrashButtonProps> = ({
       className={twJoin(
         "flex items-center gap-2 rounded-md text-sm transition-colors",
         showLabel ? "px-3 py-1.5" : "p-1",
-        className
+        className,
       )}
       aria-label={t("common.trashButton.ariaLabel")}
     >

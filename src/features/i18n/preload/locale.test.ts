@@ -26,7 +26,9 @@ describe("locale preload boundary", () => {
   it("setLocale invokes set-locale with the requested locale", async () => {
     electronMocks.invoke.mockResolvedValueOnce({ success: true });
 
-    await expect(localeFeature.setLocale("ja")).resolves.toEqual({ success: true });
+    await expect(localeFeature.setLocale("ja")).resolves.toEqual({
+      success: true,
+    });
     expect(electronMocks.invoke).toHaveBeenCalledWith("set-locale", "ja");
   });
 
@@ -45,7 +47,7 @@ describe("locale preload boundary", () => {
   it("setLocale rejects an invalid locale without an IPC round-trip", async () => {
     // why: locale is typed `Locale` for TS call sites, but the renderer is
     // untrusted at runtime — cast past the type to simulate a bad caller.
-    const invalid = "not-a-real-locale" as unknown as Parameters<
+    const invalid = String("not-a-real-locale") as Parameters<
       typeof localeFeature.setLocale
     >[0];
 
@@ -60,9 +62,12 @@ describe("locale preload boundary", () => {
     const callback = vi.fn();
     localeFeature.onLocaleChanged(callback);
 
-    expect(electronMocks.on).toHaveBeenCalledWith("locale-changed", expect.any(Function));
+    expect(electronMocks.on).toHaveBeenCalledWith(
+      "locale-changed",
+      expect.any(Function),
+    );
     const listener = electronMocks.on.mock.calls[0][1] as (
-      event: unknown,
+      event: undefined,
       locale: string,
     ) => void;
 
@@ -77,6 +82,9 @@ describe("locale preload boundary", () => {
 
     unsubscribe();
 
-    expect(electronMocks.removeListener).toHaveBeenCalledWith("locale-changed", listener);
+    expect(electronMocks.removeListener).toHaveBeenCalledWith(
+      "locale-changed",
+      listener,
+    );
   });
 });

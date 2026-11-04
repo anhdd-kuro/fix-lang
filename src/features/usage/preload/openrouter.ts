@@ -12,7 +12,7 @@ export type OpenRouterRange = "7d" | "30d";
  */
 export const openrouterFeature = {
   getOpenRouterAnalytics: (
-    range: OpenRouterRange
+    range: OpenRouterRange,
   ): Promise<OpenRouterAnalytics> => {
     const safeRange: OpenRouterRange = range === "30d" ? "30d" : "7d";
     return ipcRenderer.invoke("openrouter-analytics", safeRange);

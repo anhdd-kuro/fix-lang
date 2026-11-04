@@ -140,8 +140,12 @@ describe("usage sub-tab bar", () => {
       buildUsageSubTabs({ openai: connected(), openrouter: connected() }),
     );
 
-    expect(resolveActiveUsageSubTab(before, "autocomplete")).toBe("autocomplete");
-    expect(resolveActiveUsageSubTab(after, "autocomplete")).toBe("autocomplete");
+    expect(resolveActiveUsageSubTab(before, "autocomplete")).toBe(
+      "autocomplete",
+    );
+    expect(resolveActiveUsageSubTab(after, "autocomplete")).toBe(
+      "autocomplete",
+    );
   });
 
   it("falls back to the first slot when the chosen one disappears", () => {

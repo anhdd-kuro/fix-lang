@@ -1,6 +1,6 @@
 ---
 name: fixlang-i18n
-description: "Use when adding translatable strings, migrating existing English text to use t(), or editing the i18n infrastructure. Covers src/features/i18n/, src/main/i18n.ts, locale IPC transport, and renderer I18nProvider. Examples: \"add a translation string\", \"why did the interface stay in English after switching languages\", \"migrate the tray window to use translations\"."
+description: 'Use when adding translatable strings, migrating existing English text to use t(), or editing the i18n infrastructure. Covers src/features/i18n/, src/main/i18n.ts, locale IPC transport, and renderer I18nProvider. Examples: "add a translation string", "why did the interface stay in English after switching languages", "migrate the tray window to use translations".'
 ---
 
 # FixLang — i18n Traps
@@ -40,15 +40,19 @@ return <div title={tm(msg)} />;
 The aggregation layer (`overviewAggregations.ts`, `modelsAggregations.ts`) **must** return `Message` / `Label` descriptors, **never** prose strings or formatted numbers. Turning a descriptor into a display string is the **renderer's** job, via `tm()` or `tl()` on `useI18n()`.
 
 **Violates the rule:**
+
 ```ts
 export const benchmarkSentence = (tokens: number): string =>
   tokens > 100_000 ? "Over budget" : "OK";
 ```
 
 **Correct:**
+
 ```ts
 export const benchmarkMessage = (tokens: number): Message =>
-  tokens > 100_000 ? msg("overview.benchmark.overBudget") : msg("overview.benchmark.ok");
+  tokens > 100_000
+    ? msg("overview.benchmark.overBudget")
+    : msg("overview.benchmark.ok");
 ```
 
 Descriptors stay locale-free; the renderer provides `t()` at render time.
@@ -58,26 +62,38 @@ Descriptors stay locale-free; the renderer provides `t()` at render time.
 Any `useMemo()` or `useCallback()` that **closes over** `t()` or a formatter (`formatDate`, `formatNumber`, etc.) must list them in the dependency array. Otherwise, switching language leaves the old translations in the memoized value until something in the deps actually changes.
 
 **Silent failure:**
+
 ```tsx
-const memoChart = useMemo(() => ({
-  title: t("charts.title"),  // "Transforms over time"
-  axis: t("charts.axis"),    // "Transforms"
-}), [weights, overTime]);    // ← No t() in deps; memo never rebuilds after locale switch
+const memoChart = useMemo(
+  () => ({
+    title: t("charts.title"), // "Transforms over time"
+    axis: t("charts.axis"), // "Transforms"
+  }),
+  [weights, overTime],
+); // ← No t() in deps; memo never rebuilds after locale switch
 ```
 
 **Correct:**
+
 ```tsx
-const memoChart = useMemo(() => ({
-  title: t("charts.title"),
-  axis: t("charts.axis"),
-}), [weights, overTime, t]);  // ← Add t to deps (and any other formatters used inside)
+const memoChart = useMemo(
+  () => ({
+    title: t("charts.title"),
+    axis: t("charts.axis"),
+  }),
+  [weights, overTime, t],
+); // ← Add t to deps (and any other formatters used inside)
 ```
 
 **Safer:** Keep memos **string-free** (only raw data); resolve strings during render, outside the memo:
+
 ```tsx
-const memoChart = useMemo(() => ({
-  data: weights,
-}), [weights, overTime]);
+const memoChart = useMemo(
+  () => ({
+    data: weights,
+  }),
+  [weights, overTime],
+);
 
 // Render-time resolution (no memo):
 const title = t("charts.title");
@@ -107,7 +123,7 @@ The main process has no React context, so it cannot call `useI18n()`. Use `mainT
 ```ts
 // WRONG — will throw/fail in main:
 import { useI18n } from "~/renderer/i18n/useI18n";
-const { t } = useI18n();  // ← No React context in main!
+const { t } = useI18n(); // ← No React context in main!
 
 // CORRECT:
 import { mainT } from "~/main/i18n";
@@ -124,6 +140,7 @@ new Notification({
 English defines both `_one` and `_other` variants for plural keys (e.g., `"history.count_one"` and `"history.count_other"`). Japanese **only** defines `_other` — `Intl.PluralRules("ja").select(n)` always returns `"other"`, even for count 1.
 
 **In JSON catalogs:**
+
 ```json
 // en/history.json
 { "history.count_one": "{count} transform", "history.count_other": "{count} transforms" }

@@ -111,7 +111,7 @@ export const useOpenRouterAnalytics = (
 
   // Fetch on mount + whenever the range changes (cache may serve it instantly).
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- IPC synchronization owns the hook's loading/data state.
+    // oxlint-disable-next-line react/set-state-in-effect -- IPC synchronization owns the hook's loading/data state.
     void load(false);
     // Discard whatever is in flight when the range changes or the tab closes.
     return () => {

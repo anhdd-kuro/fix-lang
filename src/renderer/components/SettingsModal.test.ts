@@ -18,7 +18,11 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTranslator } from "~/features/i18n/shared/translate";
-import { SettingsModal, settingsTabIndex, visibleSettingsTabIds } from "./SettingsModal";
+import {
+  SettingsModal,
+  settingsTabIndex,
+  visibleSettingsTabIds,
+} from "./SettingsModal";
 import { I18nProvider } from "../i18n/I18nProvider";
 import type { AutocompleteUsageSnapshot } from "~/features/autocomplete/shared/autocompleteWire";
 import type { Locale } from "~/features/i18n/shared/registry";
@@ -60,12 +64,39 @@ const autocompleteUsage = (): AutocompleteUsageSnapshot => ({
 describe("SettingsModal", () => {
   let container: HTMLDivElement;
   let root: Root;
-  let api: Record<string, ReturnType<typeof vi.fn>>;
+  const defaultApi = () => ({
+    // Profiles is tab 0, so `ProfileManager` mounts on every render.
+    getProfiles: vi
+      .fn()
+      .mockResolvedValue({ profiles: [], currentProfileId: "" }),
+    onProfileUpdated: vi.fn().mockReturnValue(vi.fn()),
+    // `ProfileManager` embeds the profile-switch `HotkeyInput`.
+    getKeyBindings: vi.fn().mockResolvedValue({}),
+    pauseHotkeys: vi.fn().mockResolvedValue(undefined),
+    resumeHotkeys: vi.fn().mockResolvedValue(undefined),
+    // Read by `SettingAutocomplete` and its embedded `ModelSelect`.
+    getAutocompleteSettings: vi
+      .fn()
+      .mockResolvedValue({ enabled: false, model: "" }),
+    getAutocompleteUsage: vi.fn().mockResolvedValue(autocompleteUsage()),
+    setAutocompleteSettings: vi.fn().mockResolvedValue({ success: true }),
+    fetchAIModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
+    getProviderStates: vi.fn().mockResolvedValue({}),
+    getSelectedModel: vi.fn().mockResolvedValue(""),
+    setSelectedModel: vi.fn().mockResolvedValue({ success: true }),
+    onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
+    onActiveProfileChanged: vi.fn().mockReturnValue(vi.fn()),
+    // `<I18nProvider>` reads these on mount (see `localeState.ts`).
+    getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+    setLocale: vi.fn().mockResolvedValue({ success: true }),
+    onLocaleChanged: vi.fn((_callback: (locale: Locale) => void) => vi.fn()),
+  });
+  let api: ReturnType<typeof defaultApi>;
 
   const tabNamed = (label: string): HTMLButtonElement => {
-    const tab = [...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
-      (candidate) => candidate.textContent === label,
-    );
+    const tab = [
+      ...container.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+    ].find((candidate) => candidate.textContent === label);
     if (!tab) {
       throw new Error(`Expected a settings tab named "${label}"`);
     }
@@ -73,33 +104,7 @@ describe("SettingsModal", () => {
   };
 
   const render = async () => {
-    api = {
-      // Profiles is tab 0, so `ProfileManager` mounts on every render.
-      getProfiles: vi
-        .fn()
-        .mockResolvedValue({ profiles: [], currentProfileId: "" }),
-      onProfileUpdated: vi.fn().mockReturnValue(vi.fn()),
-      // `ProfileManager` embeds the profile-switch `HotkeyInput`.
-      getKeyBindings: vi.fn().mockResolvedValue({}),
-      pauseHotkeys: vi.fn().mockResolvedValue(undefined),
-      resumeHotkeys: vi.fn().mockResolvedValue(undefined),
-      // Read by `SettingAutocomplete` and its embedded `ModelSelect`.
-      getAutocompleteSettings: vi
-        .fn()
-        .mockResolvedValue({ enabled: false, model: "" }),
-      getAutocompleteUsage: vi.fn().mockResolvedValue(autocompleteUsage()),
-      setAutocompleteSettings: vi.fn().mockResolvedValue({ success: true }),
-      fetchAIModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
-      getProviderStates: vi.fn().mockResolvedValue({}),
-      getSelectedModel: vi.fn().mockResolvedValue(""),
-      setSelectedModel: vi.fn().mockResolvedValue({ success: true }),
-      onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
-      onActiveProfileChanged: vi.fn().mockReturnValue(vi.fn()),
-      // `<I18nProvider>` reads these on mount (see `localeState.ts`).
-      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
-      setLocale: vi.fn().mockResolvedValue({ success: true }),
-      onLocaleChanged: vi.fn((_callback: (locale: Locale) => void) => vi.fn()),
-    };
+    api = defaultApi();
     Object.defineProperty(window, "electronAPI", {
       configurable: true,
       value: api,
@@ -241,11 +246,15 @@ describe("SettingsModal", () => {
 
     // The model picker: `ModelSelect` labels its control `#model-select`.
     expect(
-      [...panel.querySelectorAll("label")].map((element) => element.textContent),
+      [...panel.querySelectorAll("label")].map(
+        (element) => element.textContent,
+      ),
     ).toContain(tEn("settings.autocomplete.model.label"));
     expect(panel.querySelector("#model-select")).toBeTruthy();
 
-    expect(panel.textContent).toContain(tEn("settings.autocomplete.privacy.typing"));
+    expect(panel.textContent).toContain(
+      tEn("settings.autocomplete.privacy.typing"),
+    );
     expect(api.getAutocompleteSettings).toHaveBeenCalled();
     expect(api.getAutocompleteUsage).toHaveBeenCalled();
   });

@@ -3,7 +3,7 @@
  * @description IPC handlers for locale persistence and cross-window sync.
  */
 import { BrowserWindow, ipcMain } from "electron";
-import { isLocale } from "~/features/i18n/shared/detect";
+import { LocaleSchema } from "~/features/i18n/shared/detect";
 import { getLocale, setLocale } from "~/features/i18n/store/localeStore";
 import {
   syncAskInputWindowLocale,
@@ -40,7 +40,9 @@ export const broadcastLocale = (locale: Locale): void => {
 /**
  * Sends the current locale to a single window after it finishes loading.
  */
-export const syncLocaleToWindow = (webContents: Electron.WebContents): void => {
+export const syncLocaleToWindow = (
+  webContents: Pick<Electron.WebContents, "isDestroyed" | "send">,
+): void => {
   const locale = getLocale();
   if (!webContents.isDestroyed()) {
     webContents.send("locale-changed", locale);
@@ -55,16 +57,17 @@ export const registerLocaleHandlers = (): void => {
     locale: getLocale(),
   }));
 
-  ipcMain.handle("set-locale", async (_event, raw: unknown) => {
-    if (!isLocale(raw)) {
+  ipcMain.handle("set-locale", async (_event, raw) => {
+    const locale = LocaleSchema.safeParse(raw);
+    if (!locale.success) {
       return {
         success: false,
         error: "Invalid locale",
       };
     }
 
-    setLocale(raw);
-    broadcastLocale(raw);
+    setLocale(locale.data);
+    broadcastLocale(locale.data);
     return { success: true };
   });
 };

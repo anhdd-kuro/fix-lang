@@ -8,9 +8,7 @@ export const themeFeature = {
   getTheme: (): Promise<{ themeId: ThemeId }> =>
     ipcRenderer.invoke("get-theme"),
 
-  setTheme: (
-    themeId: ThemeId,
-  ): Promise<{ success: boolean; error?: string }> =>
+  setTheme: (themeId: ThemeId): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("set-theme", themeId),
 
   onThemeChanged: (callback: (themeId: ThemeId) => void): (() => void) => {

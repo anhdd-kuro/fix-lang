@@ -7,7 +7,11 @@
 import { describe, expect, it } from "vitest";
 import { resolveMessage } from "~/features/i18n/shared/message";
 import { createTranslator } from "~/features/i18n/shared/translate";
-import { CHART_TITLE_KEYS, donutTooltipMessage, weightPercent } from "./presetChartView";
+import {
+  CHART_TITLE_KEYS,
+  donutTooltipMessage,
+  weightPercent,
+} from "./presetChartView";
 
 describe("CHART_TITLE_KEYS", () => {
   it("maps the donut + over-time chart titles to their keys", () => {
@@ -46,14 +50,22 @@ describe("donutTooltipMessage", () => {
 describe("rendered donut tooltip strings (EN + JA)", () => {
   it("count 1 (singular)", () => {
     const message = donutTooltipMessage({ count: 1 }, "50.0");
-    expect(resolveMessage(message, createTranslator("en"))).toBe("50.0% · 1 transform");
+    expect(resolveMessage(message, createTranslator("en"))).toBe(
+      "50.0% · 1 transform",
+    );
     // ja has no `_one` member; Intl.PluralRules("ja") always resolves "other".
-    expect(resolveMessage(message, createTranslator("ja"))).toBe("50.0% · 1 件の変換");
+    expect(resolveMessage(message, createTranslator("ja"))).toBe(
+      "50.0% · 1 件の変換",
+    );
   });
 
   it("count 12 (plural)", () => {
     const message = donutTooltipMessage({ count: 12 }, "50.0");
-    expect(resolveMessage(message, createTranslator("en"))).toBe("50.0% · 12 transforms");
-    expect(resolveMessage(message, createTranslator("ja"))).toBe("50.0% · 12 件の変換");
+    expect(resolveMessage(message, createTranslator("en"))).toBe(
+      "50.0% · 12 transforms",
+    );
+    expect(resolveMessage(message, createTranslator("ja"))).toBe(
+      "50.0% · 12 件の変換",
+    );
   });
 });

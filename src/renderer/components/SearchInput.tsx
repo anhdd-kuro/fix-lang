@@ -39,7 +39,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         onSearch(value);
       }, debounceMs);
     },
-    [onSearch, debounceMs]
+    [onSearch, debounceMs],
   );
 
   // Handle input change with debounce

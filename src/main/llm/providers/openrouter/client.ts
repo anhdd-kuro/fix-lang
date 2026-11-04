@@ -12,8 +12,14 @@
  * network / never need electron. All I/O is async with a 5s AbortController
  * timeout (mirrors the existing model-list fetch in ai.request/shared.ts).
  */
-import { describeKeyShape, findKeyShapeMismatch } from "~/features/providers/shared/providerKeyShapes";
+import {
+  describeKeyFamily,
+  findKeyFamilyMismatch,
+  KEY_FAMILY_LOG_FIELD,
+} from "~/features/providers/shared/providerKeyFamilies";
 import { getProvisioningKey } from "~/features/providers/store/provisioningKeyStore";
+import type { LogContext } from "~/features/logs/shared/logging";
+import type { JsonValue } from "~/main/jsonValue";
 import { logger } from "~/main/logging/logService";
 import {
   parseActivity,
@@ -42,8 +48,8 @@ export type OpenRouterAnalytics = {
 
 type FetchLike = (
   url: string,
-  init: { headers: Record<string, string>; signal: AbortSignal }
-) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
+  init: { headers: Record<string, string>; signal: AbortSignal },
+) => Promise<{ ok: boolean; status: number; json: () => Promise<JsonValue> }>;
 
 type ClientDeps = {
   fetch?: FetchLike;
@@ -66,16 +72,17 @@ const logAdminRequest = (
   key: string,
   outcome: { ok: boolean; status?: number; reason?: string },
 ): void => {
-  const shape = describeKeyShape(key);
-  const foreign = findKeyShapeMismatch("openrouter", "provisioning", key) !== null;
-  const context = {
+  const keyFamily = describeKeyFamily(key);
+  const foreign =
+    findKeyFamilyMismatch("openrouter", "provisioning", key) !== null;
+  const context: LogContext = {
     endpoint: path,
-    keyShape: shape,
-    ...(outcome.status !== undefined ? { status: outcome.status } : {}),
-    ...(outcome.reason !== undefined ? { reason: outcome.reason } : {}),
-    // Only ever true for a key stored before the write-time shape guard existed.
-    ...(foreign ? { storedKeyBelongsToAnotherProvider: true } : {}),
+    [KEY_FAMILY_LOG_FIELD]: keyFamily,
   };
+  if (outcome.status !== undefined) context.status = outcome.status;
+  if (outcome.reason !== undefined) context.reason = outcome.reason;
+  // Only ever true for a key stored before the write-time shape guard existed.
+  if (foreign) context.storedKeyBelongsToAnotherProvider = true;
 
   if (outcome.ok) {
     logger.debug(LOG_SCOPE, "OpenRouter account request succeeded", context);
@@ -100,9 +107,9 @@ export type OpenRouterClient = {
 };
 
 export const createOpenRouterClient = (
-  deps: ClientDeps = {}
+  deps: ClientDeps = {},
 ): OpenRouterClient => {
-  const doFetch = (deps.fetch ?? (globalThis.fetch as unknown)) as FetchLike;
+  const doFetch: FetchLike = deps.fetch ?? globalThis.fetch;
   const getKey = deps.getKey ?? (() => getProvisioningKey("openrouter"));
 
   /**
@@ -112,13 +119,17 @@ export const createOpenRouterClient = (
    */
   const call = async <T>(
     path: string,
-    parse: (json: unknown) => CardResult<T>
+    parse: (json: JsonValue) => CardResult<T>,
   ): Promise<ClientCardResult<T>> => {
     const key = await getKey();
     if (!key) {
-      logger.debug(LOG_SCOPE, "OpenRouter account request skipped — no key stored", {
-        endpoint: path,
-      });
+      logger.debug(
+        LOG_SCOPE,
+        "OpenRouter account request skipped — no key stored",
+        {
+          endpoint: path,
+        },
+      );
       return NO_KEY;
     }
 
@@ -131,16 +142,22 @@ export const createOpenRouterClient = (
       });
       if (!response.ok) {
         const reason = reasonForStatus(response.status);
-        logAdminRequest(path, key, { ok: false, status: response.status, reason });
+        logAdminRequest(path, key, {
+          ok: false,
+          status: response.status,
+          reason,
+        });
         return { ok: false, reason };
       }
       const json = await response.json();
       const parsed = parse(json);
-      logAdminRequest(path, key, {
-        ok: parsed.ok,
-        status: response.status,
-        ...(parsed.ok ? {} : { reason: parsed.reason }),
-      });
+      logAdminRequest(
+        path,
+        key,
+        parsed.ok
+          ? { ok: true, status: response.status }
+          : { ok: false, status: response.status, reason: parsed.reason },
+      );
       return parsed;
     } catch {
       // Network error / abort / bad JSON — degrade without leaking anything.
@@ -158,7 +175,7 @@ export const createOpenRouterClient = (
   const getEnabledKeyCount = () => call("/keys", parseProvisioningKeys);
 
   const getAnalytics = async (
-    range: "7d" | "30d"
+    range: "7d" | "30d",
   ): Promise<OpenRouterAnalytics> => {
     const hasKey = (await getKey()) !== null;
     const [credits, keyUsage, activity, enabledKeys] = await Promise.all([

@@ -73,16 +73,14 @@ export const estimateTextTokens = (text: string): number => {
 
   return Math.max(
     1,
-    Math.ceil(Array.from(trimmed).length / ESTIMATED_CHARS_PER_TOKEN)
+    Math.ceil(Array.from(trimmed).length / ESTIMATED_CHARS_PER_TOKEN),
   );
 };
 
 const hasSavedTokenCount = (count: number | undefined): count is number =>
   count !== undefined && count > 0;
 
-export const withFallbackTokenCounts = (
-  entry: HistoryEntry
-): HistoryEntry => ({
+export const withFallbackTokenCounts = (entry: HistoryEntry): HistoryEntry => ({
   ...entry,
   promptTokens: hasSavedTokenCount(entry.promptTokens)
     ? entry.promptTokens
@@ -100,7 +98,7 @@ export const withFallbackTokenCounts = (
  */
 export const filterHistoryByPreset = (
   entries: HistoryEntry[],
-  presetName: string
+  presetName: string,
 ): HistoryEntry[] => {
   return entries.filter((e) => e.presetName === presetName);
 };
@@ -115,11 +113,11 @@ export const filterHistoryByPreset = (
  */
 export const mergeLegacyHistoryEntries = (
   corrections: HistoryEntry[],
-  legacy: LegacyHistoryBuckets
+  legacy: LegacyHistoryBuckets,
 ): HistoryEntry[] => {
   const tag = (
     entries: HistoryEntry[] | undefined,
-    presetName: string
+    presetName: string,
   ): HistoryEntry[] =>
     (entries ?? []).map((e) => (e.presetName ? e : { ...e, presetName }));
 

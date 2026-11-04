@@ -164,8 +164,8 @@ describe("GUIDE_TOPICS", () => {
     const combo = GUIDE_TOPICS.find((topic) => topic.id === "combo");
     expect(combo).toBeDefined();
     expect(combo?.settingsTab).toBe("combos");
-    expect(
-      EN_CATALOG[combo?.bodyKey as keyof typeof EN_CATALOG],
-    ).toContain("Control+Escape");
+    expect(EN_CATALOG[combo?.bodyKey as keyof typeof EN_CATALOG]).toContain(
+      "Control+Escape",
+    );
   });
 });

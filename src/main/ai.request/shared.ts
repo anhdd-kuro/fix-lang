@@ -10,8 +10,15 @@
  * importing them from this module.
  */
 import { resolveLmStudioEndpoint } from "~/features/providers/shared/lmstudioEndpoint";
-import { parseModelRef, resolveModelRef } from "~/features/providers/shared/modelRef";
-import { describeKeyShape, findKeyShapeMismatch } from "~/features/providers/shared/providerKeyShapes";
+import {
+  parseModelRef,
+  resolveModelRef,
+} from "~/features/providers/shared/modelRef";
+import {
+  describeKeyFamily,
+  findKeyFamilyMismatch,
+  KEY_FAMILY_LOG_FIELD,
+} from "~/features/providers/shared/providerKeyFamilies";
 import {
   modelsForProvider,
   PROVIDER_ORDER,
@@ -33,6 +40,7 @@ import { logger } from "~/main/logging/logService";
 import { notifyRequestError } from "~/main/notifications/error";
 import type { AIRequestOptions, CoreMessage } from "./requestTypes";
 import type { HistorySessionData } from "~/features/history/shared/historySession";
+import type { LogContext } from "~/features/logs/shared/logging";
 import type { TKey } from "~/features/i18n/shared/translate";
 import type { Model, ProviderId } from "~/features/providers/store/apiStore";
 
@@ -49,15 +57,25 @@ const isCachedForProvider = isModelForProvider;
 
 /** Active-profile cache; legacy global storage is read only for old installs. */
 const getStoredModels = (): Model[] =>
-  getProfileSetting("models") || (apiStore.get("models") as Model[]) || [];
+  getProfileSetting("models") ||
+  // SAFETY: top-level `models` is the pre-profile cache. Only releases before
+  // profiles wrote it, always as `Model[]`, and nothing writes it today.
+  (apiStore.get("models") as Model[]) ||
+  [];
 
-const cacheModelsForProvider = (provider: ProviderId, models: Model[]): void => {
+const cacheModelsForProvider = (
+  provider: ProviderId,
+  models: Model[],
+): void => {
   const retained = getStoredModels().filter(
     (model) => !isCachedForProvider(model, provider),
   );
   updateProfileSetting("models", [
     ...retained,
-    ...models.map((model) => ({ ...model, provider: model.provider ?? provider })),
+    ...models.map((model) => ({
+      ...model,
+      provider: model.provider ?? provider,
+    })),
   ]);
 };
 
@@ -128,23 +146,33 @@ const withoutKeyEcho = (text: string, apiKey: string): string => {
 const logModelFetch = (
   provider: ProviderId,
   apiKey: string,
-  outcome: { ok: boolean; liveFetch?: boolean; modelCount?: number; error?: string },
+  outcome: {
+    ok: boolean;
+    liveFetch?: boolean;
+    modelCount?: number;
+    error?: string;
+  },
 ): void => {
-  const context = {
+  const hasKey = apiKey.trim().length > 0;
+  const context: LogContext = {
     provider,
-    keyPresent: apiKey.trim().length > 0,
-    ...(apiKey.trim() ? { keyShape: describeKeyShape(apiKey) } : {}),
-    ...(apiKey.trim() && findKeyShapeMismatch(provider, "api", apiKey)
-      ? { keyBelongsToAnotherProvider: true }
-      : {}),
-    ...(outcome.liveFetch !== undefined ? { liveFetch: outcome.liveFetch } : {}),
-    ...(outcome.modelCount !== undefined ? { modelCount: outcome.modelCount } : {}),
-    // Two passes before this text is persisted: the exact key is removed here,
-    // and `redactLogMessage` strips masked echoes and any other `sk-…` form.
-    ...(outcome.error !== undefined
-      ? { failure: withoutKeyEcho(outcome.error, apiKey) }
-      : {}),
+    keyPresent: hasKey,
   };
+  if (hasKey) {
+    context[KEY_FAMILY_LOG_FIELD] = describeKeyFamily(apiKey);
+    if (findKeyFamilyMismatch(provider, "api", apiKey)) {
+      context.keyBelongsToAnotherProvider = true;
+    }
+  }
+  if (outcome.liveFetch !== undefined) context.liveFetch = outcome.liveFetch;
+  if (outcome.modelCount !== undefined) {
+    context.modelCount = outcome.modelCount;
+  }
+  // Two passes before this text is persisted: the exact key is removed here,
+  // and `redactLogMessage` strips masked echoes and any other `sk-…` form.
+  if (outcome.error !== undefined) {
+    context.failure = withoutKeyEcho(outcome.error, apiKey);
+  }
 
   if (outcome.ok) {
     logger.debug("provider.models", "Model list fetched", context);
@@ -244,7 +272,9 @@ export const fetchAvailableModels = async (
  */
 export const getCachedModels = (provider?: ProviderId): Model[] => {
   const models = getStoredModels();
-  return provider ? models.filter((model) => isCachedForProvider(model, provider)) : models;
+  return provider
+    ? models.filter((model) => isCachedForProvider(model, provider))
+    : models;
 };
 
 const readFreshDisplayCache = (provider: ProviderId): Model[] | null => {
@@ -306,9 +336,14 @@ export const fetchModelsForProviders = async (
   providers: readonly ProviderId[],
   keys: Partial<Record<ProviderId, string>>,
   refetch: boolean,
-): Promise<{ models: Model[]; errors: Partial<Record<ProviderId, string>> }> => {
+): Promise<{
+  models: Model[];
+  errors: Partial<Record<ProviderId, string>>;
+}> => {
   const previousModels = getStoredModels();
-  const requested = PROVIDER_ORDER.filter((provider) => providers.includes(provider));
+  const requested = PROVIDER_ORDER.filter((provider) =>
+    providers.includes(provider),
+  );
 
   const settled = await Promise.allSettled(
     requested.map(async (provider): Promise<ProviderFetch> => {
@@ -353,7 +388,8 @@ export const fetchModelsForProviders = async (
   const emitted = new Set<Model>();
   for (const provider of PROVIDER_ORDER) {
     const slice =
-      fetchedByProvider.get(provider) ?? modelsForProvider(previousModels, provider);
+      fetchedByProvider.get(provider) ??
+      modelsForProvider(previousModels, provider);
     for (const model of slice) {
       // A legacy untagged entry matches two provider groups; emit it once.
       if (emitted.has(model)) continue;
@@ -391,7 +427,9 @@ export const isLocalModelId = (
   return models.some(
     (m) =>
       m.id === servedId &&
-      (m.local !== undefined || m.provider === "ollama" || m.provider === "lmstudio"),
+      (m.local !== undefined ||
+        m.provider === "ollama" ||
+        m.provider === "lmstudio"),
   );
 };
 
@@ -424,7 +462,7 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
     ([
       { role: "system", content: finalSystemPrompt },
       { role: "user", content: options.userPrompt },
-    ] as CoreMessage[]);
+    ] satisfies CoreMessage[]);
 
   // Routing comes from the model ref, not a profile-wide provider: one profile
   // can have all three providers connected at once.

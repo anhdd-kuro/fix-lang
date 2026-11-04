@@ -4,6 +4,7 @@ import { defineConfig } from "electron-vite";
 import commonjs from "vite-plugin-commonjs";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { parseFeatureFlags } from "./src/features/core/shared/features";
+import { inlineUndiciRequirePlugin } from "./src/features/core/shared/inlineUndiciRequire";
 
 export const rendererPort = 5175;
 
@@ -20,7 +21,16 @@ const featureDefine = {
   __FEATURE_PROMPT_GEN__: JSON.stringify(features.promptGen),
 };
 
-const rendererInput = {
+type RendererInput = {
+  main: string;
+  tray: string;
+  correctionResult: string;
+  askInput: string;
+  askResult: string;
+  promptGen?: string;
+};
+
+const rendererInput: RendererInput = {
   main: resolve(__dirname, "src/renderer/MainWindow/index.html"),
   tray: resolve(__dirname, "src/renderer/TrayWindow/index.html"),
   correctionResult: resolve(
@@ -31,22 +41,23 @@ const rendererInput = {
   // PromptGen below, both entries always ship.
   askInput: resolve(__dirname, "src/renderer/AskInputWindow/index.html"),
   askResult: resolve(__dirname, "src/renderer/AskResultWindow/index.html"),
-  // Omitted when the tag is off so no PromptGen bundle/html is emitted at all.
-  ...(features.promptGen
-    ? {
-        promptGen: resolve(
-          __dirname,
-          "src/renderer/PromptGenWindow/index.html",
-        ),
-      }
-    : {}),
 };
+// Omitted when the tag is off so no PromptGen bundle/html is emitted at all.
+if (features.promptGen) {
+  rendererInput.promptGen = resolve(
+    __dirname,
+    "src/renderer/PromptGenWindow/index.html",
+  );
+}
 
 export default defineConfig({
   main: {
     define: featureDefine,
-    plugins: [tsconfigPaths(), tailwindcss()],
+    plugins: [inlineUndiciRequirePlugin(), tsconfigPaths(), tailwindcss()],
     build: {
+      // electron-vite 6 externalizes `dependencies` by default; app.asar ships
+      // no node_modules, so every runtime dep must be inlined instead.
+      externalizeDeps: false,
       outDir: "out/main",
       rollupOptions: {
         // Keep Electron 43's CommonJS runtime boundary intact.
@@ -69,6 +80,7 @@ export default defineConfig({
     define: featureDefine,
     plugins: [tsconfigPaths()],
     build: {
+      externalizeDeps: false, // see main: app.asar ships no node_modules
       outDir: "out/preload",
       rollupOptions: {
         external: ["electron"],

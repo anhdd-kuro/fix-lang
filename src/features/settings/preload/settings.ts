@@ -1,11 +1,15 @@
 // Settings-related preload functionality
 import { ipcRenderer } from "electron";
+import { z } from "zod";
 import {
   sanitizeReasoningEffort,
   type ReasoningEffort,
 } from "~/features/correction/shared/reasoningEffort";
 import { messageLabel, type Label } from "~/features/i18n/shared/message";
-import { supportsAdminKey, type ProviderId } from "~/features/providers/shared/providers";
+import {
+  supportsAdminKey,
+  type ProviderId,
+} from "~/features/providers/shared/providers";
 import { asLabel } from "./ipcLabel";
 import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
 import type { KeyBindings } from "~/features/providers/store/apiStore";
@@ -29,7 +33,10 @@ export const settingsFeature = {
         error: messageLabel("settings.general.reasoning.invalid"),
       };
     }
-    const result = await ipcRenderer.invoke("set-default-reasoning-effort", effort);
+    const result = await ipcRenderer.invoke(
+      "set-default-reasoning-effort",
+      effort,
+    );
     if (result?.success) ipcRenderer.send("settings-updated");
     return { ...result, error: asLabel(result?.error) };
   },
@@ -66,7 +73,7 @@ export const settingsFeature = {
    * @returns A promise that resolves with an object indicating success or failure.
    */
   setKeyBindings: async (
-    bindings: KeyBindings
+    bindings: KeyBindings,
   ): Promise<{ success: boolean; error?: Label }> => {
     console.log("Preload: Invoking set-key-bindings with:", bindings);
     const result = await ipcRenderer.invoke("set-key-bindings", bindings);
@@ -102,9 +109,9 @@ export const settingsFeature = {
    */
   setProvisioningKey: async (
     provider: ProviderId,
-    key: string
+    key: string,
   ): Promise<{ success: boolean; error?: Label }> => {
-    if (!supportsAdminKey(provider) || typeof key !== "string") {
+    if (!supportsAdminKey(provider) || !z.string().safeParse(key).success) {
       return {
         success: false,
         error: messageLabel("settings.general.provisioningKey.invalid"),
@@ -113,7 +120,7 @@ export const settingsFeature = {
     const result = await ipcRenderer.invoke(
       "set-provisioning-key",
       provider,
-      key
+      key,
     );
     return { ...result, error: asLabel(result?.error) };
   },
@@ -122,7 +129,7 @@ export const settingsFeature = {
    * Remove a provider's stored admin key.
    */
   clearProvisioningKey: async (
-    provider: ProviderId
+    provider: ProviderId,
   ): Promise<{ success: boolean; error?: Label }> => {
     if (!supportsAdminKey(provider)) {
       return {

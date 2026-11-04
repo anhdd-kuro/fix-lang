@@ -45,7 +45,10 @@ const makePricedModel = (
   },
 });
 
-const makeStep = (id: string, presetId: string): ComboStep => ({ id, presetId });
+const makeStep = (id: string, presetId: string): ComboStep => ({
+  id,
+  presetId,
+});
 
 describe("token growth factor", () => {
   it("baseline is estimateTextTokens over the fixed-length placeholder (800 chars / 4)", () => {
@@ -77,7 +80,9 @@ describe("warning threshold", () => {
   const empty: PriceMap = new Map();
 
   const stepsOfLength = (n: number): ComboStep[] =>
-    Array.from({ length: n }, (_unused, index) => makeStep(`s${index}`, "missing"));
+    Array.from({ length: n }, (_unused, index) =>
+      makeStep(`s${index}`, "missing"),
+    );
 
   it("a 2-step combo stays under the warning threshold with the default assumptions", () => {
     const estimate = estimateCombo({
@@ -107,10 +112,21 @@ describe("warning threshold", () => {
 
   it("a 3-step ALL-OLLAMA combo crosses the token threshold but is NOT flagged as multi-provider (f2)", () => {
     const models: Model[] = [
-      makePricedModel({ id: "llama3.2:3b", provider: "ollama", local: { path: "/x" } }),
+      makePricedModel({
+        id: "llama3.2:3b",
+        provider: "ollama",
+        local: { path: "/x" },
+      }),
     ];
     const presetsById = buildComboEstimatePresetLookup([
-      { id: "p1", name: "P1", hotkey: "", systemPrompt: "", model: "ollama::llama3.2:3b", isBuiltIn: false },
+      {
+        id: "p1",
+        name: "P1",
+        hotkey: "",
+        systemPrompt: "",
+        model: "ollama::llama3.2:3b",
+        isBuiltIn: false,
+      },
     ]);
     const estimate = estimateCombo({
       steps: [makeStep("s1", "p1"), makeStep("s2", "p1"), makeStep("s3", "p1")],
@@ -132,11 +148,29 @@ describe("warning threshold", () => {
   it("a 2-step combo across two providers is flagged multi-provider even though it stays under the token threshold", () => {
     const models: Model[] = [
       makePricedModel({ id: "gpt-4o-mini", provider: "openai" }),
-      makePricedModel({ id: "llama3.2:3b", provider: "ollama", local: { path: "/x" } }),
+      makePricedModel({
+        id: "llama3.2:3b",
+        provider: "ollama",
+        local: { path: "/x" },
+      }),
     ];
     const presetsById = buildComboEstimatePresetLookup([
-      { id: "p1", name: "P1", hotkey: "", systemPrompt: "", model: "gpt-4o-mini", isBuiltIn: false },
-      { id: "p2", name: "P2", hotkey: "", systemPrompt: "", model: "ollama::llama3.2:3b", isBuiltIn: false },
+      {
+        id: "p1",
+        name: "P1",
+        hotkey: "",
+        systemPrompt: "",
+        model: "gpt-4o-mini",
+        isBuiltIn: false,
+      },
+      {
+        id: "p2",
+        name: "P2",
+        hotkey: "",
+        systemPrompt: "",
+        model: "ollama::llama3.2:3b",
+        isBuiltIn: false,
+      },
     ]);
     const estimate = estimateCombo({
       steps: [makeStep("s1", "p1"), makeStep("s2", "p2")],
@@ -151,9 +185,18 @@ describe("warning threshold", () => {
   });
 
   it("a single-provider combo is never flagged multi-provider", () => {
-    const models: Model[] = [makePricedModel({ id: "gpt-4o-mini", provider: "openai" })];
+    const models: Model[] = [
+      makePricedModel({ id: "gpt-4o-mini", provider: "openai" }),
+    ];
     const presetsById = buildComboEstimatePresetLookup([
-      { id: "p1", name: "P1", hotkey: "", systemPrompt: "", model: "gpt-4o-mini", isBuiltIn: false },
+      {
+        id: "p1",
+        name: "P1",
+        hotkey: "",
+        systemPrompt: "",
+        model: "gpt-4o-mini",
+        isBuiltIn: false,
+      },
     ]);
     const estimate = estimateCombo({
       steps: stepsOfLength(3).map((step) => ({ ...step, presetId: "p1" })),
@@ -168,8 +211,14 @@ describe("warning threshold", () => {
 
 describe("resolveComboCostDisplay (f1 — sub-cent 'ok' must not read as genuine zero)", () => {
   it("a sub-cent real cost gets extra fraction digits, distinguishing it from a genuine zero", () => {
-    const paidSubCent = resolveComboCostDisplay({ status: "ok", totalUsd: 0.00482 });
-    const genuineZero = resolveComboCostDisplay({ status: "zero", totalUsd: 0 });
+    const paidSubCent = resolveComboCostDisplay({
+      status: "ok",
+      totalUsd: 0.00482,
+    });
+    const genuineZero = resolveComboCostDisplay({
+      status: "zero",
+      totalUsd: 0,
+    });
 
     expect(paidSubCent).toEqual({
       kind: "amount",
@@ -188,12 +237,14 @@ describe("resolveComboCostDisplay (f1 — sub-cent 'ok' must not read as genuine
   });
 
   it("a cost at or above one cent keeps the standard 2-digit display", () => {
-    expect(resolveComboCostDisplay({ status: "ok", totalUsd: 0.0145 })).toEqual({
-      kind: "amount",
-      valueUsd: 0.0145,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+    expect(resolveComboCostDisplay({ status: "ok", totalUsd: 0.0145 })).toEqual(
+      {
+        kind: "amount",
+        valueUsd: 0.0145,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      },
+    );
   });
 
   it("'na' never renders as a number", () => {
@@ -205,7 +256,10 @@ describe("resolveComboCostDisplay (f1 — sub-cent 'ok' must not read as genuine
 
 describe("estimate baseline disclosure (f3 — the 800-char assumption must be stated, not implied)", () => {
   it("names the baseline character count as an explicit assumption, in both locales", () => {
-    for (const catalog of [enSettings, jaSettings] as Record<string, string>[]) {
+    for (const catalog of [enSettings, jaSettings] as Record<
+      string,
+      string
+    >[]) {
       expect(catalog["settings.correction.combos.estimate.tokens"]).toContain(
         "{baselineChars}",
       );
@@ -260,12 +314,20 @@ describe("resolveComboStepProvider", () => {
   });
 
   it("resolves a bare id by scanning connected providers' catalogues, never by guessing from the id shape", () => {
-    const result = resolveComboStepProvider({ model: "gpt-4o-mini" }, "", models);
+    const result = resolveComboStepProvider(
+      { model: "gpt-4o-mini" },
+      "",
+      models,
+    );
     expect(result.provider).toBe("openai");
   });
 
   it("a preset with no model inherits the global default's provider", () => {
-    const result = resolveComboStepProvider({ model: "" }, "gpt-4o-mini", models);
+    const result = resolveComboStepProvider(
+      { model: "" },
+      "gpt-4o-mini",
+      models,
+    );
     expect(result.provider).toBe("openai");
   });
 
@@ -276,7 +338,11 @@ describe("resolveComboStepProvider", () => {
   });
 
   it("is unresolved when a bare id matches no fetched model", () => {
-    const result = resolveComboStepProvider({ model: "no-such-model" }, "", models);
+    const result = resolveComboStepProvider(
+      { model: "no-such-model" },
+      "",
+      models,
+    );
     expect(result.provider).toBeNull();
   });
 });
@@ -284,12 +350,33 @@ describe("resolveComboStepProvider", () => {
 describe("estimateCombo — provider list (the headline)", () => {
   const models: Model[] = [
     makePricedModel({ id: "gpt-4o-mini", provider: "openai" }),
-    makePricedModel({ id: "llama3.2:3b", provider: "ollama", local: { path: "/x" } }),
-    makePricedModel({ id: "anthropic/claude-3.5-sonnet", provider: "openrouter" }),
+    makePricedModel({
+      id: "llama3.2:3b",
+      provider: "ollama",
+      local: { path: "/x" },
+    }),
+    makePricedModel({
+      id: "anthropic/claude-3.5-sonnet",
+      provider: "openrouter",
+    }),
   ];
   const presets: CorrectionPreset[] = [
-    { id: "p1", name: "P1", hotkey: "", systemPrompt: "", model: "gpt-4o-mini", isBuiltIn: false },
-    { id: "p2", name: "P2", hotkey: "", systemPrompt: "", model: "ollama::llama3.2:3b", isBuiltIn: false },
+    {
+      id: "p1",
+      name: "P1",
+      hotkey: "",
+      systemPrompt: "",
+      model: "gpt-4o-mini",
+      isBuiltIn: false,
+    },
+    {
+      id: "p2",
+      name: "P2",
+      hotkey: "",
+      systemPrompt: "",
+      model: "ollama::llama3.2:3b",
+      isBuiltIn: false,
+    },
     {
       id: "p3",
       name: "P3",
@@ -321,7 +408,14 @@ describe("estimateCombo — provider list (the headline)", () => {
 
   it("flags an unresolved provider instead of silently omitting the step", () => {
     const orphanPresets = buildComboEstimatePresetLookup([
-      { id: "orphan", name: "Orphan", hotkey: "", systemPrompt: "", model: "", isBuiltIn: false },
+      {
+        id: "orphan",
+        name: "Orphan",
+        hotkey: "",
+        systemPrompt: "",
+        model: "",
+        isBuiltIn: false,
+      },
     ]);
     const estimate = estimateCombo({
       steps: [makeStep("s1", "orphan"), makeStep("s2", "p1")],
@@ -355,7 +449,14 @@ describe("estimateCombo — provider list (the headline)", () => {
     // helpers, so a regression in how estimateCombo WIRES
     // globalDefaultModelRef through would be caught here.
     const noModelPresets = buildComboEstimatePresetLookup([
-      { id: "no-model", name: "NoModel", hotkey: "", systemPrompt: "", model: "", isBuiltIn: false },
+      {
+        id: "no-model",
+        name: "NoModel",
+        hotkey: "",
+        systemPrompt: "",
+        model: "",
+        isBuiltIn: false,
+      },
     ]);
     const estimate = estimateCombo({
       steps: [makeStep("s1", "no-model"), makeStep("s2", "p3")],
@@ -372,10 +473,21 @@ describe("estimateCombo — provider list (the headline)", () => {
 describe("estimateCombo — cost honesty", () => {
   it("a fully local/Ollama combo reports a genuine zero, never N/A", () => {
     const models: Model[] = [
-      makePricedModel({ id: "llama3.2:3b", provider: "ollama", local: { path: "/x" } }),
+      makePricedModel({
+        id: "llama3.2:3b",
+        provider: "ollama",
+        local: { path: "/x" },
+      }),
     ];
     const presetsById = buildComboEstimatePresetLookup([
-      { id: "p1", name: "P1", hotkey: "", systemPrompt: "", model: "ollama::llama3.2:3b", isBuiltIn: false },
+      {
+        id: "p1",
+        name: "P1",
+        hotkey: "",
+        systemPrompt: "",
+        model: "ollama::llama3.2:3b",
+        isBuiltIn: false,
+      },
     ]);
     const estimate = estimateCombo({
       steps: [makeStep("s1", "p1"), makeStep("s2", "p1")],
@@ -388,9 +500,18 @@ describe("estimateCombo — cost honesty", () => {
   });
 
   it("direct OpenAI has no local price map, so cost is N/A (never $0.00) even with tokens known", () => {
-    const models: Model[] = [makePricedModel({ id: "gpt-5", provider: "openai" })];
+    const models: Model[] = [
+      makePricedModel({ id: "gpt-5", provider: "openai" }),
+    ];
     const presetsById = buildComboEstimatePresetLookup([
-      { id: "p1", name: "P1", hotkey: "", systemPrompt: "", model: "openai::gpt-5", isBuiltIn: false },
+      {
+        id: "p1",
+        name: "P1",
+        hotkey: "",
+        systemPrompt: "",
+        model: "openai::gpt-5",
+        isBuiltIn: false,
+      },
     ]);
     const estimate = estimateCombo({
       steps: [makeStep("s1", "p1"), makeStep("s2", "p1")],
@@ -404,7 +525,10 @@ describe("estimateCombo — cost honesty", () => {
 
   it("one unpriceable step poisons the whole combo's total — never a silently-partial sum", () => {
     const pricedModels: Model[] = [
-      makePricedModel({ id: "anthropic/claude-3.5-sonnet", provider: "openrouter" }),
+      makePricedModel({
+        id: "anthropic/claude-3.5-sonnet",
+        provider: "openrouter",
+      }),
     ];
     const presetsById = buildComboEstimatePresetLookup([
       {
@@ -415,7 +539,14 @@ describe("estimateCombo — cost honesty", () => {
         model: "openrouter::anthropic/claude-3.5-sonnet",
         isBuiltIn: false,
       },
-      { id: "unknown", name: "Unknown", hotkey: "", systemPrompt: "", model: "", isBuiltIn: false },
+      {
+        id: "unknown",
+        name: "Unknown",
+        hotkey: "",
+        systemPrompt: "",
+        model: "",
+        isBuiltIn: false,
+      },
     ]);
     const estimate = estimateCombo({
       steps: [makeStep("s1", "priced"), makeStep("s2", "unknown")],
@@ -484,7 +615,11 @@ describe("estimateCombo — cost honesty", () => {
           internal_reasoning: "0",
         },
       }),
-      makePricedModel({ id: "llama3.2:3b", provider: "ollama", local: { path: "/x" } }),
+      makePricedModel({
+        id: "llama3.2:3b",
+        provider: "ollama",
+        local: { path: "/x" },
+      }),
     ];
     const presetsById = buildComboEstimatePresetLookup([
       {
@@ -495,7 +630,14 @@ describe("estimateCombo — cost honesty", () => {
         model: "openrouter::openai/gpt-4o",
         isBuiltIn: false,
       },
-      { id: "local", name: "Local", hotkey: "", systemPrompt: "", model: "ollama::llama3.2:3b", isBuiltIn: false },
+      {
+        id: "local",
+        name: "Local",
+        hotkey: "",
+        systemPrompt: "",
+        model: "ollama::llama3.2:3b",
+        isBuiltIn: false,
+      },
     ]);
     const estimate = estimateCombo({
       steps: [makeStep("s1", "priced"), makeStep("s2", "local")],

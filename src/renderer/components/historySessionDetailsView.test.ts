@@ -34,7 +34,6 @@ describe("historySessionDetailsView", () => {
     ]);
   });
 
-
   it("extracts chat session metadata", () => {
     const withEffort = JSON.stringify({
       messages: [{ role: "user", content: "Hi" }],
@@ -60,8 +59,11 @@ describe("historySessionDetailsView", () => {
   });
 
   it("formats structured message content for chat", () => {
-    expect(displayHistoryMessageContent({ text: "hello" })).toBe(
-      '{\n  "text": "hello"\n}',
-    );
+    expect(
+      displayHistoryMessageContent({
+        role: "user",
+        content: { text: "hello" },
+      }),
+    ).toBe('{\n  "text": "hello"\n}');
   });
 });

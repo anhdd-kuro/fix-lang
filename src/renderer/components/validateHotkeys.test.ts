@@ -99,7 +99,9 @@ describe("validateHotkeys", () => {
     expect(result).not.toBeNull();
     expect(result?.hotkey).toBe("Control+Shift+F");
     // Both colliding preset names must appear
-    expect([result?.presetOrKey, result?.conflictsWith]).toContain("Correction");
+    expect([result?.presetOrKey, result?.conflictsWith]).toContain(
+      "Correction",
+    );
     expect([result?.presetOrKey, result?.conflictsWith]).toContain("My Custom");
   });
 
@@ -115,7 +117,9 @@ describe("validateHotkeys", () => {
 
     expect(result).not.toBeNull();
     expect(result?.hotkey).toBe("Control+Shift+P");
-    expect([result?.presetOrKey, result?.conflictsWith]).toContain("Correction");
+    expect([result?.presetOrKey, result?.conflictsWith]).toContain(
+      "Correction",
+    );
     expect([result?.presetOrKey, result?.conflictsWith]).toContain("promptGen");
   });
 
@@ -184,7 +188,10 @@ describe("validateHotkeys", () => {
     const presets = [makePreset("correction", "Correction", "")];
 
     // Both app keybindings are empty — nothing to conflict with
-    const result = validateHotkeys(presets, { promptGen: "", profileSwitch: "" });
+    const result = validateHotkeys(presets, {
+      promptGen: "",
+      profileSwitch: "",
+    });
 
     expect(result).toBeNull();
   });
@@ -203,7 +210,9 @@ describe("validateHotkeys — the combo cancel accelerator is statically reserve
   });
 
   it("rejects a preset bound to Control+Escape, naming comboCancel as the holder", () => {
-    const presets = [makePreset("custom", "My Custom", COMBO_CANCEL_ACCELERATOR)];
+    const presets = [
+      makePreset("custom", "My Custom", COMBO_CANCEL_ACCELERATOR),
+    ];
 
     expect(validateHotkeys(presets, makeKeyBindings())).toEqual({
       hotkey: COMBO_CANCEL_ACCELERATOR,
@@ -213,7 +222,9 @@ describe("validateHotkeys — the combo cancel accelerator is statically reserve
   });
 
   it("rejects it even when both app keybindings are blank — the reservation is not keyBindings-derived", () => {
-    const presets = [makePreset("custom", "My Custom", COMBO_CANCEL_ACCELERATOR)];
+    const presets = [
+      makePreset("custom", "My Custom", COMBO_CANCEL_ACCELERATOR),
+    ];
 
     const result = validateHotkeys(presets, {
       promptGen: "",
@@ -251,7 +262,9 @@ describe("validateHotkeys — the combo cancel accelerator is statically reserve
   it("names comboCancel as the holder for every party when a legacy promptGen also holds the chord", () => {
     // Reachable only from a config saved before this gate existed. The static
     // claim comes first, so it owns the message for both offenders.
-    const presets = [makePreset("custom", "My Custom", COMBO_CANCEL_ACCELERATOR)];
+    const presets = [
+      makePreset("custom", "My Custom", COMBO_CANCEL_ACCELERATOR),
+    ];
 
     const conflicts = findHotkeyConflicts(
       presets,

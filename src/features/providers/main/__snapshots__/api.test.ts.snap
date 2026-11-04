@@ -1,0 +1,257 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`parseProviderConnect — pinned edge-case outputs > matches the recorded output for every edge payload 1`] = `
+[
+  [
+    "undefined",
+    null,
+  ],
+  [
+    "null",
+    null,
+  ],
+  [
+    "0",
+    null,
+  ],
+  [
+    "string",
+    null,
+  ],
+  [
+    "function",
+    null,
+  ],
+  [
+    "boxed string",
+    null,
+  ],
+  [
+    "empty array",
+    null,
+  ],
+  [
+    "array carrying fields",
+    {
+      "keys": [
+        "provider",
+        "apiKey",
+      ],
+      "parsed": {
+        "apiKey": "k",
+        "provider": "openai",
+      },
+    },
+  ],
+  [
+    "inherited fields",
+    {
+      "keys": [
+        "provider",
+        "apiKey",
+      ],
+      "parsed": {
+        "apiKey": "k",
+        "provider": "openai",
+      },
+    },
+  ],
+  [
+    "null prototype",
+    {
+      "keys": [
+        "provider",
+        "apiKey",
+      ],
+      "parsed": {
+        "apiKey": "k",
+        "provider": "anthropic",
+      },
+    },
+  ],
+  [
+    "class instance",
+    {
+      "keys": [
+        "provider",
+        "provisioningKey",
+      ],
+      "parsed": {
+        "provider": "openrouter",
+        "provisioningKey": "p",
+      },
+    },
+  ],
+  [
+    "bare provider",
+    {
+      "keys": [
+        "provider",
+      ],
+      "parsed": {
+        "provider": "openai",
+      },
+    },
+  ],
+  [
+    "constructor provider",
+    null,
+  ],
+  [
+    "boxed provider",
+    null,
+  ],
+  [
+    "every string field",
+    {
+      "keys": [
+        "provider",
+        "apiKey",
+        "provisioningKey",
+        "secretKey",
+        "region",
+        "projectId",
+        "host",
+        "port",
+      ],
+      "parsed": {
+        "apiKey": "AKIA",
+        "host": "127.0.0.1",
+        "port": 1234,
+        "projectId": "",
+        "provider": "bedrock",
+        "provisioningKey": "p",
+        "region": "us-east-1",
+        "secretKey": "s",
+      },
+    },
+  ],
+  [
+    "explicit undefined fields",
+    {
+      "keys": [
+        "provider",
+      ],
+      "parsed": {
+        "provider": "openai",
+      },
+    },
+  ],
+  [
+    "null apiKey",
+    null,
+  ],
+  [
+    "numeric secretKey",
+    null,
+  ],
+  [
+    "numeric region",
+    null,
+  ],
+  [
+    "numeric projectId",
+    null,
+  ],
+  [
+    "boxed apiKey",
+    null,
+  ],
+  [
+    "padded host",
+    {
+      "keys": [
+        "provider",
+        "host",
+      ],
+      "parsed": {
+        "host": "localhost",
+        "provider": "lmstudio",
+      },
+    },
+  ],
+  [
+    "blank host",
+    null,
+  ],
+  [
+    "scheme host",
+    null,
+  ],
+  [
+    "numeric host",
+    null,
+  ],
+  [
+    "null host",
+    null,
+  ],
+  [
+    "string port",
+    {
+      "keys": [
+        "provider",
+        "port",
+      ],
+      "parsed": {
+        "port": 11435,
+        "provider": "ollama",
+      },
+    },
+  ],
+  [
+    "padded string port",
+    {
+      "keys": [
+        "provider",
+        "port",
+      ],
+      "parsed": {
+        "port": 11435,
+        "provider": "ollama",
+      },
+    },
+  ],
+  [
+    "blank string port",
+    null,
+  ],
+  [
+    "fractional port",
+    null,
+  ],
+  [
+    "NaN port",
+    null,
+  ],
+  [
+    "zero port",
+    null,
+  ],
+  [
+    "out-of-range port",
+    null,
+  ],
+  [
+    "boolean port",
+    null,
+  ],
+  [
+    "null port",
+    null,
+  ],
+  [
+    "hex string port",
+    {
+      "keys": [
+        "provider",
+        "port",
+      ],
+      "parsed": {
+        "port": 16,
+        "provider": "ollama",
+      },
+    },
+  ],
+]
+`;

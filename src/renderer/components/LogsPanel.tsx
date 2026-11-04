@@ -24,24 +24,24 @@ import { useI18n } from "../i18n/useI18n";
 import type { TranslationKey } from "~/features/i18n/shared/keys";
 import type { LogEntry, LogLevel } from "~/features/logs/shared/logging";
 
-const LEVEL_CLASS: Record<LogLevel, string> = {
+const LEVEL_CLASS = {
   debug: "text-muted-foreground",
   info: "text-primary",
   warn: "text-yellow-500",
   error: "text-destructive",
-};
+} satisfies Record<LogLevel, string>;
 
 /**
  * Filter labels are UI chrome and get translated; the underlying `LogLevel`
  * values (used for querying/filtering) stay raw English tokens — level names
  * are machine data, not prose.
  */
-const LEVEL_LABEL_KEYS: Record<LogLevel, TranslationKey> = {
+const LEVEL_LABEL_KEYS = {
   debug: "logs.panel.level.debug",
   info: "logs.panel.level.info",
   warn: "logs.panel.level.warn",
   error: "logs.panel.level.error",
-};
+} satisfies Record<LogLevel, TranslationKey>;
 
 const ROW_ESTIMATE_PX = 44;
 const LOAD_MORE_THRESHOLD = 12;
@@ -52,8 +52,7 @@ const entryMatchesFilters = (
   levels: readonly LogLevel[],
   search: string,
 ): boolean =>
-  logEntryMatchesLevels(entry, levels) &&
-  logEntryMatchesSearch(entry, search);
+  logEntryMatchesLevels(entry, levels) && logEntryMatchesSearch(entry, search);
 
 const mergeNewestFirst = (
   existing: readonly LogEntry[],
@@ -413,13 +412,13 @@ export const LogsPanel = () => {
                     >
                       {entry.level}
                     </span>
-                    <span className="min-w-0 break-words [overflow-wrap:anywhere] text-foreground">
+                    <span className="min-w-0 wrap-break-word text-foreground">
                       <span className="text-muted-foreground">
                         [{entry.scope}]
                       </span>{" "}
                       {entry.message}
                       {entry.context ? (
-                        <span className="ml-2 break-words [overflow-wrap:anywhere] text-muted-foreground">
+                        <span className="ml-2 wrap-break-word text-muted-foreground">
                           {JSON.stringify(entry.context)}
                         </span>
                       ) : null}

@@ -7,10 +7,19 @@
  */
 import React, { useState, useEffect } from "react";
 import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboValidation";
-import { messageLabel, msg, type Message } from "~/features/i18n/shared/message";
+import {
+  messageLabel,
+  msg,
+  type Message,
+} from "~/features/i18n/shared/message";
 import { Button } from "./Button";
 import { Input } from "./Input";
-import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
+import {
+  plainStatus,
+  wrappedError,
+  resolveStatus,
+  type StatusDescriptor,
+} from "./statusDescriptor";
 import { validateHotkeys } from "./validateHotkeys";
 import { useI18n } from "../i18n/useI18n";
 import type { KeyBindings } from "~/features/providers/store/apiStore";
@@ -49,9 +58,9 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
   const [status, setStatus] = useState<StatusDescriptor | null>(null);
   // Separate from `status` text so styling never depends on matching an
   // English prefix — `status` itself is always already localized.
-  const [statusKind, setStatusKind] = useState<"idle" | "error" | "applying" | "success">(
-    "idle",
-  );
+  const [statusKind, setStatusKind] = useState<
+    "idle" | "error" | "applying" | "success"
+  >("idle");
   // Locale-free descriptor for the ONE error the mount effect below can
   // produce (`getKeyBindings()` rejecting). Kept separate from `status` (set
   // by `handleApply` below, an event handler — safe to resolve via `t()`
@@ -77,18 +86,18 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
     // Safety net: if the widget unmounts while the field is still focused
     // (e.g. settings window closes mid-capture), make sure hotkeys resume.
     return () => {
-      window.electronAPI?.resumeHotkeys();
+      void window.electronAPI?.resumeHotkeys();
     };
   }, [hotkeyKey]);
 
   // Pause global hotkeys only while the field is focused for capture — not for
   // the whole lifetime of the settings tab. Resume as soon as focus leaves.
   const handleFocus = (): void => {
-    window.electronAPI?.pauseHotkeys();
+    void window.electronAPI?.pauseHotkeys();
   };
 
   const handleBlur = (): void => {
-    window.electronAPI?.resumeHotkeys();
+    void window.electronAPI?.resumeHotkeys();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
@@ -122,6 +131,9 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
 
     // Check intra-app duplicate (against sibling keybinding).
     if (keyBindings) {
+      // SAFETY: the keys are only used to index this same `keyBindings` object
+      // and to name the sibling; a stale extra key from the persisted store
+      // would still read a value that exists, so no lookup can go out of bounds.
       const siblingKeys = (Object.keys(keyBindings) as HotkeyKey[]).filter(
         (k) => k !== hotkeyKey,
       );

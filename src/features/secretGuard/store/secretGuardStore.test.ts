@@ -10,21 +10,31 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SECRET_GUARD_SETTINGS } from "~/features/secretGuard/shared/secretGuardSettings";
 import { secretGuardStore } from "./secretGuardStore";
 import type { SecretGuardSettings } from "~/features/secretGuard/shared/secretGuardSettings";
+import type { Options } from "electron-store";
+
+/** What an electron-store file can hold: the backing data of the mock below. */
+type StoredJson =
+  | string
+  | number
+  | boolean
+  | null
+  | StoredJson[]
+  | { [key: string]: StoredJson };
 
 const { storeData, storeOptions } = vi.hoisted(() => ({
-  storeData: {} as Record<string, unknown>,
-  storeOptions: [] as unknown[],
+  storeData: {} as Record<string, StoredJson>,
+  storeOptions: [] as Options<Record<string, StoredJson>>[],
 }));
 
 vi.mock("electron-store", () => {
   class MockStore {
-    constructor(options: unknown) {
+    constructor(options: Options<Record<string, StoredJson>>) {
       storeOptions.push(options);
     }
-    get(key: string, defaultValue?: unknown) {
+    get(key: string, defaultValue?: StoredJson) {
       return key in storeData ? storeData[key] : defaultValue;
     }
-    set(key: string, value: unknown) {
+    set(key: string, value: StoredJson) {
       storeData[key] = value;
     }
     store = {};
@@ -42,7 +52,7 @@ describe("secretGuardStore", () => {
   });
 
   it("is a standalone, schema-free store with clearInvalidConfig on", () => {
-    const options = storeOptions[0] as Record<string, unknown>;
+    const options = storeOptions[0];
 
     expect(options.name).toBe("secretGuard");
     expect(options.clearInvalidConfig).toBe(true);
@@ -52,8 +62,13 @@ describe("secretGuardStore", () => {
   });
 
   it("starts from the documented defaults before anything is written", () => {
-    expect(secretGuardStore.getSecretGuardSettings()).toEqual(DEFAULT_SECRET_GUARD_SETTINGS);
-    expect(DEFAULT_SECRET_GUARD_SETTINGS).toEqual({ mode: "confirm", highEntropyRule: false });
+    expect(secretGuardStore.getSecretGuardSettings()).toEqual(
+      DEFAULT_SECRET_GUARD_SETTINGS,
+    );
+    expect(DEFAULT_SECRET_GUARD_SETTINGS).toEqual({
+      mode: "confirm",
+      highEntropyRule: false,
+    });
   });
 
   it.each<SecretGuardSettings>([
@@ -68,10 +83,12 @@ describe("secretGuardStore", () => {
   });
 
   it("normalizes junk before persisting it, rather than trusting its own caller", () => {
-    secretGuardStore.setSecretGuardSettings({
-      mode: "MASK",
-      highEntropyRule: "yes",
-    } as unknown as SecretGuardSettings);
+    // Junk the type system cannot express, arriving the way junk really does:
+    // through a JSON boundary that yields `any`.
+    const junk: SecretGuardSettings = JSON.parse(
+      '{ "mode": "MASK", "highEntropyRule": "yes" }',
+    );
+    secretGuardStore.setSecretGuardSettings(junk);
 
     expect(secretGuardStore.getSecretGuardSettings()).toEqual({
       mode: "confirm",

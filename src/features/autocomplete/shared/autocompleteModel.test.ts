@@ -9,20 +9,26 @@ import {
 describe("resolveAutocompleteModelRef", () => {
   it("prefers an explicitly stored ref", () => {
     expect(
-      resolveAutocompleteModelRef("openai::gpt-4o-mini", "openai::gpt-5", "openai::gpt-4.1"),
+      resolveAutocompleteModelRef(
+        "openai::gpt-4o-mini",
+        "openai::gpt-5",
+        "openai::gpt-4.1",
+      ),
     ).toBe("openai::gpt-4o-mini");
   });
 
   it("falls back to the Ask preset's ref when nothing is stored", () => {
-    expect(resolveAutocompleteModelRef("", "openai::gpt-5", "openai::gpt-4.1")).toBe(
-      "openai::gpt-5",
-    );
+    expect(
+      resolveAutocompleteModelRef("", "openai::gpt-5", "openai::gpt-4.1"),
+    ).toBe("openai::gpt-5");
   });
 
   // Ask's own model is commonly the inherit sentinel, so stopping at Ask would
   // resolve autocomplete to "" while a perfectly good global default exists.
   it("falls through to the global default when Ask itself inherits", () => {
-    expect(resolveAutocompleteModelRef("", "", "openai::gpt-4.1")).toBe("openai::gpt-4.1");
+    expect(resolveAutocompleteModelRef("", "", "openai::gpt-4.1")).toBe(
+      "openai::gpt-4.1",
+    );
   });
 
   it("returns the inherit sentinel when nothing is configured anywhere", () => {
@@ -40,7 +46,9 @@ describe("resolveAutocompleteModelRef", () => {
   });
 
   it("trims a stored ref it does use", () => {
-    expect(resolveAutocompleteModelRef("  openai::gpt-5  ", "", "")).toBe("openai::gpt-5");
+    expect(resolveAutocompleteModelRef("  openai::gpt-5  ", "", "")).toBe(
+      "openai::gpt-5",
+    );
   });
 });
 
@@ -76,15 +84,15 @@ describe("normalizeAutocompleteSettings", () => {
     });
 
     it("keeps a stored ref", () => {
-      expect(normalizeAutocompleteSettings({ model: "openai::gpt-5" }).model).toBe(
-        "openai::gpt-5",
-      );
+      expect(
+        normalizeAutocompleteSettings({ model: "openai::gpt-5" }).model,
+      ).toBe("openai::gpt-5");
     });
 
     it("trims a padded ref", () => {
-      expect(normalizeAutocompleteSettings({ model: "  openai::gpt-5 " }).model).toBe(
-        "openai::gpt-5",
-      );
+      expect(
+        normalizeAutocompleteSettings({ model: "  openai::gpt-5 " }).model,
+      ).toBe("openai::gpt-5");
     });
 
     it.each([
@@ -124,16 +132,23 @@ describe("normalizeAutocompleteSettings", () => {
     );
 
     it("keeps a stored cap inside the range", () => {
-      expect(normalizeAutocompleteSettings({ dailyCostCapUsd: 2.5 }).dailyCostCapUsd).toBe(2.5);
-      expect(normalizeAutocompleteSettings({ dailyCostCapUsd: 0 }).dailyCostCapUsd).toBe(0);
+      expect(
+        normalizeAutocompleteSettings({ dailyCostCapUsd: 2.5 }).dailyCostCapUsd,
+      ).toBe(2.5);
+      expect(
+        normalizeAutocompleteSettings({ dailyCostCapUsd: 0 }).dailyCostCapUsd,
+      ).toBe(0);
     });
 
     // Clamped, never rejected: `apiStore` runs `clearInvalidConfig: true`, so a
     // schema that refused an out-of-range cap would wipe every profile.
     it("clamps out-of-range caps instead of refusing them", () => {
-      expect(normalizeAutocompleteSettings({ dailyCostCapUsd: -3 }).dailyCostCapUsd).toBe(0);
       expect(
-        normalizeAutocompleteSettings({ dailyCostCapUsd: 5_000 }).dailyCostCapUsd,
+        normalizeAutocompleteSettings({ dailyCostCapUsd: -3 }).dailyCostCapUsd,
+      ).toBe(0);
+      expect(
+        normalizeAutocompleteSettings({ dailyCostCapUsd: 5_000 })
+          .dailyCostCapUsd,
       ).toBe(MAX_DAILY_COST_CAP_USD);
     });
   });

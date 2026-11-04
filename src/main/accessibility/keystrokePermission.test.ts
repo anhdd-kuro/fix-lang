@@ -16,15 +16,21 @@ describe("isKeystrokePermissionDenied", () => {
   });
 
   it("matches an Error instance wrapping the denial text", () => {
-    expect(isKeystrokePermissionDenied(new Error(REAL_DENIAL_MESSAGE))).toBe(true);
+    expect(isKeystrokePermissionDenied(new Error(REAL_DENIAL_MESSAGE))).toBe(
+      true,
+    );
   });
 
   it("matches a plain string rejection (copyHighlightedText's reject shape)", () => {
-    expect(isKeystrokePermissionDenied(`Error: ${REAL_DENIAL_MESSAGE}`)).toBe(true);
+    expect(isKeystrokePermissionDenied(`Error: ${REAL_DENIAL_MESSAGE}`)).toBe(
+      true,
+    );
   });
 
   it("matches an object with a message property", () => {
-    expect(isKeystrokePermissionDenied({ message: REAL_DENIAL_MESSAGE })).toBe(true);
+    expect(isKeystrokePermissionDenied({ message: REAL_DENIAL_MESSAGE })).toBe(
+      true,
+    );
   });
 
   it("does not throw and returns false for null", () => {
@@ -57,14 +63,54 @@ describe("isKeystrokePermissionDenied", () => {
   });
 
   it("does not match a generic command-not-found failure", () => {
-    expect(isKeystrokePermissionDenied("Command failed: osascript: command not found")).toBe(
-      false,
-    );
+    expect(
+      isKeystrokePermissionDenied(
+        "Command failed: osascript: command not found",
+      ),
+    ).toBe(false);
   });
 
   it("does not match the bare (1002) code without any mention of keystrokes", () => {
     // Defense-in-depth: the code alone is not specific enough (see module
     // doc) — it must appear together with "keystrokes" to count.
-    expect(isKeystrokePermissionDenied("execution error: not authorized. (1002)")).toBe(false);
+    expect(
+      isKeystrokePermissionDenied("execution error: not authorized. (1002)"),
+    ).toBe(false);
+  });
+});
+
+describe("isKeystrokePermissionDenied — thrown-value shapes", () => {
+  const DENIAL = "osascript is not allowed to send keystrokes. (1002)";
+
+  it.each<[string, unknown, boolean]>([
+    ["a boxed String", new String(DENIAL), false],
+    ["NaN", Number.NaN, false],
+    [
+      "a function carrying a message",
+      Object.defineProperty(() => undefined, "message", { value: DENIAL }),
+      false,
+    ],
+    [
+      "an array carrying a message",
+      Object.assign([], { message: DENIAL }),
+      true,
+    ],
+    [
+      "a null-prototype object",
+      Object.assign(Object.create(null), { message: DENIAL }),
+      true,
+    ],
+    [
+      "a class instance with an inherited message getter",
+      new (class {
+        get message() {
+          return DENIAL;
+        }
+      })(),
+      true,
+    ],
+    ["an object with extra keys", { message: DENIAL, code: 1002 }, true],
+  ])("reads %s as %s", (_label, thrown, expected) => {
+    expect(isKeystrokePermissionDenied(thrown)).toBe(expected);
   });
 });

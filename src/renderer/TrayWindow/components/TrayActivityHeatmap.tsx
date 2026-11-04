@@ -29,8 +29,9 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
   const { t, dateFnsLocale } = useI18n();
 
   const heatmap = useMemo(
+    // oxlint-disable-next-line react/purity -- intentional wall-clock read: the aggregation is anchored to now whenever its deps change
     () => sevenDayHourBlockHeatmap(entries, new Date()),
-    [entries]
+    [entries],
   );
 
   const hasActivity = entries.length > 0;
@@ -42,7 +43,9 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
       </div>
 
       {!hasActivity ? (
-        <p className="text-sm text-muted-foreground">{t("tray.heatmap.empty")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("tray.heatmap.empty")}
+        </p>
       ) : (
         <div className="flex flex-col gap-1">
           <div
@@ -56,7 +59,9 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
               heatmap.days.map((dayKey, dayIndex) => {
                 const count = heatmap.cells[dayIndex][blockIndex];
                 const dayDate = parseISO(`${dayKey}T12:00:00`);
-                const weekday = format(dayDate, "EEE", { locale: dateFnsLocale });
+                const weekday = format(dayDate, "EEE", {
+                  locale: dateFnsLocale,
+                });
                 const tooltip = t("tray.heatmap.tooltip", {
                   weekday,
                   hours: blockHourLabel(blockIndex),
@@ -68,12 +73,12 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
                     key={`${dayKey}-${blockIndex}`}
                     title={tooltip}
                     className={twJoin(
-                      "aspect-square min-h-[10px]",
-                      heatmapCellClass(heatmapRatioClass(count, heatmap.max))
+                      "aspect-square min-h-2.5",
+                      heatmapCellClass(heatmapRatioClass(count, heatmap.max)),
                     )}
                   />
                 );
-              })
+              }),
             )}
           </div>
 
@@ -86,7 +91,9 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
             {heatmap.days.map((dayKey) => {
               const dayDate = parseISO(`${dayKey}T12:00:00`);
               return (
-                <span key={dayKey}>{format(dayDate, "EEE", { locale: dateFnsLocale })}</span>
+                <span key={dayKey}>
+                  {format(dayDate, "EEE", { locale: dateFnsLocale })}
+                </span>
               );
             })}
           </div>
@@ -103,14 +110,14 @@ export const TrayActivityHeatmapLoader: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
 
-    window.electronAPI.getHistory("corrections").then((history) => {
+    void window.electronAPI.getHistory("corrections").then((history) => {
       if (!cancelled) {
         setEntries(history);
       }
     });
 
     const removeListener = window.electronAPI.onHistoryUpdate?.(() => {
-      window.electronAPI.getHistory("corrections").then((history) => {
+      void window.electronAPI.getHistory("corrections").then((history) => {
         if (!cancelled) {
           setEntries(history);
         }

@@ -11,7 +11,7 @@ present — while MIT requires its notice to accompany substantial portions, and
 Apache-2.0 section 4(a) requires recipients to receive a copy of the licence.
 
 Packages covered: 256 (the full runtime dependency closure).
-Licences: 202 × MIT, 42 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × (AFL-2.1 OR BSD-3-Clause), 1 × (MIT OR CC0-1.0), 1 × 0BSD, 1 × BSD-2-Clause.
+Licences: 204 × MIT, 40 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × (AFL-2.1 OR BSD-3-Clause), 1 × (MIT OR CC0-1.0), 1 × 0BSD, 1 × BSD-2-Clause.
 
 Identical licence texts are reproduced once and shared, with every package
 they cover listed above the text. Theme and other non-npm attribution lives in
@@ -81,21 +81,22 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[2] license — applies to 14 package(s):
+[2] license — applies to 15 package(s):
 
-    conf@15.1.0
+    conf@16.0.0
     debounce-fn@6.0.0
-    dot-prop@10.1.0
-    electron-store@11.0.2
-    env-paths@3.0.0
+    dot-prop@10.2.0
+    electron-store@12.0.0
+    env-paths@4.0.0
     escape-string-regexp@4.0.0
     escape-string-regexp@5.0.0
     import-fresh@3.3.1
     is-plain-obj@4.1.0
+    is-safe-filename@0.1.1
     mimic-function@5.0.1
     parse-json@5.2.0
     tagged-tag@1.0.0
-    type-fest@5.7.0
+    type-fest@5.10.0
     uint8array-extras@1.5.0
 ------------------------------------------------------------------------------
 
@@ -111,20 +112,61 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 ------------------------------------------------------------------------------
-[3] LICENSE — applies to 13 package(s):
+[3] license — applies to 13 package(s):
 
-    @aws-sdk/credential-provider-env@3.972.70
-    @aws-sdk/credential-provider-ini@3.973.15
-    @aws-sdk/credential-provider-node@3.972.81
-    @aws-sdk/token-providers@3.1116.0
-    @aws-sdk/types@3.974.5
-    @aws-sdk/xml-builder@3.972.40
+    estree-util-is-identifier-name@3.0.0
+    mdast-util-gfm-autolink-literal@2.0.1
+    mdast-util-gfm-strikethrough@2.0.0
+    mdast-util-gfm-table@2.0.0
+    mdast-util-gfm-task-list-item@2.0.0
+    mdast-util-mdx-expression@2.0.1
+    mdast-util-mdx-jsx@3.2.0
+    mdast-util-mdxjs-esm@2.0.1
+    micromark-extension-gfm-autolink-literal@2.1.0
+    micromark-extension-gfm-strikethrough@2.1.0
+    micromark-extension-gfm-tagfilter@2.0.0
+    micromark-extension-gfm-task-list-item@2.1.0
+    micromark-extension-gfm@3.0.0
+------------------------------------------------------------------------------
+
+(The MIT License)
+
+Copyright (c) 2020 Titus Wormer <tituswormer@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+'Software'), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+------------------------------------------------------------------------------
+[4] LICENSE — applies to 12 package(s):
+
+    @aws-sdk/credential-provider-env@3.972.78
+    @aws-sdk/credential-provider-ini@3.973.23
+    @aws-sdk/credential-provider-node@3.972.90
+    @aws-sdk/token-providers@3.1159.0
+    @aws-sdk/types@3.975.0
+    @aws-sdk/xml-builder@3.972.42
     @smithy/credential-provider-imds@4.5.2
     @smithy/eventstream-codec@4.4.15
-    @smithy/fetch-http-handler@5.7.2
-    @smithy/node-http-handler@4.11.3
-    @smithy/signature-v4@5.6.11
-    @smithy/signature-v4@5.7.3
+    @smithy/fetch-http-handler@5.8.0
+    @smithy/node-http-handler@4.13.0
+    @smithy/signature-v4@5.7.4
     @smithy/util-utf8@4.4.15
 ------------------------------------------------------------------------------
 
@@ -332,48 +374,6 @@ Apache License
 
 
 ------------------------------------------------------------------------------
-[4] license — applies to 13 package(s):
-
-    estree-util-is-identifier-name@3.0.0
-    mdast-util-gfm-autolink-literal@2.0.1
-    mdast-util-gfm-strikethrough@2.0.0
-    mdast-util-gfm-table@2.0.0
-    mdast-util-gfm-task-list-item@2.0.0
-    mdast-util-mdx-expression@2.0.1
-    mdast-util-mdx-jsx@3.2.0
-    mdast-util-mdxjs-esm@2.0.1
-    micromark-extension-gfm-autolink-literal@2.1.0
-    micromark-extension-gfm-strikethrough@2.1.0
-    micromark-extension-gfm-tagfilter@2.0.0
-    micromark-extension-gfm-task-list-item@2.1.0
-    micromark-extension-gfm@3.0.0
-------------------------------------------------------------------------------
-
-(The MIT License)
-
-Copyright (c) 2020 Titus Wormer <tituswormer@gmail.com>
-
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-'Software'), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
-
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-------------------------------------------------------------------------------
 [5] LICENSE — applies to 11 package(s):
 
     @emotion/babel-plugin@11.13.5
@@ -423,7 +423,7 @@ SOFTWARE.
     @types/ms@2.1.0
     @types/parse-json@4.0.2
     @types/react-transition-group@4.4.12
-    @types/react@19.2.18
+    @types/react@19.3.0
     @types/unist@2.0.11
     @types/unist@3.0.3
 ------------------------------------------------------------------------------
@@ -494,119 +494,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ------------------------------------------------------------------------------
 [8] LICENSE — applies to 10 package(s):
 
-    @babel/code-frame@7.29.7
-    @babel/generator@7.29.7
-    @babel/helper-globals@7.29.7
-    @babel/helper-module-imports@7.29.7
-    @babel/helper-string-parser@7.29.7
-    @babel/helper-validator-identifier@7.29.7
-    @babel/runtime@7.29.7
-    @babel/template@7.29.7
-    @babel/traverse@7.29.7
-    @babel/types@7.29.7
-------------------------------------------------------------------------------
-
-MIT License
-
-Copyright (c) 2014-present Sebastian McKenzie and other contributors
-
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
-
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-------------------------------------------------------------------------------
-[9] license — applies to 9 package(s):
-
-    bail@2.0.2
-    ccount@2.0.1
-    character-entities-html4@2.1.0
-    character-entities-legacy@3.0.0
-    character-entities@2.0.2
-    character-reference-invalid@2.0.1
-    mdast-util-to-string@4.0.0
-    unist-util-position@5.0.0
-    unist-util-visit@5.1.0
-------------------------------------------------------------------------------
-
-(The MIT License)
-
-Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>
-
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-'Software'), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
-
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-------------------------------------------------------------------------------
-[10] LICENSE — applies to 8 package(s):
-
-    @ai-sdk/amazon-bedrock@5.0.35
-    @ai-sdk/anthropic@4.0.23
-    @ai-sdk/gateway@4.0.28
-    @ai-sdk/openai@4.0.20
-    @ai-sdk/openai@4.0.23
-    @ai-sdk/provider@4.0.3
-    @ai-sdk/provider@4.0.4
-    ai@7.0.37
-------------------------------------------------------------------------------
-
-Copyright 2023 Vercel, Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-
-------------------------------------------------------------------------------
-[11] LICENSE — applies to 8 package(s):
-
-    @aws-sdk/credential-provider-process@3.972.70
-    @aws-sdk/credential-provider-sso@3.973.14
-    @aws-sdk/credential-provider-web-identity@3.972.76
-    @aws-sdk/signature-v4-multi-region@3.996.46
+    @aws-sdk/credential-provider-process@3.972.78
+    @aws-sdk/credential-provider-sso@3.973.22
+    @aws-sdk/credential-provider-web-identity@3.972.84
+    @aws-sdk/signature-v4-multi-region@3.996.50
     @smithy/core@3.31.0
     @smithy/core@3.33.3
+    @smithy/core@3.37.0
     @smithy/types@4.16.1
     @smithy/types@4.17.2
+    @smithy/types@4.19.0
 ------------------------------------------------------------------------------
 
 Apache License
@@ -813,6 +710,109 @@ Apache License
 
 
 ------------------------------------------------------------------------------
+[9] LICENSE — applies to 10 package(s):
+
+    @babel/code-frame@7.29.7
+    @babel/generator@7.29.7
+    @babel/helper-globals@7.29.7
+    @babel/helper-module-imports@7.29.7
+    @babel/helper-string-parser@7.29.7
+    @babel/helper-validator-identifier@7.29.7
+    @babel/runtime@7.29.7
+    @babel/template@7.29.7
+    @babel/traverse@7.29.7
+    @babel/types@7.29.7
+------------------------------------------------------------------------------
+
+MIT License
+
+Copyright (c) 2014-present Sebastian McKenzie and other contributors
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+------------------------------------------------------------------------------
+[10] license — applies to 9 package(s):
+
+    bail@2.0.2
+    ccount@2.0.1
+    character-entities-html4@2.1.0
+    character-entities-legacy@3.0.0
+    character-entities@2.0.2
+    character-reference-invalid@2.0.1
+    mdast-util-to-string@4.0.0
+    unist-util-position@5.0.0
+    unist-util-visit@5.1.0
+------------------------------------------------------------------------------
+
+(The MIT License)
+
+Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+'Software'), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+------------------------------------------------------------------------------
+[11] LICENSE — applies to 6 package(s):
+
+    @ai-sdk/amazon-bedrock@5.0.127
+    @ai-sdk/anthropic@4.0.91
+    @ai-sdk/gateway@4.0.129
+    @ai-sdk/openai@4.0.104
+    @ai-sdk/provider@4.0.34
+    ai@7.0.156
+------------------------------------------------------------------------------
+
+Copyright 2023 Vercel, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
+------------------------------------------------------------------------------
 [12] license — applies to 4 package(s):
 
     callsites@3.1.0
@@ -926,9 +926,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ------------------------------------------------------------------------------
 [16] LICENSE — applies to 3 package(s):
 
-    react-dom@19.2.8
-    react@19.2.8
-    scheduler@0.27.0
+    react-dom@19.3.1
+    react@19.3.1
+    scheduler@0.28.0
 ------------------------------------------------------------------------------
 
 MIT License
@@ -957,8 +957,8 @@ SOFTWARE.
 ------------------------------------------------------------------------------
 [17] LICENSE — applies to 2 package(s):
 
-    @tanstack/react-virtual@3.14.10
-    @tanstack/virtual-core@3.17.8
+    @tanstack/react-virtual@3.14.23
+    @tanstack/virtual-core@3.19.8
 ------------------------------------------------------------------------------
 
 MIT License
@@ -1136,7 +1136,37 @@ DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[23] license — applies to 2 package(s):
+[23] LICENSE — applies to 2 package(s):
+
+    undici@7.30.1
+    undici@8.12.3
+------------------------------------------------------------------------------
+
+MIT License
+
+Copyright (c) Matteo Collina and Undici contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+------------------------------------------------------------------------------
+[24] license — applies to 2 package(s):
 
     unified@11.0.5
     vfile@6.0.3
@@ -1166,9 +1196,9 @@ THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[24] LICENSE — applies to 1 package(s):
+[25] LICENSE — applies to 1 package(s):
 
-    @aws-sdk/client-bedrock@3.1116.0
+    @aws-sdk/client-bedrock@3.1159.0
 ------------------------------------------------------------------------------
 
 Apache License
@@ -1375,9 +1405,9 @@ Apache License
 
 
 ------------------------------------------------------------------------------
-[25] LICENSE — applies to 1 package(s):
+[26] LICENSE — applies to 1 package(s):
 
-    @aws-sdk/core@3.977.9
+    @aws-sdk/core@3.978.7
 ------------------------------------------------------------------------------
 
 Apache License
@@ -1584,7 +1614,7 @@ Apache License
 
 
 ------------------------------------------------------------------------------
-[26] LICENSE — applies to 1 package(s):
+[27] LICENSE — applies to 1 package(s):
 
     @aws/lambda-invoke-store@0.3.0
 ------------------------------------------------------------------------------
@@ -1766,7 +1796,7 @@ Apache License
 
 
 ------------------------------------------------------------------------------
-[27] LICENSE — applies to 1 package(s):
+[28] LICENSE — applies to 1 package(s):
 
     @babel/parser@7.29.7
 ------------------------------------------------------------------------------
@@ -1793,7 +1823,7 @@ THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[28] LICENSE — applies to 1 package(s):
+[29] LICENSE — applies to 1 package(s):
 
     @jridgewell/resolve-uri@3.1.2
 ------------------------------------------------------------------------------
@@ -1820,7 +1850,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[29] LICENSE.md — applies to 1 package(s):
+[30] LICENSE.md — applies to 1 package(s):
 
     @kurkle/color@0.3.4
 ------------------------------------------------------------------------------
@@ -1837,9 +1867,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 ------------------------------------------------------------------------------
-[30] LICENSE — applies to 1 package(s):
+[31] LICENSE — applies to 1 package(s):
 
-    @openrouter/ai-sdk-provider@3.0.0
+    @openrouter/ai-sdk-provider@3.1.0
 ------------------------------------------------------------------------------
 
 Apache License
@@ -2046,7 +2076,7 @@ APPENDIX: How to apply the Apache License to your work.
 
 
 ------------------------------------------------------------------------------
-[31] LICENSE — applies to 1 package(s):
+[32] LICENSE — applies to 1 package(s):
 
     @standard-schema/spec@1.1.0
 ------------------------------------------------------------------------------
@@ -2075,7 +2105,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[32] LICENSE — applies to 1 package(s):
+[33] LICENSE — applies to 1 package(s):
 
     @ungap/structured-clone@1.3.3
 ------------------------------------------------------------------------------
@@ -2098,7 +2128,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[33] LICENSE — applies to 1 package(s):
+[34] LICENSE — applies to 1 package(s):
 
     @vercel/oidc@3.2.0
 ------------------------------------------------------------------------------
@@ -2307,7 +2337,7 @@ Apache License
 
 
 ------------------------------------------------------------------------------
-[34] LICENSE.md — applies to 1 package(s):
+[35] LICENSE.md — applies to 1 package(s):
 
     @workflow/serde@4.1.0
 ------------------------------------------------------------------------------
@@ -2318,7 +2348,7 @@ See the LICENSE file in the root of this repository.
 
 
 ------------------------------------------------------------------------------
-[35] LICENSE — applies to 1 package(s):
+[36] LICENSE — applies to 1 package(s):
 
     ajv-formats@3.0.1
 ------------------------------------------------------------------------------
@@ -2347,7 +2377,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[36] LICENSE — applies to 1 package(s):
+[37] LICENSE — applies to 1 package(s):
 
     ajv@8.20.0
 ------------------------------------------------------------------------------
@@ -2376,7 +2406,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[37] license — applies to 1 package(s):
+[38] license — applies to 1 package(s):
 
     atomically@2.1.1
 ------------------------------------------------------------------------------
@@ -2405,7 +2435,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[38] LICENSE — applies to 1 package(s):
+[39] LICENSE — applies to 1 package(s):
 
     aws4fetch@1.0.20
 ------------------------------------------------------------------------------
@@ -2432,7 +2462,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[39] LICENSE — applies to 1 package(s):
+[40] LICENSE — applies to 1 package(s):
 
     babel-plugin-macros@3.1.0
 ------------------------------------------------------------------------------
@@ -2460,7 +2490,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[40] LICENSE — applies to 1 package(s):
+[41] LICENSE — applies to 1 package(s):
 
     bowser@2.14.1
 ------------------------------------------------------------------------------
@@ -2507,9 +2537,9 @@ Original Author, when distributed with the Software.
 
 
 ------------------------------------------------------------------------------
-[41] LICENSE.md — applies to 1 package(s):
+[42] LICENSE.md — applies to 1 package(s):
 
-    chart.js@4.5.1
+    chart.js@4.6.1
 ------------------------------------------------------------------------------
 
 The MIT License (MIT)
@@ -2524,7 +2554,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 ------------------------------------------------------------------------------
-[42] LICENSE.md — applies to 1 package(s):
+[43] LICENSE.md — applies to 1 package(s):
 
     colord@2.10.0
 ------------------------------------------------------------------------------
@@ -2553,7 +2583,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[43] LICENSE — applies to 1 package(s):
+[44] LICENSE — applies to 1 package(s):
 
     convert-source-map@1.9.0
 ------------------------------------------------------------------------------
@@ -2584,7 +2614,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[44] LICENSE — applies to 1 package(s):
+[45] LICENSE — applies to 1 package(s):
 
     cosmiconfig@7.1.0
 ------------------------------------------------------------------------------
@@ -2613,7 +2643,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[45] LICENSE — applies to 1 package(s):
+[46] LICENSE — applies to 1 package(s):
 
     csstype@3.2.3
 ------------------------------------------------------------------------------
@@ -2640,7 +2670,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[46] LICENSE.md — applies to 1 package(s):
+[47] LICENSE.md — applies to 1 package(s):
 
     date-fns@4.4.0
 ------------------------------------------------------------------------------
@@ -2669,7 +2699,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[47] LICENSE — applies to 1 package(s):
+[48] LICENSE — applies to 1 package(s):
 
     debug@4.4.3
 ------------------------------------------------------------------------------
@@ -2696,7 +2726,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[48] license — applies to 1 package(s):
+[49] license — applies to 1 package(s):
 
     dequal@2.0.3
 ------------------------------------------------------------------------------
@@ -2725,7 +2755,7 @@ THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[49] license — applies to 1 package(s):
+[50] license — applies to 1 package(s):
 
     devlop@1.1.0
 ------------------------------------------------------------------------------
@@ -2755,7 +2785,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[50] LICENSE — applies to 1 package(s):
+[51] LICENSE — applies to 1 package(s):
 
     dom-helpers@5.2.1
 ------------------------------------------------------------------------------
@@ -2784,7 +2814,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[51] LICENSE — applies to 1 package(s):
+[52] LICENSE — applies to 1 package(s):
 
     es-errors@1.3.0
 ------------------------------------------------------------------------------
@@ -2813,7 +2843,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[52] LICENSE — applies to 1 package(s):
+[53] LICENSE — applies to 1 package(s):
 
     eventsource-parser@3.1.0
 ------------------------------------------------------------------------------
@@ -2842,7 +2872,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[53] LICENSE — applies to 1 package(s):
+[54] LICENSE — applies to 1 package(s):
 
     extend@3.0.2
 ------------------------------------------------------------------------------
@@ -2872,7 +2902,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[54] LICENSE — applies to 1 package(s):
+[55] LICENSE — applies to 1 package(s):
 
     fast-uri@3.1.2
 ------------------------------------------------------------------------------
@@ -2910,7 +2940,7 @@ The complete list of contributors can be found at:
 
 
 ------------------------------------------------------------------------------
-[55] LICENSE.md — applies to 1 package(s):
+[56] LICENSE.md — applies to 1 package(s):
 
     find-root@1.1.0
 ------------------------------------------------------------------------------
@@ -2925,7 +2955,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 
 ------------------------------------------------------------------------------
-[56] LICENSE — applies to 1 package(s):
+[57] LICENSE — applies to 1 package(s):
 
     function-bind@1.1.2
 ------------------------------------------------------------------------------
@@ -2952,7 +2982,7 @@ THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[57] LICENSE — applies to 1 package(s):
+[58] LICENSE — applies to 1 package(s):
 
     fuse.js@7.5.0
 ------------------------------------------------------------------------------
@@ -3161,7 +3191,7 @@ Apache License
 
 
 ------------------------------------------------------------------------------
-[58] LICENSE — applies to 1 package(s):
+[59] LICENSE — applies to 1 package(s):
 
     hasown@2.0.4
 ------------------------------------------------------------------------------
@@ -3190,7 +3220,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[59] LICENSE.md — applies to 1 package(s):
+[60] LICENSE.md — applies to 1 package(s):
 
     hoist-non-react-statics@3.3.2
 ------------------------------------------------------------------------------
@@ -3227,7 +3257,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ------------------------------------------------------------------------------
-[60] license — applies to 1 package(s):
+[61] license — applies to 1 package(s):
 
     html-url-attributes@3.0.1
 ------------------------------------------------------------------------------
@@ -3256,7 +3286,7 @@ THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[61] LICENSE — applies to 1 package(s):
+[62] LICENSE — applies to 1 package(s):
 
     inline-style-parser@0.2.7
 ------------------------------------------------------------------------------
@@ -3273,7 +3303,7 @@ THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 ------------------------------------------------------------------------------
-[62] LICENSE — applies to 1 package(s):
+[63] LICENSE — applies to 1 package(s):
 
     is-core-module@2.16.2
 ------------------------------------------------------------------------------
@@ -3301,7 +3331,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[63] LICENSE — applies to 1 package(s):
+[64] LICENSE — applies to 1 package(s):
 
     js-tokens@4.0.0
 ------------------------------------------------------------------------------
@@ -3330,7 +3360,7 @@ THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[64] LICENSE-MIT.txt — applies to 1 package(s):
+[65] LICENSE-MIT.txt — applies to 1 package(s):
 
     jsesc@3.1.0
 ------------------------------------------------------------------------------
@@ -3358,7 +3388,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[65] LICENSE.md — applies to 1 package(s):
+[66] LICENSE.md — applies to 1 package(s):
 
     json-parse-even-better-errors@2.3.1
 ------------------------------------------------------------------------------
@@ -3391,7 +3421,7 @@ distributed under the terms of the MIT license above.
 
 
 ------------------------------------------------------------------------------
-[66] LICENSE.md — applies to 1 package(s):
+[67] LICENSE.md — applies to 1 package(s):
 
     json-schema-typed@8.0.2
 ------------------------------------------------------------------------------
@@ -3456,7 +3486,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ------------------------------------------------------------------------------
-[67] LICENSE — applies to 1 package(s):
+[68] LICENSE — applies to 1 package(s):
 
     json-schema@0.4.0
 ------------------------------------------------------------------------------
@@ -3659,7 +3689,7 @@ permission of its copyright owner.
 
 
 ------------------------------------------------------------------------------
-[68] LICENSE — applies to 1 package(s):
+[69] LICENSE — applies to 1 package(s):
 
     lines-and-columns@1.2.4
 ------------------------------------------------------------------------------
@@ -3688,7 +3718,7 @@ THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[69] LICENSE — applies to 1 package(s):
+[70] LICENSE — applies to 1 package(s):
 
     loose-envify@1.4.0
 ------------------------------------------------------------------------------
@@ -3717,7 +3747,7 @@ THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[70] license — applies to 1 package(s):
+[71] license — applies to 1 package(s):
 
     mdast-util-phrasing@4.1.0
 ------------------------------------------------------------------------------
@@ -3748,7 +3778,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[71] LICENSE — applies to 1 package(s):
+[72] LICENSE — applies to 1 package(s):
 
     memoize-one@6.0.0
 ------------------------------------------------------------------------------
@@ -3777,7 +3807,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[72] license — applies to 1 package(s):
+[73] license — applies to 1 package(s):
 
     micromark-extension-gfm-footnote@2.1.0
 ------------------------------------------------------------------------------
@@ -3807,7 +3837,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[73] license.md — applies to 1 package(s):
+[74] license.md — applies to 1 package(s):
 
     ms@2.1.3
 ------------------------------------------------------------------------------
@@ -3836,7 +3866,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[74] license — applies to 1 package(s):
+[75] license — applies to 1 package(s):
 
     object-assign@4.1.1
 ------------------------------------------------------------------------------
@@ -3865,9 +3895,9 @@ THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[75] LICENSE — applies to 1 package(s):
+[76] LICENSE — applies to 1 package(s):
 
-    ollama@0.6.3
+    ollama@0.6.4
 ------------------------------------------------------------------------------
 
 MIT License
@@ -3894,9 +3924,9 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[76] LICENSE — applies to 1 package(s):
+[77] LICENSE — applies to 1 package(s):
 
-    openai@6.49.0
+    openai@7.45.1
 ------------------------------------------------------------------------------
 
 Apache License
@@ -4103,7 +4133,7 @@ Apache License
 
 
 ------------------------------------------------------------------------------
-[77] LICENSE — applies to 1 package(s):
+[78] LICENSE — applies to 1 package(s):
 
     path-parse@1.0.7
 ------------------------------------------------------------------------------
@@ -4132,7 +4162,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[78] LICENSE — applies to 1 package(s):
+[79] LICENSE — applies to 1 package(s):
 
     picocolors@1.1.1
 ------------------------------------------------------------------------------
@@ -4155,7 +4185,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[79] LICENSE — applies to 1 package(s):
+[80] LICENSE — applies to 1 package(s):
 
     prop-types@15.8.1
 ------------------------------------------------------------------------------
@@ -4184,7 +4214,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[80] LICENSE — applies to 1 package(s):
+[81] LICENSE — applies to 1 package(s):
 
     react-chartjs-2@5.3.1
 ------------------------------------------------------------------------------
@@ -4199,7 +4229,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 ------------------------------------------------------------------------------
-[81] LICENSE.md — applies to 1 package(s):
+[82] LICENSE.md — applies to 1 package(s):
 
     react-chartjs-2@5.3.1
 ------------------------------------------------------------------------------
@@ -4228,7 +4258,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[82] LICENSE — applies to 1 package(s):
+[83] LICENSE — applies to 1 package(s):
 
     react-is@16.13.1
 ------------------------------------------------------------------------------
@@ -4257,7 +4287,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[83] license — applies to 1 package(s):
+[84] license — applies to 1 package(s):
 
     react-markdown@10.1.0
 ------------------------------------------------------------------------------
@@ -4286,7 +4316,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[84] LICENSE — applies to 1 package(s):
+[85] LICENSE — applies to 1 package(s):
 
     react-select@5.10.2
 ------------------------------------------------------------------------------
@@ -4315,7 +4345,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[85] LICENSE — applies to 1 package(s):
+[86] LICENSE — applies to 1 package(s):
 
     react-transition-group@4.4.5
 ------------------------------------------------------------------------------
@@ -4353,7 +4383,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ------------------------------------------------------------------------------
-[86] license — applies to 1 package(s):
+[87] license — applies to 1 package(s):
 
     require-from-string@2.0.2
 ------------------------------------------------------------------------------
@@ -4382,7 +4412,7 @@ THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[87] LICENSE — applies to 1 package(s):
+[88] LICENSE — applies to 1 package(s):
 
     resolve@1.22.12
 ------------------------------------------------------------------------------
@@ -4411,7 +4441,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[88] LICENSE — applies to 1 package(s):
+[89] LICENSE — applies to 1 package(s):
 
     semver@7.8.5
 ------------------------------------------------------------------------------
@@ -4434,7 +4464,7 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[89] LICENSE — applies to 1 package(s):
+[90] LICENSE — applies to 1 package(s):
 
     source-map@0.5.7
 ------------------------------------------------------------------------------
@@ -4469,7 +4499,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ------------------------------------------------------------------------------
-[90] license — applies to 1 package(s):
+[91] license — applies to 1 package(s):
 
     stubborn-utils@1.0.2
 ------------------------------------------------------------------------------
@@ -4498,7 +4528,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[91] LICENSE — applies to 1 package(s):
+[92] LICENSE — applies to 1 package(s):
 
     style-to-js@1.1.21
 ------------------------------------------------------------------------------
@@ -4528,7 +4558,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[92] LICENSE — applies to 1 package(s):
+[93] LICENSE — applies to 1 package(s):
 
     style-to-object@1.0.14
 ------------------------------------------------------------------------------
@@ -4558,7 +4588,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[93] LICENSE — applies to 1 package(s):
+[94] LICENSE — applies to 1 package(s):
 
     stylis@4.2.0
 ------------------------------------------------------------------------------
@@ -4587,7 +4617,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[94] LICENSE — applies to 1 package(s):
+[95] LICENSE — applies to 1 package(s):
 
     supports-preserve-symlinks-flag@1.0.0
 ------------------------------------------------------------------------------
@@ -4616,9 +4646,9 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[95] LICENSE.md — applies to 1 package(s):
+[96] LICENSE.md — applies to 1 package(s):
 
-    tailwind-merge@3.6.0
+    tailwind-merge@3.7.0
 ------------------------------------------------------------------------------
 
 MIT License
@@ -4645,7 +4675,7 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[96] license — applies to 1 package(s):
+[97] license — applies to 1 package(s):
 
     trough@2.2.0
 ------------------------------------------------------------------------------
@@ -4674,7 +4704,7 @@ THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[97] LICENSE.txt — applies to 1 package(s):
+[98] LICENSE.txt — applies to 1 package(s):
 
     tslib@2.8.1
 ------------------------------------------------------------------------------
@@ -4694,9 +4724,9 @@ PERFORMANCE OF THIS SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[98] license-cc0 — applies to 1 package(s):
+[99] license-cc0 — applies to 1 package(s):
 
-    type-fest@5.7.0
+    type-fest@5.10.0
 ------------------------------------------------------------------------------
 
 Creative Commons Legal Code
@@ -4823,35 +4853,6 @@ express Statement of Purpose.
 
 
 ------------------------------------------------------------------------------
-[99] LICENSE — applies to 1 package(s):
-
-    undici@8.10.0
-------------------------------------------------------------------------------
-
-MIT License
-
-Copyright (c) Matteo Collina and Undici contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-
-------------------------------------------------------------------------------
 [100] license — applies to 1 package(s):
 
     unist-util-is@6.0.1
@@ -4913,7 +4914,7 @@ SOFTWARE.
 ------------------------------------------------------------------------------
 [102] LICENSE.md — applies to 1 package(s):
 
-    uuid@14.0.2
+    uuid@14.0.3
 ------------------------------------------------------------------------------
 
 The MIT License (MIT)
@@ -4979,7 +4980,7 @@ THIS SOFTWARE.
 ------------------------------------------------------------------------------
 [105] LICENSE — applies to 1 package(s):
 
-    zod@4.4.3
+    zod@4.6.7
 ------------------------------------------------------------------------------
 
 MIT License
@@ -5012,11 +5013,10 @@ PACKAGES SHIPPING NO LICENCE FILE
 These packages declare a licence in package.json but ship no licence file.
 The canonical text of the declared licence follows this section.
 
-    @ai-sdk/provider-utils@5.0.12 — Apache-2.0
-    @ai-sdk/provider-utils@5.0.14 — Apache-2.0
-    @aws-sdk/credential-provider-http@3.972.72 — Apache-2.0
-    @aws-sdk/credential-provider-login@3.972.77 — Apache-2.0
-    @aws-sdk/nested-clients@3.997.44 — Apache-2.0
+    @ai-sdk/provider-utils@5.0.70 — Apache-2.0
+    @aws-sdk/credential-provider-http@3.972.80 — Apache-2.0
+    @aws-sdk/credential-provider-login@3.972.85 — Apache-2.0
+    @aws-sdk/nested-clients@3.997.52 — Apache-2.0
 
 ------------------------------------------------------------------------------
 Apache License 2.0 — canonical text

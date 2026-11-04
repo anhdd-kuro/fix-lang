@@ -18,6 +18,12 @@
  * `translate.ts`, which is the single source of truth for the
  * plural-stripping ladder. A second ladder here would drift from it silently.
  */
+import { z } from "zod";
+import {
+  AnyNumberSchema,
+  NonArrayObjectSchema,
+  schemaGuard,
+} from "~/features/core/shared/schemaGuard";
 import type { TKey } from "./keys";
 
 /** Every key a `Message` may carry — full keys and plural bases (from `translate.ts`). */
@@ -31,7 +37,10 @@ export type MessageParams = Readonly<Record<string, string | number>>;
  * Aggregation code returns these instead of formatted prose; the renderer
  * resolves them via `tm()` (see `useI18n.ts`).
  */
-export type Message = { readonly key: MessageKey; readonly params?: MessageParams };
+export type Message = {
+  readonly key: MessageKey;
+  readonly params?: MessageParams;
+};
 
 /**
  * A display value that is EITHER user data (never translated, e.g. a preset
@@ -52,7 +61,10 @@ export const msg = (key: MessageKey, params?: MessageParams): Message =>
 export const textLabel = (text: string): Label => ({ kind: "text", text });
 
 /** Wraps a translation key as a `Label` — always resolved through `t()`. */
-export const messageLabel = (key: MessageKey, params?: MessageParams): Label => ({
+export const messageLabel = (
+  key: MessageKey,
+  params?: MessageParams,
+): Label => ({
   kind: "message",
   message: msg(key, params),
 });
@@ -61,7 +73,8 @@ export const messageLabel = (key: MessageKey, params?: MessageParams): Label => 
 export type Translate = (key: MessageKey, params?: MessageParams) => string;
 
 /** Resolves a `Message` to a display string via `t`. Thin — kept so call sites don't hand-roll `t(m.key, m.params)`. */
-export const resolveMessage = (m: Message, t: Translate): string => t(m.key, m.params);
+export const resolveMessage = (m: Message, t: Translate): string =>
+  t(m.key, m.params);
 
 /** Resolves a `Label` to a display string: verbatim for `"text"`, translated for `"message"`. */
 export const resolveLabel = (l: Label, t: Translate): string =>
@@ -73,52 +86,64 @@ export const resolveLabel = (l: Label, t: Translate): string =>
 // established shape this mirrors). Kept here, next to the types themselves,
 // so every preload feature validating a `Label`-bearing result shares one
 // definition instead of re-deriving the same structural checks per file.
-// Plain JS narrowing only — no catalog import, preserving this module's
-// zero-runtime-catalog-dependency contract (see file doc above).
+// Schemas only — no catalog import, preserving this module's
+// zero-runtime-catalog-dependency contract (see file doc above). Own keys are
+// checked with `Object.keys`, so a stray key is refused rather than stripped.
 // ---------------------------------------------------------------------------
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const isNonArrayObject = schemaGuard(NonArrayObjectSchema);
 
-const isMessageParams = (value: unknown): value is MessageParams =>
-  isRecord(value) &&
-  Object.values(value).every(
-    (param) => typeof param === "string" || typeof param === "number",
-  );
+const MessageParamValueSchema = z.union([z.string(), AnyNumberSchema]);
+
+const MessageParamsSchema = z.custom<MessageParams>(
+  (value) =>
+    isNonArrayObject(value) &&
+    Object.values(value).every(
+      (param) => MessageParamValueSchema.safeParse(param).success,
+    ),
+);
+
+const MessageFieldsSchema = z.object({
+  key: z.string().min(1),
+  params: MessageParamsSchema.optional(),
+});
 
 /**
- * Validates a `Message` descriptor's shape. `key` can only be checked as a
- * non-empty string here — `MessageKey` is a compile-time union derived from
- * the JSON catalogs, not a runtime-enumerable set.
+ * A `Message` descriptor. `key` can only be checked as a non-empty string
+ * here — `MessageKey` is a compile-time union derived from the JSON catalogs,
+ * not a runtime-enumerable set.
  */
-export const isMessage = (value: unknown): value is Message => {
-  if (!isRecord(value)) return false;
-  const keys = Object.keys(value);
-  if (keys.some((key) => key !== "key" && key !== "params")) return false;
-  if (typeof value.key !== "string" || value.key.length === 0) return false;
-  return value.params === undefined || isMessageParams(value.params);
-};
+export const MessageSchema = z.custom<Message>(
+  (value) =>
+    isNonArrayObject(value) &&
+    Object.keys(value).every((key) => key === "key" || key === "params") &&
+    MessageFieldsSchema.safeParse(value).success,
+);
 
-/** Validates a `Label`'s shape: a `"text"` case or a `"message"` case, never both/neither. */
-export const isLabel = (value: unknown): value is Label => {
-  if (!isRecord(value)) return false;
-  if (value.kind === "text") {
-    const keys = Object.keys(value);
-    return (
-      keys.length === 2 &&
-      keys.includes("kind") &&
-      keys.includes("text") &&
-      typeof value.text === "string"
-    );
-  }
-  if (value.kind === "message") {
-    const keys = Object.keys(value);
-    return (
-      keys.length === 2 &&
-      keys.includes("kind") &&
-      keys.includes("message") &&
-      isMessage(value.message)
-    );
-  }
-  return false;
-};
+const LabelKindSchema = z.object({ kind: z.enum(["text", "message"]) });
+
+const TextLabelFieldsSchema = z.object({ text: z.string() });
+
+const MessageLabelFieldsSchema = z.object({ message: MessageSchema });
+
+const hasExactlyKeys = (keys: readonly string[], kind: string): boolean =>
+  keys.length === 2 && keys.includes("kind") && keys.includes(kind);
+
+/** A `Label`: a `"text"` case or a `"message"` case, never both/neither. */
+export const LabelSchema = z.custom<Label>((value) => {
+  if (!isNonArrayObject(value)) return false;
+  const label = LabelKindSchema.safeParse(value);
+  if (!label.success) return false;
+  const keys = Object.keys(value);
+  return label.data.kind === "text"
+    ? hasExactlyKeys(keys, "text") &&
+        TextLabelFieldsSchema.safeParse(value).success
+    : hasExactlyKeys(keys, "message") &&
+        MessageLabelFieldsSchema.safeParse(value).success;
+});
+
+/** Validates a `Message` descriptor's shape (see {@link MessageSchema}). */
+export const isMessage = schemaGuard(MessageSchema);
+
+/** Validates a `Label`'s shape (see {@link LabelSchema}). */
+export const isLabel = schemaGuard(LabelSchema);

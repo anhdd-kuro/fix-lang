@@ -132,7 +132,7 @@ const resolveTimeZone = (): string | null => {
  */
 const sanitizeLineValue = (value: string, maxLength: number): string =>
   value
-    // eslint-disable-next-line no-control-regex -- stripping C0/C1 controls is the point
+    // oxlint-disable-next-line no-control-regex -- stripping C0/C1 controls is the point
     .replace(/[\x00-\x1f\x7f-\x9f]/g, " ")
     .trim()
     .slice(0, maxLength)
@@ -160,7 +160,9 @@ const runInputSourceRead = (): Promise<string> =>
 
 /** `"KeyboardLayout Name" = ABC;` and `"Bundle ID" = "com.apple.x";` alike. */
 const readPlistField = (block: string, field: string): string | null => {
-  const match = new RegExp(`"?${field}"?\\s*=\\s*("([^"]*)"|[^;]*);`).exec(block);
+  const match = new RegExp(`"?${field}"?\\s*=\\s*("([^"]*)"|[^;]*);`).exec(
+    block,
+  );
   if (!match) return null;
   return (match[2] ?? match[1] ?? "").trim() || null;
 };
@@ -197,11 +199,17 @@ export const parseKeyboardInputSource = (stdout: string): string | null => {
     if (bundleId) {
       const segments = bundleId.split(".");
       const last = segments.at(-1) ?? "";
-      return sanitizeLineValue(last.length > 1 ? last : bundleId, MAX_INPUT_SOURCE_LENGTH) || null;
+      return (
+        sanitizeLineValue(
+          last.length > 1 ? last : bundleId,
+          MAX_INPUT_SOURCE_LENGTH,
+        ) || null
+      );
     }
 
     const name = readPlistField(block, "KeyboardLayout Name");
-    if (name && !layoutName) layoutName = sanitizeLineValue(name, MAX_INPUT_SOURCE_LENGTH) || null;
+    if (name && !layoutName)
+      layoutName = sanitizeLineValue(name, MAX_INPUT_SOURCE_LENGTH) || null;
   }
 
   return layoutName;
@@ -256,9 +264,15 @@ export const readRecentTransforms = (): RecentTransform[] => {
     // Over-read by a small margin because rows written before the preset-name
     // snapshot existed are skipped below, and a history whose newest five rows
     // are all legacy would otherwise report nothing at all.
-    for (const entry of getRecentHistory("corrections", RECENT_HISTORY_READ_LIMIT)) {
+    for (const entry of getRecentHistory(
+      "corrections",
+      RECENT_HISTORY_READ_LIMIT,
+    )) {
       if (recent.length >= MAX_RECENT_TRANSFORMS) break;
-      const presetName = sanitizeLineValue(entry.presetName ?? "", MAX_PRESET_NAME_LENGTH);
+      const presetName = sanitizeLineValue(
+        entry.presetName ?? "",
+        MAX_PRESET_NAME_LENGTH,
+      );
       if (!presetName || !entry.timestamp) continue;
       recent.push({ presetName, timestamp: entry.timestamp });
     }

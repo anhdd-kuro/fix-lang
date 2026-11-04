@@ -8,11 +8,10 @@
  * that inherit the profile-wide default; it is not a slider step.
  */
 
-export const REASONING_EFFORT_STEPS = [
-  "low",
-  "medium",
-  "high",
-] as const;
+import { z } from "zod";
+import { schemaGuard } from "~/features/core/shared/schemaGuard";
+
+export const REASONING_EFFORT_STEPS = ["low", "medium", "high"] as const;
 
 /**
  * Efforts that were slider steps in an earlier release, mapped to the step that
@@ -20,10 +19,10 @@ export const REASONING_EFFORT_STEPS = [
  * `undefined` reads as `provider-default`, which silently changes a preset's
  * behaviour instead of stepping it down one notch.
  */
-const RETIRED_EFFORTS: Record<string, ReasoningEffortStep> = {
-  minimal: "low",
-  xhigh: "high",
-};
+const RETIRED_EFFORTS = new Map<string, ReasoningEffortStep>([
+  ["minimal", "low"],
+  ["xhigh", "high"],
+]);
 
 export type ReasoningEffortStep = (typeof REASONING_EFFORT_STEPS)[number];
 
@@ -37,45 +36,42 @@ export type ReasoningEffortSliderStep =
   (typeof REASONING_EFFORT_SLIDER_STEPS)[number];
 
 /** Full AI SDK `reasoning` union, including non-slider values. */
-export type ReasoningEffort =
-  | "provider-default"
-  | "none"
-  | ReasoningEffortStep;
+export type ReasoningEffort = "provider-default" | "none" | ReasoningEffortStep;
 
 /** Default slider step — None when no stored value exists. */
 export const DEFAULT_REASONING_STEP_INDEX = 0;
 
 export const DEFAULT_REASONING_EFFORT: ReasoningEffort = "none";
 
-const STEP_SET = new Set<string>(REASONING_EFFORT_STEPS);
-const SLIDER_STEP_SET = new Set<string>(REASONING_EFFORT_SLIDER_STEPS);
-
-const ALL_EFFORTS = new Set<string>([
+const ReasoningEffortSchema = z.enum([
   "provider-default",
   "none",
   ...REASONING_EFFORT_STEPS,
 ]);
 
-export const isReasoningEffortStep = (value: unknown): value is ReasoningEffortStep =>
-  typeof value === "string" && STEP_SET.has(value);
+export const isReasoningEffortStep = schemaGuard(
+  z.enum(REASONING_EFFORT_STEPS),
+);
 
-export const isReasoningEffortSliderStep = (
-  value: unknown,
-): value is ReasoningEffortSliderStep =>
-  typeof value === "string" && SLIDER_STEP_SET.has(value);
+export const isReasoningEffortSliderStep = schemaGuard(
+  z.enum(REASONING_EFFORT_SLIDER_STEPS),
+);
 
-export const isReasoningEffort = (value: unknown): value is ReasoningEffort =>
-  typeof value === "string" && ALL_EFFORTS.has(value);
+export const isReasoningEffort = schemaGuard(ReasoningEffortSchema);
 
 /**
  * Normalize a stored/raw value. A retired effort steps down to its replacement;
  * anything else unknown becomes undefined (caller treats as provider-default /
  * omit from the request).
  */
-export const sanitizeReasoningEffort = (raw: unknown): ReasoningEffort | undefined => {
-  if (typeof raw === "string" && raw in RETIRED_EFFORTS) return RETIRED_EFFORTS[raw];
-  if (!isReasoningEffort(raw)) return undefined;
-  return raw;
+export const sanitizeReasoningEffort = <Raw>(
+  raw: Raw,
+): ReasoningEffort | undefined => {
+  const stored = z.string().safeParse(raw);
+  const retired = stored.success ? RETIRED_EFFORTS.get(stored.data) : undefined;
+  if (retired !== undefined) return retired;
+  const effort = ReasoningEffortSchema.safeParse(raw);
+  return effort.success ? effort.data : undefined;
 };
 
 /** Slider index for a stored effort. `provider-default` falls back to `fallback`. */
@@ -88,8 +84,8 @@ export const reasoningEffortToStepIndex = (
   // A retired effort reaching here unsanitized would land on index -1 → None,
   // showing the slider at its weakest step for a preset stored at its strongest.
   const resolved = sanitizeReasoningEffort(raw) ?? raw;
-  const index = REASONING_EFFORT_SLIDER_STEPS.indexOf(
-    resolved as ReasoningEffortSliderStep,
+  const index = REASONING_EFFORT_SLIDER_STEPS.findIndex(
+    (step) => step === resolved,
   );
   return index >= 0 ? index : DEFAULT_REASONING_STEP_INDEX;
 };
@@ -101,9 +97,7 @@ export const stepIndexToReasoningEffort = (
     0,
     Math.min(REASONING_EFFORT_SLIDER_STEPS.length - 1, Math.round(index)),
   );
-  return (
-    REASONING_EFFORT_SLIDER_STEPS[clamped] ?? DEFAULT_REASONING_EFFORT
-  );
+  return REASONING_EFFORT_SLIDER_STEPS[clamped] ?? DEFAULT_REASONING_EFFORT;
 };
 
 /**
@@ -132,6 +126,7 @@ export const reasoningForAiSdk = (
   // Sanitized here too, so a retired effort still on disk can never be sent to
   // a provider that no longer accepts it.
   const resolved = sanitizeReasoningEffort(effort);
-  if (resolved === undefined || resolved === "provider-default") return undefined;
+  if (resolved === undefined || resolved === "provider-default")
+    return undefined;
   return resolved;
 };

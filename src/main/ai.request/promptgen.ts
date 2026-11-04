@@ -27,7 +27,7 @@ export type PromptGenSettings = {
  * Generates a specialized prompt based on input text and settings.
  */
 export const generatePrompt = async (
-  options: PromptGenSettings
+  options: PromptGenSettings,
 ): Promise<{
   prompts: string[];
   promptTokens: number;
@@ -71,15 +71,24 @@ export const generatePrompt = async (
     });
 
     // Extract required values from response
-    const { content, promptTokens, completionTokens, model, provider, resolvedModel, session } =
-      response;
+    const {
+      content,
+      promptTokens,
+      completionTokens,
+      model,
+      provider,
+      resolvedModel,
+      session,
+    } = response;
 
     const completionText = content.join("\n\n");
 
     return {
       prompts: content,
       promptTokens:
-        promptTokens && promptTokens > 0 ? promptTokens : estimateTextTokens(text),
+        promptTokens && promptTokens > 0
+          ? promptTokens
+          : estimateTextTokens(text),
       completionTokens:
         completionTokens && completionTokens > 0
           ? completionTokens

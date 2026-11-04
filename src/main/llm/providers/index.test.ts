@@ -14,7 +14,9 @@ describe("provider capability registry", () => {
     for (const id of PROVIDER_IDS) {
       expect(providerCapabilities(id).id).toBe(id);
     }
-    expect(Object.keys(PROVIDER_CAPABILITIES).sort()).toEqual([...PROVIDER_IDS].sort());
+    expect(Object.keys(PROVIDER_CAPABILITIES).sort()).toEqual(
+      [...PROVIDER_IDS].sort(),
+    );
   });
 
   it("derives supportsAdminKey from the shared provider table, never restating it", () => {
@@ -51,8 +53,12 @@ describe("provider capability registry", () => {
     // Ollama and LM Studio are discovered by reachability probe, whose
     // "empty vs unreachable" distinction this signature cannot express.
     expect(providerCapabilities("openai").fetchModels).toBeTypeOf("function");
-    expect(providerCapabilities("openrouter").fetchModels).toBeTypeOf("function");
-    expect(providerCapabilities("anthropic").fetchModels).toBeTypeOf("function");
+    expect(providerCapabilities("openrouter").fetchModels).toBeTypeOf(
+      "function",
+    );
+    expect(providerCapabilities("anthropic").fetchModels).toBeTypeOf(
+      "function",
+    );
     expect(providerCapabilities("ollama").fetchModels).toBeUndefined();
     expect(providerCapabilities("lmstudio").fetchModels).toBeUndefined();
   });

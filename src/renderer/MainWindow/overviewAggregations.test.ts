@@ -6,7 +6,10 @@
  * of the runner's timezone.
  */
 import { describe, expect, it } from "vitest";
-import { estimateTextTokens, type HistoryEntry } from "~/features/history/store/historyTypes";
+import {
+  estimateTextTokens,
+  type HistoryEntry,
+} from "~/features/history/store/historyTypes";
 import {
   activeDays,
   costTotal,
@@ -33,12 +36,8 @@ import {
 } from "./overviewAggregations";
 
 // A local-time timestamp for the given Y/M/D/H so local-day buckets are stable.
-const at = (
-  year: number,
-  month: number,
-  day: number,
-  hour = 12
-): string => new Date(year, month - 1, day, hour, 0, 0).toISOString();
+const at = (year: number, month: number, day: number, hour = 12): string =>
+  new Date(year, month - 1, day, hour, 0, 0).toISOString();
 
 const entry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
   original: "o",
@@ -49,12 +48,9 @@ const entry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
 
 const NOW = new Date(2024, 5, 20, 10, 0, 0); // 2024-06-20 10:00 local
 
-const dayCell = (
-  calendar: TokenActivityCalendar,
-  date: string
-) => {
+const dayCell = (calendar: TokenActivityCalendar, date: string) => {
   const cell = calendar.cells.find(
-    (candidate) => candidate.kind === "day" && candidate.date === date
+    (candidate) => candidate.kind === "day" && candidate.date === date,
   );
   expect(cell).toBeDefined();
   if (!cell || cell.kind !== "day") {
@@ -99,7 +95,7 @@ describe("totalCorrections / totalTokens", () => {
       160 +
         estimateTextTokens(entries[1].corrected) +
         estimateTextTokens(entries[2].original) +
-        estimateTextTokens(entries[2].corrected)
+        estimateTextTokens(entries[2].corrected),
     );
   });
 });
@@ -275,7 +271,10 @@ describe("perPresetWeights", () => {
       },
       {
         presetName: UNTITLED_PRESET_ID,
-        presetLabel: { kind: "message", message: { key: "overview.preset.untitled" } },
+        presetLabel: {
+          kind: "message",
+          message: { key: "overview.preset.untitled" },
+        },
         count: 1,
         weight: 0.25,
       },
@@ -302,9 +301,15 @@ describe("presetCountsOverTime", () => {
     expect(result.days[0]).toBe("2024-06-14");
     expect(result.days[6]).toBe("2024-06-20");
 
-    const correction = result.series.find((row) => row.presetName === "Correction");
-    const translate = result.series.find((row) => row.presetName === "Translate");
-    const other = result.series.find((row) => row.presetName === UNTITLED_PRESET_ID);
+    const correction = result.series.find(
+      (row) => row.presetName === "Correction",
+    );
+    const translate = result.series.find(
+      (row) => row.presetName === "Translate",
+    );
+    const other = result.series.find(
+      (row) => row.presetName === UNTITLED_PRESET_ID,
+    );
     expect(correction?.counts).toEqual([0, 0, 0, 0, 2, 0, 0]);
     expect(translate?.counts).toEqual([0, 0, 0, 0, 0, 0, 1]);
     expect(other?.counts).toEqual([0, 0, 0, 0, 0, 0, 1]);
@@ -438,7 +443,7 @@ describe("tokenActivityCalendar", () => {
         }),
       ],
       "daily",
-      NOW
+      NOW,
     );
 
     expect(dayCell(calendar, "2024-06-18")).toMatchObject({
@@ -470,7 +475,7 @@ describe("tokenActivityCalendar", () => {
         }),
       ],
       "weekly",
-      NOW
+      NOW,
     );
 
     for (const date of [
@@ -505,7 +510,7 @@ describe("tokenActivityCalendar", () => {
         }),
       ],
       "cumulative",
-      NOW
+      NOW,
     );
 
     expect(dayCell(calendar, "2023-06-21")).toMatchObject({
@@ -522,15 +527,18 @@ describe("tokenActivityCalendar", () => {
     const calendar = tokenActivityCalendar(
       [],
       "daily",
-      new Date(2026, 5, 22, 10, 0, 0)
+      new Date(2026, 5, 22, 10, 0, 0),
     );
 
     expect(calendar.startDate).toBe("2025-06-23");
-    expect(calendar.monthLabels[0]).toEqual({ key: "charts.month.jul", column: 1 });
+    expect(calendar.monthLabels[0]).toEqual({
+      key: "charts.month.jul",
+      column: 1,
+    });
     expect(
       calendar.monthLabels.some(
-        (label) => label.key === "charts.month.jun" && label.column === 0
-      )
+        (label) => label.key === "charts.month.jun" && label.column === 0,
+      ),
     ).toBe(false);
   });
 
@@ -579,7 +587,7 @@ describe("tokenActivityCalendar", () => {
         }),
       ],
       "daily",
-      NOW
+      NOW,
     );
 
     expect(calendar.maxTokenTotal).toBe(100);
@@ -659,16 +667,30 @@ describe("sevenDayHourBlockHeatmap", () => {
 describe("hourBlockHeatmap window floor + width", () => {
   it("shows >=30 day columns even with a single day of history (any range)", () => {
     const one = [entry({ timestamp: at(2024, 6, 20, 9) })];
-    expect(hourBlockHeatmap(one, "all", NOW).days.length).toBeGreaterThanOrEqual(30);
-    expect(hourBlockHeatmap(one, "7d", NOW).days.length).toBeGreaterThanOrEqual(30);
+    expect(
+      hourBlockHeatmap(one, "all", NOW).days.length,
+    ).toBeGreaterThanOrEqual(30);
+    expect(hourBlockHeatmap(one, "7d", NOW).days.length).toBeGreaterThanOrEqual(
+      30,
+    );
     expect(hourBlockHeatmap(one, "all", NOW).days.at(-1)).toBe("2024-06-20");
   });
   it("widens to the requested column count (width-driven minDays)", () => {
-    const hm = hourBlockHeatmap([entry({ timestamp: at(2024, 6, 20) })], "7d", NOW, 100);
+    const hm = hourBlockHeatmap(
+      [entry({ timestamp: at(2024, 6, 20) })],
+      "7d",
+      NOW,
+      100,
+    );
     expect(hm.days).toHaveLength(100);
   });
   it("never shrinks below the 30-day floor when fewer columns are requested", () => {
-    const hm = hourBlockHeatmap([entry({ timestamp: at(2024, 6, 20) })], "7d", NOW, 5);
+    const hm = hourBlockHeatmap(
+      [entry({ timestamp: at(2024, 6, 20) })],
+      "7d",
+      NOW,
+      5,
+    );
     expect(hm.days).toHaveLength(30);
   });
 });
@@ -676,7 +698,7 @@ describe("hourBlockHeatmap window floor + width", () => {
 describe("stripModelDate", () => {
   it("strips a trailing YYYYMMDD date", () => {
     expect(stripModelDate("openai/gpt-5.4-mini-20260317")).toBe(
-      "openai/gpt-5.4-mini"
+      "openai/gpt-5.4-mini",
     );
   });
   it("strips a trailing dashed YYYY-MM-DD date", () => {

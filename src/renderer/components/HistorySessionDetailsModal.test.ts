@@ -94,11 +94,16 @@ describe("HistorySessionDetailsModal", () => {
 
     const card = container.firstElementChild?.firstElementChild;
     const cardClasses = card?.className.split(/\s+/) ?? [];
-    expect(cardClasses).toEqual(expect.arrayContaining(["h-[80vh]", "max-h-[80vh]"]));
-    expect(cardClasses).toEqual(expect.arrayContaining(["flex", "flex-col", "overflow-hidden"]));
+    expect(cardClasses).toEqual(
+      expect.arrayContaining(["h-[80vh]", "max-h-[80vh]"]),
+    );
+    expect(cardClasses).toEqual(
+      expect.arrayContaining(["flex", "flex-col", "overflow-hidden"]),
+    );
 
     const panelClasses =
-      container.querySelector('[role="tabpanel"]')?.className.split(/\s+/) ?? [];
+      container.querySelector('[role="tabpanel"]')?.className.split(/\s+/) ??
+      [];
     expect(panelClasses).toEqual(
       expect.arrayContaining(["min-h-0", "flex-1", "overflow-auto"]),
     );

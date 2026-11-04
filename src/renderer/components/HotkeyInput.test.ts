@@ -70,7 +70,10 @@ describe("HotkeyInput", () => {
         createElement(
           I18nProvider,
           null,
-          createElement(HotkeyInput, { hotkeyKey: "promptGen", label: "PromptGen" }),
+          createElement(HotkeyInput, {
+            hotkeyKey: "promptGen",
+            label: "PromptGen",
+          }),
         ),
       );
     });
@@ -127,9 +130,10 @@ describe("HotkeyInput", () => {
     // wrapped it in `textLabel`, the resolved text would stay frozen in
     // whatever locale was active at the moment Apply was clicked instead of
     // re-translating below.
-    const localGetKeyBindings = vi
-      .fn()
-      .mockResolvedValue({ promptGen: "Control+Shift+P", profileSwitch: "Control+Shift+O" });
+    const localGetKeyBindings = vi.fn().mockResolvedValue({
+      promptGen: "Control+Shift+P",
+      profileSwitch: "Control+Shift+O",
+    });
     const localSetKeyBindings = vi.fn().mockResolvedValue({
       success: false,
       error: messageLabel("settings.hotkeys.applyErrorUnknown"),
@@ -147,7 +151,10 @@ describe("HotkeyInput", () => {
         return vi.fn();
       }),
     };
-    Object.defineProperty(window, "electronAPI", { configurable: true, value: api });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: api,
+    });
 
     container = document.createElement("div");
     document.body.append(container);
@@ -157,7 +164,10 @@ describe("HotkeyInput", () => {
         createElement(
           I18nProvider,
           null,
-          createElement(HotkeyInput, { hotkeyKey: "promptGen", label: "PromptGen" }),
+          createElement(HotkeyInput, {
+            hotkeyKey: "promptGen",
+            label: "PromptGen",
+          }),
         ),
       );
     });
@@ -168,12 +178,17 @@ describe("HotkeyInput", () => {
     if (!input) throw new Error("Expected the hotkey capture input");
     await act(async () => {
       input.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "K", ctrlKey: true, bubbles: true }),
+        new KeyboardEvent("keydown", {
+          key: "K",
+          ctrlKey: true,
+          bubbles: true,
+        }),
       );
     });
 
     const applyButton = [...container.querySelectorAll("button")].find(
-      (candidate) => candidate.textContent === tEn("settings.hotkeys.applyButton"),
+      (candidate) =>
+        candidate.textContent === tEn("settings.hotkeys.applyButton"),
     );
     if (!applyButton) throw new Error("Expected the Apply button");
     await act(async () => {
@@ -222,7 +237,10 @@ describe("HotkeyInput", () => {
         return vi.fn();
       }),
     };
-    Object.defineProperty(window, "electronAPI", { configurable: true, value: api });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: api,
+    });
 
     container = document.createElement("div");
     document.body.append(container);
@@ -232,7 +250,10 @@ describe("HotkeyInput", () => {
         createElement(
           I18nProvider,
           null,
-          createElement(HotkeyInput, { hotkeyKey: "promptGen", label: "PromptGen" }),
+          createElement(HotkeyInput, {
+            hotkeyKey: "promptGen",
+            label: "PromptGen",
+          }),
         ),
       );
     });
@@ -243,7 +264,11 @@ describe("HotkeyInput", () => {
     if (!input) throw new Error("Expected the hotkey capture input");
     await act(async () => {
       input.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Escape", ctrlKey: true, bubbles: true }),
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          ctrlKey: true,
+          bubbles: true,
+        }),
       );
     });
 
@@ -254,7 +279,8 @@ describe("HotkeyInput", () => {
     // The refused chord never lands in the field, so Apply cannot ship it.
     expect(input.value).toBe("Control+Shift+P");
     const applyButton = [...container.querySelectorAll("button")].find(
-      (candidate) => candidate.textContent === tEn("settings.hotkeys.applyButton"),
+      (candidate) =>
+        candidate.textContent === tEn("settings.hotkeys.applyButton"),
     );
     expect(applyButton?.hasAttribute("disabled")).toBe(true);
 
@@ -274,7 +300,11 @@ describe("HotkeyInput", () => {
     // An ordinary chord still captures — the refusal is scoped to the one key.
     await act(async () => {
       input.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "K", ctrlKey: true, bubbles: true }),
+        new KeyboardEvent("keydown", {
+          key: "K",
+          ctrlKey: true,
+          bubbles: true,
+        }),
       );
     });
     expect(alert()).toBeNull();
@@ -316,7 +346,10 @@ describe("HotkeyInput", () => {
         return vi.fn();
       }),
     };
-    Object.defineProperty(window, "electronAPI", { configurable: true, value: api });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: api,
+    });
 
     container = document.createElement("div");
     document.body.append(container);
@@ -326,7 +359,10 @@ describe("HotkeyInput", () => {
         createElement(
           I18nProvider,
           null,
-          createElement(HotkeyInput, { hotkeyKey: "promptGen", label: "PromptGen" }),
+          createElement(HotkeyInput, {
+            hotkeyKey: "promptGen",
+            label: "PromptGen",
+          }),
         ),
       );
     });
@@ -337,12 +373,17 @@ describe("HotkeyInput", () => {
     if (!input) throw new Error("Expected the hotkey capture input");
     await act(async () => {
       input.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "K", ctrlKey: true, bubbles: true }),
+        new KeyboardEvent("keydown", {
+          key: "K",
+          ctrlKey: true,
+          bubbles: true,
+        }),
       );
     });
 
     const applyButton = [...container.querySelectorAll("button")].find(
-      (candidate) => candidate.textContent === tEn("settings.hotkeys.applyButton"),
+      (candidate) =>
+        candidate.textContent === tEn("settings.hotkeys.applyButton"),
     );
     if (!applyButton) throw new Error("Expected the Apply button");
     await act(async () => {

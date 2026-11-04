@@ -41,7 +41,10 @@ describe("withComboCancel", () => {
 
     expect(result).toBe("done");
     expect(mockRegister).toHaveBeenCalledTimes(1);
-    expect(mockRegister).toHaveBeenCalledWith(COMBO_CANCEL_ACCELERATOR, expect.any(Function));
+    expect(mockRegister).toHaveBeenCalledWith(
+      COMBO_CANCEL_ACCELERATOR,
+      expect.any(Function),
+    );
     expect(mockUnregister).toHaveBeenCalledTimes(1);
     expect(mockUnregister).toHaveBeenCalledWith(COMBO_CANCEL_ACCELERATOR);
   });
@@ -124,11 +127,13 @@ describe("withComboCancel", () => {
     // is entered and can throw synchronously (e.g. a corrupt electron-store
     // read) — the callback passed here reproduces that: it throws before ever
     // producing a promise, instead of rejecting one.
-    const throwingRun = vi.fn(() => {
+    const throwingRun = vi.fn<(signal: AbortSignal) => Promise<string>>(() => {
       throw new Error("sync boom");
-    }) as unknown as (signal: AbortSignal) => Promise<string>;
+    });
 
-    await expect(withComboCancel(throwingRun, vi.fn())).rejects.toThrow("sync boom");
+    await expect(withComboCancel(throwingRun, vi.fn())).rejects.toThrow(
+      "sync boom",
+    );
 
     expect(mockUnregister).toHaveBeenCalledTimes(1);
     expect(mockUnregister).toHaveBeenCalledWith(COMBO_CANCEL_ACCELERATOR);
@@ -226,7 +231,9 @@ describe("withComboCancel", () => {
       const runPromise = withComboCancel(
         (signal) =>
           new Promise((resolve) => {
-            signal.addEventListener("abort", () => resolve("cancelled-via-rearmed-chord"));
+            signal.addEventListener("abort", () =>
+              resolve("cancelled-via-rearmed-chord"),
+            );
           }),
         vi.fn(),
       );

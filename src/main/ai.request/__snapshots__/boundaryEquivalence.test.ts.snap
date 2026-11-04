@@ -1,0 +1,555 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`provider response readers equivalence > message content > blocks > verdict 1`] = `
+{
+  "cached": [
+    {
+      "content": [
+        {
+          "cache_control": {
+            "type": "ephemeral",
+          },
+          "text": "t",
+          "type": "text",
+        },
+      ],
+      "role": "system",
+    },
+  ],
+  "conversation": "[{"type":"text","text":"t"}]",
+}
+`;
+
+exports[`provider response readers equivalence > message content > boxed string > verdict 1`] = `
+{
+  "cached": [
+    {
+      "content": [
+        {
+          "cache_control": {
+            "type": "ephemeral",
+          },
+          "text": ""text"",
+          "type": "text",
+        },
+      ],
+      "role": "system",
+    },
+  ],
+  "conversation": ""text"",
+}
+`;
+
+exports[`provider response readers equivalence > message content > null > verdict 1`] = `
+{
+  "cached": [
+    {
+      "content": [
+        {
+          "cache_control": {
+            "type": "ephemeral",
+          },
+          "text": "null",
+          "type": "text",
+        },
+      ],
+      "role": "system",
+    },
+  ],
+  "conversation": "null",
+}
+`;
+
+exports[`provider response readers equivalence > message content > number > verdict 1`] = `
+{
+  "cached": [
+    {
+      "content": [
+        {
+          "cache_control": {
+            "type": "ephemeral",
+          },
+          "text": "4",
+          "type": "text",
+        },
+      ],
+      "role": "system",
+    },
+  ],
+  "conversation": "4",
+}
+`;
+
+exports[`provider response readers equivalence > message content > object > verdict 1`] = `
+{
+  "cached": [
+    {
+      "content": [
+        {
+          "cache_control": {
+            "type": "ephemeral",
+          },
+          "text": "{"text":"t"}",
+          "type": "text",
+        },
+      ],
+      "role": "system",
+    },
+  ],
+  "conversation": "{"text":"t"}",
+}
+`;
+
+exports[`provider response readers equivalence > message content > string > verdict 1`] = `
+{
+  "cached": [
+    {
+      "content": [
+        {
+          "cache_control": {
+            "type": "ephemeral",
+          },
+          "text": "text",
+          "type": "text",
+        },
+      ],
+      "role": "system",
+    },
+  ],
+  "conversation": "text",
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > NaN primary does not fall back > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": NaN,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > array carrying the fields > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": 4,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > class instance > verdict 1`] = `
+{
+  "completionTokens": 3,
+  "promptTokens": 7,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > completionTokens = -0 > verdict 1`] = `
+{
+  "completionTokens": -0,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > completionTokens = -Infinity > verdict 1`] = `
+{
+  "completionTokens": -Infinity,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > completionTokens = Infinity > verdict 1`] = `
+{
+  "completionTokens": Infinity,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > completionTokens = NaN > verdict 1`] = `
+{
+  "completionTokens": NaN,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > completionTokens = array > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > completionTokens = boolean > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > completionTokens = boxed number > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > completionTokens = null > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > completionTokens = number > verdict 1`] = `
+{
+  "completionTokens": 5,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > completionTokens = string > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > completionTokens = undefined > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > completionTokens = zero > verdict 1`] = `
+{
+  "completionTokens": 0,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > empty object > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > empty string > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > function > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > inherited fields > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": 2,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > inputTokens = -0 > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": -0,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > inputTokens = -Infinity > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": -Infinity,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > inputTokens = Infinity > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": Infinity,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > inputTokens = NaN > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": NaN,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > inputTokens = array > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > inputTokens = boolean > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > inputTokens = boxed number > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > inputTokens = null > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > inputTokens = number > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": 5,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > inputTokens = string > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > inputTokens = undefined > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > inputTokens = zero > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": 0,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > junk primary does not fall back > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > null > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > null primary falls back > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": 2,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > outputTokens = -0 > verdict 1`] = `
+{
+  "completionTokens": -0,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > outputTokens = -Infinity > verdict 1`] = `
+{
+  "completionTokens": -Infinity,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > outputTokens = Infinity > verdict 1`] = `
+{
+  "completionTokens": Infinity,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > outputTokens = NaN > verdict 1`] = `
+{
+  "completionTokens": NaN,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > outputTokens = array > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > outputTokens = boolean > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > outputTokens = boxed number > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > outputTokens = null > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > outputTokens = number > verdict 1`] = `
+{
+  "completionTokens": 5,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > outputTokens = string > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > outputTokens = undefined > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > outputTokens = zero > verdict 1`] = `
+{
+  "completionTokens": 0,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > primary wins > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": 1,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > promptTokens = -0 > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": -0,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > promptTokens = -Infinity > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": -Infinity,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > promptTokens = Infinity > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": Infinity,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > promptTokens = NaN > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": NaN,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > promptTokens = array > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > promptTokens = boolean > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > promptTokens = boxed number > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > promptTokens = null > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > promptTokens = number > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": 5,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > promptTokens = string > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > promptTokens = undefined > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > promptTokens = zero > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": 0,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > string > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > undefined > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;
+
+exports[`provider response readers equivalence > usageCounts > zero > verdict 1`] = `
+{
+  "completionTokens": null,
+  "promptTokens": null,
+}
+`;

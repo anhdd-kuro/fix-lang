@@ -7,14 +7,15 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { createOpenRouterClient } from "./client";
+import type { JsonValue } from "~/main/jsonValue";
 
 type StubResponse = {
   ok: boolean;
   status: number;
-  json: () => Promise<unknown>;
+  json: () => Promise<JsonValue>;
 };
 
-const okResponse = (body: unknown): StubResponse => ({
+const okResponse = (body: JsonValue): StubResponse => ({
   ok: true,
   status: 200,
   json: async () => body,
@@ -62,7 +63,7 @@ describe("createOpenRouterClient", () => {
 
   it("happy path returns parsed data and sets Authorization: Bearer <key>", async () => {
     const fetchStub = vi.fn(async () =>
-      okResponse({ data: { total_credits: 100, total_usage: 10 } })
+      okResponse({ data: { total_credits: 100, total_usage: 10 } }),
     );
     const client = createOpenRouterClient({
       fetch: fetchStub as never,
@@ -97,9 +98,7 @@ describe("createOpenRouterClient", () => {
 
   it("passes the range through to the activity parser", async () => {
     const NOW_ROWS = {
-      data: [
-        { date: "2099-01-01", model: "m", requests: 1, usage: 0.001 },
-      ],
+      data: [{ date: "2099-01-01", model: "m", requests: 1, usage: 0.001 }],
     };
     const client = createOpenRouterClient({
       fetch: (async () => okResponse(NOW_ROWS)) as never,

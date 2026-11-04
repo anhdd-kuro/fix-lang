@@ -6,9 +6,11 @@
  * logs. These tests pin the trail AND pin that the key itself never enters it.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { KEY_FAMILY_LOG_FIELD } from "~/features/providers/shared/providerKeyFamilies";
 import { createOpenAIUsageClient } from "./openai/usage.client";
 import { createOpenRouterClient } from "./openrouter/client";
 import type { LogContext, LogLevel } from "~/features/logs/shared/logging";
+import type { JsonValue } from "~/main/jsonValue";
 
 // `vi.mock` is hoisted above every top-level binding, so the sink it writes into
 // has to be hoisted with it.
@@ -23,7 +25,8 @@ const { entries } = vi.hoisted(() => ({
 
 vi.mock("~/main/logging/logService", () => {
   const record =
-    (level: LogLevel) => (scope: string, message: string, context?: LogContext) => {
+    (level: LogLevel) =>
+    (scope: string, message: string, context?: LogContext) => {
       entries.push({ level, scope, message, context });
     };
   return {
@@ -46,7 +49,11 @@ const errResponse = (status: number) => ({
   json: async () => ({}),
 });
 
-const okResponse = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
+const okResponse = (body: JsonValue) => ({
+  ok: true,
+  status: 200,
+  json: async () => body,
+});
 
 beforeEach(() => {
   entries.length = 0;
@@ -67,7 +74,7 @@ describe("OpenRouter admin request logging", () => {
       endpoint: "/credits",
       status: 401,
       reason: "unauthorized",
-      keyShape: "openai-admin",
+      [KEY_FAMILY_LOG_FIELD]: "openai-admin",
       // The whole point: this line, on its own, explains the reported failure.
       storedKeyBelongsToAnotherProvider: true,
     });
@@ -82,13 +89,14 @@ describe("OpenRouter admin request logging", () => {
     await client.getCredits();
 
     const [failure] = entries.filter((entry) => entry.level === "warn");
-    expect(failure?.context?.keyShape).toBe("openrouter");
+    expect(failure?.context?.[KEY_FAMILY_LOG_FIELD]).toBe("openrouter");
     expect(failure?.context?.storedKeyBelongsToAnotherProvider).toBeUndefined();
   });
 
   it("logs a success and the no-key skip, so silence means no attempt at all", async () => {
     const client = createOpenRouterClient({
-      fetch: (async () => okResponse({ data: { total_credits: 5, total_usage: 1 } })) as never,
+      fetch: (async () =>
+        okResponse({ data: { total_credits: 5, total_usage: 1 } })) as never,
       getKey: async () => OPENROUTER_KEY,
     });
     await client.getCredits();
@@ -130,7 +138,7 @@ describe("OpenAI admin request logging", () => {
     expect(failure?.context).toMatchObject({
       status: 401,
       reason: "unauthorized",
-      keyShape: "openai-project",
+      [KEY_FAMILY_LOG_FIELD]: "openai-project",
       storedKeyBelongsToAnotherSlot: true,
     });
   });

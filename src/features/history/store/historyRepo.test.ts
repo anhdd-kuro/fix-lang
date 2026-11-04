@@ -74,7 +74,7 @@ describe("uncapped storage", () => {
         makeEntry({
           original: `entry-${i}`,
           timestamp: new Date(Date.UTC(2024, 0, 1, 0, 0, i)).toISOString(),
-        })
+        }),
       );
     }
     expect(repo.getByFeature("corrections")).toHaveLength(150);
@@ -98,7 +98,7 @@ describe("getRecentByFeature", () => {
           original: `entry-${i}`,
           presetName: `preset-${i}`,
           timestamp: new Date(Date.UTC(2024, 0, 1, 0, 0, i)).toISOString(),
-        })
+        }),
       );
     }
   };
@@ -131,7 +131,7 @@ describe("getRecentByFeature", () => {
         presetName: "Correction",
         sessionJson: '{"messages":[{"role":"user","content":"secret"}]}',
         timestamp: "2024-03-01T00:00:00Z",
-      })
+      }),
     );
 
     expect(repo.getRecentByFeature("corrections", 5)).toEqual([
@@ -140,7 +140,10 @@ describe("getRecentByFeature", () => {
   });
 
   it("omits presetName entirely for a legacy row that never had one", () => {
-    repo.insert("corrections", makeEntry({ timestamp: "2024-04-01T00:00:00Z" }));
+    repo.insert(
+      "corrections",
+      makeEntry({ timestamp: "2024-04-01T00:00:00Z" }),
+    );
 
     expect(repo.getRecentByFeature("corrections", 5)).toEqual([
       { timestamp: "2024-04-01T00:00:00Z" },
@@ -172,7 +175,7 @@ describe("getRecentByFeature", () => {
 
     expect(repo.getRecentByFeature("corrections", Number.NaN)).toHaveLength(0);
     expect(
-      repo.getRecentByFeature("corrections", Number.POSITIVE_INFINITY)
+      repo.getRecentByFeature("corrections", Number.POSITIVE_INFINITY),
     ).toHaveLength(0);
   });
 });
@@ -196,7 +199,10 @@ describe("remove", () => {
 // Test 5 — clear is scoped to one feature.
 describe("clear", () => {
   it("empties one feature but leaves the other intact", () => {
-    repo.insert("corrections", makeEntry({ timestamp: "2024-01-01T00:00:00Z" }));
+    repo.insert(
+      "corrections",
+      makeEntry({ timestamp: "2024-01-01T00:00:00Z" }),
+    );
     repo.insert("promptGen", makeEntry({ timestamp: "2024-01-02T00:00:00Z" }));
 
     repo.clear("corrections");
@@ -209,7 +215,10 @@ describe("clear", () => {
 // Test 6 — overrideFeature replaces a feature's rows atomically.
 describe("overrideFeature", () => {
   it("replaces a feature's rows", () => {
-    repo.insert("corrections", makeEntry({ original: "old", timestamp: "2024-01-01T00:00:00Z" }));
+    repo.insert(
+      "corrections",
+      makeEntry({ original: "old", timestamp: "2024-01-01T00:00:00Z" }),
+    );
 
     const next = [
       makeEntry({ original: "new-1", timestamp: "2024-02-01T00:00:00Z" }),
@@ -226,10 +235,22 @@ describe("overrideFeature", () => {
 // Tests 7–9 — range query window, feature filter, ordering.
 describe("getByRange", () => {
   beforeEach(() => {
-    repo.insert("corrections", makeEntry({ original: "c1", timestamp: "2024-01-01T00:00:00Z" }));
-    repo.insert("corrections", makeEntry({ original: "c2", timestamp: "2024-02-01T00:00:00Z" }));
-    repo.insert("corrections", makeEntry({ original: "c3", timestamp: "2024-03-01T00:00:00Z" }));
-    repo.insert("promptGen", makeEntry({ original: "p1", timestamp: "2024-02-15T00:00:00Z" }));
+    repo.insert(
+      "corrections",
+      makeEntry({ original: "c1", timestamp: "2024-01-01T00:00:00Z" }),
+    );
+    repo.insert(
+      "corrections",
+      makeEntry({ original: "c2", timestamp: "2024-02-01T00:00:00Z" }),
+    );
+    repo.insert(
+      "corrections",
+      makeEntry({ original: "c3", timestamp: "2024-03-01T00:00:00Z" }),
+    );
+    repo.insert(
+      "promptGen",
+      makeEntry({ original: "p1", timestamp: "2024-02-15T00:00:00Z" }),
+    );
   });
 
   // Test 7 — inclusive window.
@@ -263,10 +284,18 @@ describe("getByRange", () => {
 describe("migrateLegacyBuckets", () => {
   it("imports legacy buckets, folding translations/summarize into corrections", () => {
     const corrections = [
-      makeEntry({ original: "fix", timestamp: "2024-02-01T00:00:00Z", presetName: "Correction" }),
+      makeEntry({
+        original: "fix",
+        timestamp: "2024-02-01T00:00:00Z",
+        presetName: "Correction",
+      }),
     ];
     const promptGen = [
-      makeEntry({ original: "gen", timestamp: "2024-02-02T00:00:00Z", presetName: "PromptGen" }),
+      makeEntry({
+        original: "gen",
+        timestamp: "2024-02-02T00:00:00Z",
+        presetName: "PromptGen",
+      }),
     ];
     const translations = [
       makeEntry({ original: "bonjour", timestamp: "2024-01-01T00:00:00Z" }),
@@ -301,7 +330,9 @@ describe("migrateLegacyBuckets", () => {
 
   // Test 11 — idempotency: second run is a no-op (no duplicate rows).
   it("runs once — a second migration is a no-op", () => {
-    const corrections = [makeEntry({ original: "x", timestamp: "2024-01-01T00:00:00Z" })];
+    const corrections = [
+      makeEntry({ original: "x", timestamp: "2024-01-01T00:00:00Z" }),
+    ];
 
     expect(repo.migrateLegacyBuckets(corrections, [], {})).toBe(true);
     expect(repo.migrateLegacyBuckets(corrections, [], {})).toBe(false);
@@ -315,7 +346,7 @@ describe("pure mappers", () => {
   it("entryToParams maps absent optional fields to null", () => {
     const params = entryToParams(
       "corrections",
-      makeEntry({ timestamp: "2024-01-01T00:00:00Z" })
+      makeEntry({ timestamp: "2024-01-01T00:00:00Z" }),
     );
     expect(params.preset_name).toBeNull();
     expect(params.prompt_tokens).toBeNull();
@@ -385,7 +416,8 @@ describe("pure mappers", () => {
   it("round-trips sessionJson when present", () => {
     const entry = makeEntry({
       timestamp: "2024-01-01T00:00:00Z",
-      sessionJson: '{"systemPrompt":"x","userPrompt":"y","messages":[],"model":"m","provider":"openai","responses":["z"],"promptTokens":1,"completionTokens":1}',
+      sessionJson:
+        '{"systemPrompt":"x","userPrompt":"y","messages":[],"model":"m","provider":"openai","responses":["z"],"promptTokens":1,"completionTokens":1}',
     });
     const p = entryToParams("corrections", entry);
     expect(p.session_json).toBe(entry.sessionJson);
@@ -487,7 +519,7 @@ describe("cost snapshot persistence", () => {
         timestamp: "2024-05-02T00:00:00Z",
         estimatedCostUsd: 0,
         costStatus: "zero",
-      })
+      }),
     );
     const [stored] = repo.getByFeature("corrections");
     expect(stored.costStatus).toBe("zero");
@@ -497,7 +529,7 @@ describe("cost snapshot persistence", () => {
   it("reads cost fields back as undefined when absent (legacy → N/A)", () => {
     repo.insert(
       "corrections",
-      makeEntry({ timestamp: "2024-05-03T00:00:00Z" })
+      makeEntry({ timestamp: "2024-05-03T00:00:00Z" }),
     );
     const [stored] = repo.getByFeature("corrections");
     expect(stored.estimatedCostUsd).toBeUndefined();
@@ -528,7 +560,7 @@ describe("cost column migration (v1 table → v2)", () => {
     `);
     legacyDb
       .prepare(
-        "INSERT INTO history (feature_id, original, corrected, timestamp) VALUES (?,?,?,?)"
+        "INSERT INTO history (feature_id, original, corrected, timestamp) VALUES (?,?,?,?)",
       )
       .run("corrections", "old", "old fixed", "2024-01-01T00:00:00Z");
 
@@ -570,7 +602,7 @@ describe("combo run columns", () => {
         timestamp: "2024-06-01T00:00:00Z",
         comboRunId: "run-abc",
         comboStepIndex: 2,
-      })
+      }),
     );
     const [stored] = repo.getByFeature("corrections");
     expect(stored.comboRunId).toBe("run-abc");
@@ -578,13 +610,14 @@ describe("combo run columns", () => {
   });
 
   it("reads a row without combo fields back as valid, with both undefined", () => {
-    repo.insert("corrections", makeEntry({ timestamp: "2024-06-02T00:00:00Z" }));
+    repo.insert(
+      "corrections",
+      makeEntry({ timestamp: "2024-06-02T00:00:00Z" }),
+    );
     const [stored] = repo.getByFeature("corrections");
     expect(stored.comboRunId).toBeUndefined();
     expect(stored.comboStepIndex).toBeUndefined();
-    expect(stored).toEqual(
-      makeEntry({ timestamp: "2024-06-02T00:00:00Z" })
-    );
+    expect(stored).toEqual(makeEntry({ timestamp: "2024-06-02T00:00:00Z" }));
   });
 
   it("adds combo columns idempotently to a pre-existing (pre-combo) database", () => {
@@ -614,9 +647,14 @@ describe("combo run columns", () => {
     `);
     legacyDb
       .prepare(
-        "INSERT INTO history (feature_id, original, corrected, timestamp) VALUES (?,?,?,?)"
+        "INSERT INTO history (feature_id, original, corrected, timestamp) VALUES (?,?,?,?)",
       )
-      .run("corrections", "pre-combo", "pre-combo fixed", "2024-01-01T00:00:00Z");
+      .run(
+        "corrections",
+        "pre-combo",
+        "pre-combo fixed",
+        "2024-01-01T00:00:00Z",
+      );
 
     // Opening through the repo must ALTER the table to add both combo columns.
     const migratedRepo = createHistoryRepo(legacyDb);
@@ -649,7 +687,7 @@ describe("combo run columns", () => {
         timestamp: "2024-06-03T00:00:00Z",
         comboRunId: "run-xyz",
         comboStepIndex: 0,
-      })
+      }),
     );
     const stored = migratedRepo
       .getByFeature("corrections")

@@ -3,28 +3,34 @@
  * @description IPC handlers for OpenAI API related functionality
  */
 import { ipcMain } from "electron";
+import { z } from "zod";
 import { keybindingStore } from "~/features/correction/store/keybindingStore";
 import { messageLabel, textLabel } from "~/features/i18n/shared/message";
 import { redactLogMessage } from "~/features/logs/shared/logging";
 import {
   LMSTUDIO_DEFAULT_ENDPOINT,
+  LocalHostSchema,
+  LocalPortSchema,
   resolveLmStudioEndpoint,
-  sanitizeLmStudioHost,
-  sanitizeLmStudioPort,
 } from "~/features/providers/shared/lmstudioEndpoint";
 import { resolveModelRef } from "~/features/providers/shared/modelRef";
+import { strippingObjectLike } from "~/features/providers/shared/strippingObjectLike";
 import {
   OLLAMA_DEFAULT_ENDPOINT,
   resolveOllamaEndpoint,
 } from "~/features/providers/shared/ollamaEndpoint";
 import { isMalformedOpenAIProjectId } from "~/features/providers/shared/openaiProject";
-import { findKeyShapeMismatch, type KeySlotKind } from "~/features/providers/shared/providerKeyShapes";
+import {
+  findKeyFamilyMismatch,
+  KEY_FAMILY_LOG_FIELD,
+  type KeySlotKind,
+} from "~/features/providers/shared/providerKeyFamilies";
 import {
   isModelForProvider,
   isProviderConfigured,
-  isProviderId,
   modelsForProvider,
   PROVIDER_IDS,
+  ProviderIdSchema,
   PROVIDER_LOG_LABELS,
   sanitizeEnabledProviders,
   supportsAdminKey,
@@ -53,8 +59,14 @@ import {
   secretKindsForProvider,
   setProfileSecret,
 } from "~/features/providers/store/profileSecretStore";
-import { exceptionLabel, wrapStoreResult } from "~/features/settings/main/ipcResultLabel";
-import { fetchAvailableModels, fetchModelsForProviders } from "~/main/ai.request";
+import {
+  exceptionLabel,
+  wrapStoreResult,
+} from "~/features/settings/main/ipcResultLabel";
+import {
+  fetchAvailableModels,
+  fetchModelsForProviders,
+} from "~/main/ai.request";
 import { reloadHotkeys } from "~/main/keybindings";
 import { ollamaClient } from "~/main/llm";
 import { checkModelCompatibility } from "~/main/llm/models/compatibility";
@@ -67,6 +79,7 @@ import { probeLmStudio } from "~/main/llm/providers/lmstudio/client";
 import { logger } from "~/main/logging/logService";
 import type { Label } from "~/features/i18n/shared/message";
 import type { Model, ProviderId } from "~/features/providers/shared/providers";
+import type { Profile } from "~/features/providers/store/apiStore";
 
 // Provider predicates come from `~/features/providers/shared/providers`, not `~/features/providers/store/apiStore`'s
 // re-export, so the apiStore mock every test here installs cannot stand in for
@@ -80,12 +93,11 @@ const MASK_RUN = /\S*[*•·…]{2,}\S*/g;
  * STORED key — so provider error text is redacted before it reaches the
  * renderer. Best effort, not a proof.
  */
-const providerErrorLabel = (error: unknown): Label =>
+const providerErrorLabel = (cause: unknown): Label =>
   textLabel(
-    redactLogMessage(error instanceof Error ? error.message : String(error)).replace(
-      MASK_RUN,
-      "[REDACTED]",
-    ),
+    redactLogMessage(
+      cause instanceof Error ? cause.message : String(cause),
+    ).replace(MASK_RUN, "[REDACTED]"),
   );
 
 /**
@@ -125,46 +137,56 @@ type ProviderConnectPayload = {
   projectId?: string;
 };
 
-export const parseProviderConnect = (raw: unknown): ProviderConnectPayload | null => {
-  if (!raw || typeof raw !== "object") return null;
-  const value = raw as Record<string, unknown>;
-  if (!isProviderId(value.provider)) return null;
-  if (
-    (value.apiKey !== undefined && typeof value.apiKey !== "string") ||
-    (value.provisioningKey !== undefined && typeof value.provisioningKey !== "string") ||
-    (value.secretKey !== undefined && typeof value.secretKey !== "string") ||
-    (value.region !== undefined && typeof value.region !== "string") ||
-    (value.projectId !== undefined && typeof value.projectId !== "string")
-  ) {
-    return null;
+/**
+ * The `connect-provider` / `fetch-provider-models` IPC payload. Every field is
+ * optional except `provider`; a field that is present must be valid, or the
+ * whole payload is refused (an invalid `host` is refused, never dropped). A
+ * stale `modelId` and any other extra field are dropped. Accepts whatever
+ * object-like value IPC delivers, arrays carrying named fields included.
+ */
+export const ProviderConnectPayloadSchema = strippingObjectLike({
+  provider: ProviderIdSchema,
+  apiKey: z.string().optional(),
+  provisioningKey: z.string().optional(),
+  secretKey: z.string().optional(),
+  region: z.string().optional(),
+  projectId: z.string().optional(),
+  host: LocalHostSchema.optional(),
+  port: LocalPortSchema.optional(),
+}).transform((fields): ProviderConnectPayload => {
+  // Optional keys are present only when supplied, in this order.
+  const payload: ProviderConnectPayload = { provider: fields.provider };
+  if (fields.apiKey !== undefined) payload.apiKey = fields.apiKey;
+  if (fields.provisioningKey !== undefined) {
+    payload.provisioningKey = fields.provisioningKey;
   }
-  const host =
-    value.host === undefined ? undefined : sanitizeLmStudioHost(value.host) ?? undefined;
-  // Reject explicitly invalid host strings rather than silently dropping them.
-  if (value.host !== undefined && typeof value.host === "string" && host === undefined) {
-    return null;
-  }
-  if (value.host !== undefined && typeof value.host !== "string") {
-    return null;
-  }
-  let port: number | undefined;
-  if (value.port !== undefined) {
-    const sanitized = sanitizeLmStudioPort(value.port);
-    if (sanitized === null) return null;
-    port = sanitized;
-  }
-  return {
-    provider: value.provider,
-    ...(typeof value.apiKey === "string" ? { apiKey: value.apiKey } : {}),
-    ...(typeof value.provisioningKey === "string"
-      ? { provisioningKey: value.provisioningKey }
-      : {}),
-    ...(typeof value.secretKey === "string" ? { secretKey: value.secretKey } : {}),
-    ...(typeof value.region === "string" ? { region: value.region } : {}),
-    ...(typeof value.projectId === "string" ? { projectId: value.projectId } : {}),
-    ...(host !== undefined ? { host } : {}),
-    ...(port !== undefined ? { port } : {}),
+  if (fields.secretKey !== undefined) payload.secretKey = fields.secretKey;
+  if (fields.region !== undefined) payload.region = fields.region;
+  if (fields.projectId !== undefined) payload.projectId = fields.projectId;
+  if (fields.host !== undefined) payload.host = fields.host;
+  if (fields.port !== undefined) payload.port = fields.port;
+  return payload;
+});
+
+type ConnectedResult = {
+  success: true;
+  profile: Profile;
+  /** Advice for a connect that did succeed; absent, not `undefined`, when there is none. */
+  note?: Label;
+};
+
+// SECURITY: `SettingsStore` still declares the deprecated plaintext `apiKey`,
+// so an unmigrated profile must be stripped before it crosses.
+const connectedResult = (
+  profile: Profile,
+  note: Label | undefined,
+): ConnectedResult => {
+  const result: ConnectedResult = {
+    success: true,
+    profile: withoutProfileSecrets(profile),
   };
+  if (note) result.note = note;
+  return result;
 };
 
 /**
@@ -177,19 +199,19 @@ export const parseProviderConnect = (raw: unknown): ProviderConnectPayload | nul
  * nothing in the logs to explain it. The refusal is logged with the shape label
  * only; the key itself never reaches a log.
  */
-const keyShapeMismatchLabel = (
+const keyFamilyMismatchLabel = (
   provider: ProviderId,
   kind: KeySlotKind,
   raw: string | undefined,
 ): Label | null => {
   if (!raw?.trim()) return null;
-  const mismatch = findKeyShapeMismatch(provider, kind, raw);
+  const mismatch = findKeyFamilyMismatch(provider, kind, raw);
   if (!mismatch) return null;
 
   logger.warn("provider.key", "Refused a key that belongs to another slot", {
     provider,
     slot: kind,
-    keyShape: mismatch.shape,
+    [KEY_FAMILY_LOG_FIELD]: mismatch.family,
   });
 
   return messageLabel(
@@ -225,16 +247,31 @@ const providerApiKeys = async (
   const profileId = getCurrentProfileId();
   const entries = await Promise.all(
     providers.map(async (provider): Promise<[ProviderId, string]> => {
-      if (!secretKindsForProvider(provider).includes("api")) return [provider, ""];
-      if (provider === "openrouter") return [provider, (await getApiKey()) ?? ""];
+      if (!secretKindsForProvider(provider).includes("api"))
+        return [provider, ""];
+      if (provider === "openrouter")
+        return [provider, (await getApiKey()) ?? ""];
       return [
         provider,
-        profileId ? ((await getProfileSecret(profileId, provider, "api")) ?? "") : "",
+        profileId
+          ? ((await getProfileSecret(profileId, provider, "api")) ?? "")
+          : "",
       ];
     }),
   );
-  return Object.fromEntries(entries) as Partial<Record<ProviderId, string>>;
+  return Object.fromEntries(entries);
 };
+
+// SECURITY: provider failure text can quote back a key read from disk.
+const redactedProviderErrors = (
+  errors: Partial<Record<ProviderId, string>>,
+): Partial<Record<ProviderId, string>> =>
+  Object.fromEntries(
+    Object.entries(errors).map(([provider, message]) => [
+      provider,
+      redactLogMessage(message).replace(MASK_RUN, "[REDACTED]"),
+    ]),
+  );
 
 const readProviderStates = async (): Promise<ProviderStates> => {
   const profileId = getCurrentProfileId();
@@ -279,6 +316,8 @@ const readProviderStates = async (): Promise<ProviderStates> => {
     }),
   );
 
+  // SAFETY: `entries` maps `PROVIDER_IDS` one-to-one, so every `ProviderId`
+  // key is present exactly once.
   return Object.fromEntries(entries) as ProviderStates;
 };
 
@@ -292,12 +331,16 @@ export const registerApiHandlers = (): void => {
   // state via has-api-key, mirroring the provisioning key pattern.
   // ---------------------------------------------------------------------------
 
-  ipcMain.handle("set-api-key", async (_event, raw: unknown) => {
-    if (typeof raw !== "string") {
-      return { success: false, error: messageLabel("models.providerSetup.error.invalidApiKeyInput") };
+  ipcMain.handle("set-api-key", async (_event, raw) => {
+    const key = z.string().safeParse(raw);
+    if (!key.success) {
+      return {
+        success: false,
+        error: messageLabel("models.providerSetup.error.invalidApiKeyInput"),
+      };
     }
     try {
-      const result = await setApiKey(raw);
+      const result = await setApiKey(key.data);
       if (!result.success) return wrapStoreResult(result);
 
       // Refetch models in the background using the newly stored key.
@@ -321,7 +364,9 @@ export const registerApiHandlers = (): void => {
 
   ipcMain.handle("has-api-key", async () => hasApiKey());
 
-  ipcMain.handle("clear-api-key", async () => wrapStoreResult(await clearApiKey()));
+  ipcMain.handle("clear-api-key", async () =>
+    wrapStoreResult(await clearApiKey()),
+  );
 
   // No "get-active-provider": requests route by composite `<providerId>::<rawId>` ref.
 
@@ -332,6 +377,8 @@ export const registerApiHandlers = (): void => {
     } catch (error) {
       // All-false reports nothing as connected rather than inventing a connection.
       console.error("Error reading provider states:", error);
+      // SAFETY: built by mapping `PROVIDER_IDS`, so every `ProviderId` key is
+      // present exactly once.
       return Object.fromEntries(
         PROVIDER_IDS.map((provider) => [
           provider,
@@ -347,33 +394,46 @@ export const registerApiHandlers = (): void => {
     }
   });
 
-  ipcMain.handle("get-provider-secret-status", async (_event, raw: unknown) => {
-    if (!isProviderId(raw)) return { apiKeySet: false, provisioningKeySet: false };
+  ipcMain.handle("get-provider-secret-status", async (_event, rawProvider) => {
+    const parsedProvider = ProviderIdSchema.safeParse(rawProvider);
+    if (!parsedProvider.success)
+      return { apiKeySet: false, provisioningKeySet: false };
+    const provider = parsedProvider.data;
     const profileId = getCurrentProfileId();
     if (!profileId) return { apiKeySet: false, provisioningKeySet: false };
     const accessKeySet =
-      raw !== "ollama" && (await hasProfileSecret(profileId, raw, "api"));
+      provider !== "ollama" &&
+      (await hasProfileSecret(profileId, provider, "api"));
     const secretKeySet =
-      raw === "bedrock" && (await hasProfileSecret(profileId, raw, "secret"));
+      provider === "bedrock" &&
+      (await hasProfileSecret(profileId, provider, "secret"));
     return {
-      apiKeySet: raw === "bedrock" ? accessKeySet && secretKeySet : accessKeySet,
-      accessKeySet: raw === "bedrock" ? accessKeySet : undefined,
-      secretKeySet: raw === "bedrock" ? secretKeySet : undefined,
+      apiKeySet:
+        provider === "bedrock" ? accessKeySet && secretKeySet : accessKeySet,
+      accessKeySet: provider === "bedrock" ? accessKeySet : undefined,
+      secretKeySet: provider === "bedrock" ? secretKeySet : undefined,
       provisioningKeySet:
-        supportsAdminKey(raw) &&
-        (await hasProfileSecret(profileId, raw, "provisioning")),
+        supportsAdminKey(provider) &&
+        (await hasProfileSecret(profileId, provider, "provisioning")),
     };
   });
 
   // Fetching with a typed key never stores it and never connects the provider;
   // only `connect-provider` below commits the validated key + model cache.
-  ipcMain.handle("fetch-provider-models", async (_event, raw: unknown) => {
-    const payload = parseProviderConnect(raw);
+  ipcMain.handle("fetch-provider-models", async (_event, raw) => {
+    const parsed = ProviderConnectPayloadSchema.safeParse(raw);
+    const payload = parsed.success ? parsed.data : null;
     const profileId = getCurrentProfileId();
     if (!payload || !profileId) {
-      return { success: false, error: messageLabel("models.providerSetup.error.invalidSetup") };
+      return {
+        success: false,
+        error: messageLabel("models.providerSetup.error.invalidSetup"),
+      };
     }
-    if (!supportsAdminKey(payload.provider) && payload.provisioningKey?.trim()) {
+    if (
+      !supportsAdminKey(payload.provider) &&
+      payload.provisioningKey?.trim()
+    ) {
       return {
         success: false,
         error: messageLabel("models.providerSetup.error.adminKeyUnsupported"),
@@ -381,7 +441,11 @@ export const registerApiHandlers = (): void => {
     }
     try {
       if (payload.provider === "bedrock") {
-        const accessKeyId = await getSetupApiKey(profileId, "bedrock", payload.apiKey);
+        const accessKeyId = await getSetupApiKey(
+          profileId,
+          "bedrock",
+          payload.apiKey,
+        );
         const secretAccessKey =
           payload.secretKey?.trim() ||
           (await getProfileSecret(profileId, "bedrock", "secret")) ||
@@ -389,17 +453,18 @@ export const registerApiHandlers = (): void => {
         if (!accessKeyId || !secretAccessKey) {
           return {
             success: false,
-            error: messageLabel("models.providerSetup.error.bedrockCredentialsRequired"),
+            error: messageLabel(
+              "models.providerSetup.error.bedrockCredentialsRequired",
+            ),
           };
         }
-        const { resolveBedrockRegion } = await import("~/features/providers/shared/bedrockEndpoint");
-        const { fetchBedrockModels } = await import(
-          "~/main/llm/providers/bedrock/models"
-        );
-        const region =
-          payload.region
-            ? resolveBedrockRegion(payload.region)
-            : resolveBedrockRegion(getProviderEndpoint("bedrock")?.host);
+        const { resolveBedrockRegion } =
+          await import("~/features/providers/shared/bedrockEndpoint");
+        const { fetchBedrockModels } =
+          await import("~/main/llm/providers/bedrock/models");
+        const region = payload.region
+          ? resolveBedrockRegion(payload.region)
+          : resolveBedrockRegion(getProviderEndpoint("bedrock")?.host);
         const models = await fetchBedrockModels({
           accessKeyId,
           secretAccessKey,
@@ -408,18 +473,30 @@ export const registerApiHandlers = (): void => {
         return { success: true, models };
       }
 
-      const apiKey = await getSetupApiKey(profileId, payload.provider, payload.apiKey);
+      const apiKey = await getSetupApiKey(
+        profileId,
+        payload.provider,
+        payload.apiKey,
+      );
       if (payload.provider !== "ollama" && !apiKey) {
         return {
           success: false,
-          error: messageLabel("models.providerSetup.error.apiKeyRequiredFirst", {
-            provider: PROVIDER_LOG_LABELS[payload.provider],
-          }),
+          error: messageLabel(
+            "models.providerSetup.error.apiKeyRequiredFirst",
+            {
+              provider: PROVIDER_LOG_LABELS[payload.provider],
+            },
+          ),
         };
       }
       // strict: true — a live-fetch failure (bad/revoked key) must surface as
       // an error here, never silently fall back to a stale cached list.
-      const models = await fetchAvailableModels(apiKey, payload.provider, false, true);
+      const models = await fetchAvailableModels(
+        apiKey,
+        payload.provider,
+        false,
+        true,
+      );
       return { success: true, models };
     } catch (error) {
       return { success: false, error: providerErrorLabel(error) };
@@ -428,8 +505,9 @@ export const registerApiHandlers = (): void => {
 
   // Never writes `selectedModel` or any preset/feature model — picking a
   // default is `set-selected-model`'s job alone.
-  ipcMain.handle("connect-provider", async (_event, raw: unknown) => {
-    const payload = parseProviderConnect(raw);
+  ipcMain.handle("connect-provider", async (_event, raw) => {
+    const parsed = ProviderConnectPayloadSchema.safeParse(raw);
+    const payload = parsed.success ? parsed.data : null;
     const profileId = getCurrentProfileId();
     if (!payload || !profileId) {
       return {
@@ -437,7 +515,10 @@ export const registerApiHandlers = (): void => {
         error: messageLabel("models.providerSetup.error.invalidSetup"),
       };
     }
-    if (!supportsAdminKey(payload.provider) && payload.provisioningKey?.trim()) {
+    if (
+      !supportsAdminKey(payload.provider) &&
+      payload.provisioningKey?.trim()
+    ) {
       return {
         success: false,
         error: messageLabel("models.providerSetup.error.adminKeyUnsupported"),
@@ -445,11 +526,15 @@ export const registerApiHandlers = (): void => {
     }
     // Checked before the provider round-trip below: a key pasted into the wrong
     // slot must not be spent on a request, and must never reach the store.
-    const shapeError =
-      keyShapeMismatchLabel(payload.provider, "api", payload.apiKey) ??
-      keyShapeMismatchLabel(payload.provider, "provisioning", payload.provisioningKey);
-    if (shapeError) {
-      return { success: false, error: shapeError };
+    const keyFamilyError =
+      keyFamilyMismatchLabel(payload.provider, "api", payload.apiKey) ??
+      keyFamilyMismatchLabel(
+        payload.provider,
+        "provisioning",
+        payload.provisioningKey,
+      );
+    if (keyFamilyError) {
+      return { success: false, error: keyFamilyError };
     }
     // Refused rather than sanitized away: storing "" for a malformed entry would
     // report "connected" while the tray's project card stays permanently empty.
@@ -459,7 +544,9 @@ export const registerApiHandlers = (): void => {
     ) {
       return {
         success: false,
-        error: messageLabel("settings.general.providers.openai.projectId.invalid"),
+        error: messageLabel(
+          "settings.general.providers.openai.projectId.invalid",
+        ),
       };
     }
 
@@ -484,7 +571,9 @@ export const registerApiHandlers = (): void => {
         if (!probe.reachable) {
           return {
             success: false,
-            error: messageLabel("settings.general.providers.ollama.unreachable"),
+            error: messageLabel(
+              "settings.general.providers.ollama.unreachable",
+            ),
           };
         }
         models = probe.models;
@@ -499,25 +588,35 @@ export const registerApiHandlers = (): void => {
         if (!profile) {
           return {
             success: false,
-            error: messageLabel("models.providerSetup.error.activeProfileNotFound"),
+            error: messageLabel(
+              "models.providerSetup.error.activeProfileNotFound",
+            ),
           };
         }
-        return {
-          success: true,
-          profile: withoutProfileSecrets(profile),
-          ...(note ? { note } : {}),
-        };
+        return connectedResult(profile, note);
       } else if (payload.provider === "lmstudio") {
         const endpoint = resolveLmStudioEndpoint({
-          host: payload.host ?? getProviderEndpoint("lmstudio")?.host ?? LMSTUDIO_DEFAULT_ENDPOINT.host,
-          port: payload.port ?? getProviderEndpoint("lmstudio")?.port ?? LMSTUDIO_DEFAULT_ENDPOINT.port,
+          host:
+            payload.host ??
+            getProviderEndpoint("lmstudio")?.host ??
+            LMSTUDIO_DEFAULT_ENDPOINT.host,
+          port:
+            payload.port ??
+            getProviderEndpoint("lmstudio")?.port ??
+            LMSTUDIO_DEFAULT_ENDPOINT.port,
         });
-        const apiKey = await getSetupApiKey(profileId, "lmstudio", payload.apiKey);
+        const apiKey = await getSetupApiKey(
+          profileId,
+          "lmstudio",
+          payload.apiKey,
+        );
         const probe = await probeLmStudio({ endpoint, apiKey });
         if (!probe.reachable) {
           return {
             success: false,
-            error: messageLabel("settings.general.providers.lmstudio.unreachable"),
+            error: messageLabel(
+              "settings.general.providers.lmstudio.unreachable",
+            ),
           };
         }
         models = probe.models;
@@ -535,22 +634,29 @@ export const registerApiHandlers = (): void => {
           if (!result.success) return wrapStoreResult(result);
         }
 
-        const profile = connectProviderToProfile(profileId, "lmstudio", models, {
-          endpoint,
-        });
+        const profile = connectProviderToProfile(
+          profileId,
+          "lmstudio",
+          models,
+          {
+            endpoint,
+          },
+        );
         if (!profile) {
           return {
             success: false,
-            error: messageLabel("models.providerSetup.error.activeProfileNotFound"),
+            error: messageLabel(
+              "models.providerSetup.error.activeProfileNotFound",
+            ),
           };
         }
-        return {
-          success: true,
-          profile: withoutProfileSecrets(profile),
-          ...(note ? { note } : {}),
-        };
+        return connectedResult(profile, note);
       } else if (payload.provider === "bedrock") {
-        const accessKeyId = await getSetupApiKey(profileId, "bedrock", payload.apiKey);
+        const accessKeyId = await getSetupApiKey(
+          profileId,
+          "bedrock",
+          payload.apiKey,
+        );
         const secretAccessKey =
           payload.secretKey?.trim() ||
           (await getProfileSecret(profileId, "bedrock", "secret")) ||
@@ -558,18 +664,20 @@ export const registerApiHandlers = (): void => {
         if (!accessKeyId || !secretAccessKey) {
           return {
             success: false,
-            error: messageLabel("models.providerSetup.error.bedrockCredentialsRequired"),
+            error: messageLabel(
+              "models.providerSetup.error.bedrockCredentialsRequired",
+            ),
           };
         }
-        const { resolveBedrockRegion } = await import("~/features/providers/shared/bedrockEndpoint");
+        const { resolveBedrockRegion } =
+          await import("~/features/providers/shared/bedrockEndpoint");
         const region =
           resolveBedrockRegion(payload.region) !== "us-east-1" || payload.region
             ? resolveBedrockRegion(payload.region)
             : resolveBedrockRegion(getProviderEndpoint("bedrock")?.host);
 
-        const { fetchBedrockModels } = await import(
-          "~/main/llm/providers/bedrock/models"
-        );
+        const { fetchBedrockModels } =
+          await import("~/main/llm/providers/bedrock/models");
         models = await fetchBedrockModels({
           accessKeyId,
           secretAccessKey,
@@ -601,7 +709,9 @@ export const registerApiHandlers = (): void => {
         if (!profile) {
           return {
             success: false,
-            error: messageLabel("models.providerSetup.error.activeProfileNotFound"),
+            error: messageLabel(
+              "models.providerSetup.error.activeProfileNotFound",
+            ),
           };
         }
         return {
@@ -609,7 +719,11 @@ export const registerApiHandlers = (): void => {
           profile: withoutProfileSecrets(profile),
         };
       } else {
-        const apiKey = await getSetupApiKey(profileId, payload.provider, payload.apiKey);
+        const apiKey = await getSetupApiKey(
+          profileId,
+          payload.provider,
+          payload.apiKey,
+        );
         if (!apiKey) {
           return {
             success: false,
@@ -621,7 +735,12 @@ export const registerApiHandlers = (): void => {
 
         // Validate the key before writing it: non-persistent and strict, so a
         // revoked key cannot pass on stale models cached by an earlier connect.
-        models = await fetchAvailableModels(apiKey, payload.provider, false, true);
+        models = await fetchAvailableModels(
+          apiKey,
+          payload.provider,
+          false,
+          true,
+        );
 
         if (payload.apiKey?.trim()) {
           const result = await setProfileSecret(
@@ -631,13 +750,18 @@ export const registerApiHandlers = (): void => {
             payload.apiKey,
           );
           if (!result.success) return wrapStoreResult(result);
-        } else if (!(await hasProfileSecret(profileId, payload.provider, "api"))) {
+        } else if (
+          !(await hasProfileSecret(profileId, payload.provider, "api"))
+        ) {
           return {
             success: false,
             error: messageLabel("models.providerSetup.error.apiKeyNotVerified"),
           };
         }
-        if (supportsAdminKey(payload.provider) && payload.provisioningKey?.trim()) {
+        if (
+          supportsAdminKey(payload.provider) &&
+          payload.provisioningKey?.trim()
+        ) {
           const result = await setProfileSecret(
             profileId,
             payload.provider,
@@ -662,28 +786,28 @@ export const registerApiHandlers = (): void => {
       if (!profile) {
         return {
           success: false,
-          error: messageLabel("models.providerSetup.error.activeProfileNotFound"),
+          error: messageLabel(
+            "models.providerSetup.error.activeProfileNotFound",
+          ),
         };
       }
       // SECURITY: `SettingsStore` still declares the deprecated plaintext
       // `apiKey`, so an unmigrated profile must be stripped before it crosses.
-      return {
-        success: true,
-        profile: withoutProfileSecrets(profile),
-        ...(note ? { note } : {}),
-      };
+      return connectedResult(profile, note);
     } catch (error) {
       return { success: false, error: providerErrorLabel(error) };
     }
   });
 
-  ipcMain.handle("disconnect-provider", async (_event, raw: unknown) => {
-    if (!isProviderId(raw)) {
+  ipcMain.handle("disconnect-provider", async (_event, rawProvider) => {
+    const parsedProvider = ProviderIdSchema.safeParse(rawProvider);
+    if (!parsedProvider.success) {
       return {
         success: false,
         error: messageLabel("models.providerSetup.error.invalidSetup"),
       };
     }
+    const provider = parsedProvider.data;
     const profileId = getCurrentProfileId();
     if (!profileId) {
       return {
@@ -696,8 +820,8 @@ export const registerApiHandlers = (): void => {
       // Every slot is attempted even when one fails: a sequential loop bailing
       // on the first failure would strand OpenRouter's provisioning key.
       const results = await Promise.all(
-        secretKindsForProvider(raw).map((kind) =>
-          clearProfileSecret(profileId, raw, kind),
+        secretKindsForProvider(provider).map((kind) =>
+          clearProfileSecret(profileId, provider, kind),
         ),
       );
       const failedClear = results.find((result) => !result.success);
@@ -710,11 +834,13 @@ export const registerApiHandlers = (): void => {
       // Bound to the captured `profileId`: a profile switch during the clear
       // above must not clear a different profile's model refs. Null therefore
       // means that profile is gone, and its deleted keys are moot.
-      const outcome = disconnectProviderFromProfile(profileId, raw);
+      const outcome = disconnectProviderFromProfile(profileId, provider);
       if (!outcome) {
         return {
           success: false,
-          error: messageLabel("models.providerSetup.error.activeProfileNotFound"),
+          error: messageLabel(
+            "models.providerSetup.error.activeProfileNotFound",
+          ),
         };
       }
       return {
@@ -748,18 +874,14 @@ export const registerApiHandlers = (): void => {
         models: models.filter((model) =>
           providers.some((provider) => isModelForProvider(model, provider)),
         ),
-        // SECURITY: provider failure text can quote back a key read from disk.
-        errors: Object.fromEntries(
-          Object.entries(errors).map(([provider, message]) => [
-            provider,
-            redactLogMessage(message).replace(MASK_RUN, "[REDACTED]"),
-          ]),
-        ) as Partial<Record<ProviderId, string>>,
+        errors: redactedProviderErrors(errors),
       };
     } catch (error) {
       console.error(
         "Error fetching models:",
-        redactLogMessage(error instanceof Error ? error.message : String(error)),
+        redactLogMessage(
+          error instanceof Error ? error.message : String(error),
+        ),
       );
       return { success: false, error: providerErrorLabel(error) };
     }
@@ -795,15 +917,18 @@ export const registerApiHandlers = (): void => {
   // canonical ref `resolveModelRef` returned, never the caller's raw string: a
   // bare `"gpt-4o"` would route by PROVIDER_ORDER scan and bill whichever
   // provider lists that id first.
-  ipcMain.handle("set-selected-model", async (_event, raw: unknown) => {
+  ipcMain.handle("set-selected-model", async (_event, raw) => {
     try {
-      const requested = typeof raw === "string" ? raw.trim() : "";
-      if (typeof raw !== "string") {
+      const parsedRef = z.string().safeParse(raw);
+      if (!parsedRef.success) {
         return {
           success: false,
-          error: messageLabel("models.select.error.modelNotAvailableForProvider"),
+          error: messageLabel(
+            "models.select.error.modelNotAvailableForProvider",
+          ),
         };
       }
+      const requested = parsedRef.data.trim();
 
       if (requested === "") {
         const result = updateProfileSetting("selectedModel", "");
@@ -816,7 +941,9 @@ export const registerApiHandlers = (): void => {
       if (!resolution || !enabledProviders().includes(resolution.provider)) {
         return {
           success: false,
-          error: messageLabel("models.select.error.modelNotAvailableForProvider"),
+          error: messageLabel(
+            "models.select.error.modelNotAvailableForProvider",
+          ),
         };
       }
 
@@ -833,14 +960,17 @@ export const registerApiHandlers = (): void => {
   // Feature-specific model settings
   ipcMain.handle("get-feature-model", (_event, feature) => {
     if (feature === "settingsPromptGen") {
-      return getProfileSetting("settingsPromptGen").model || getDefaultModelId();
+      return (
+        getProfileSetting("settingsPromptGen").model || getDefaultModelId()
+      );
     }
     return getDefaultModelId();
   });
 
   ipcMain.handle("set-feature-model", async (_event, feature, model) => {
     try {
-      if (feature !== "settingsPromptGen" || typeof model !== "string") {
+      const parsedModel = z.string().safeParse(model);
+      if (feature !== "settingsPromptGen" || !parsedModel.success) {
         return {
           success: false,
           error: messageLabel("models.select.error.unsupportedFeatureModel"),
@@ -849,7 +979,7 @@ export const registerApiHandlers = (): void => {
       const current = getProfileSetting("settingsPromptGen");
       const result = updateProfileSetting("settingsPromptGen", {
         ...current,
-        model,
+        model: parsedModel.data,
       });
       if (!result.success) return wrapStoreResult(result);
       console.log(`Set ${feature} model to: ${model}`);
@@ -941,7 +1071,9 @@ export const registerApiHandlers = (): void => {
       if (!model) {
         return {
           success: false,
-          error: messageLabel("models.manager.error.modelNotFound", { modelName }),
+          error: messageLabel("models.manager.error.modelNotFound", {
+            modelName,
+          }),
         };
       }
 

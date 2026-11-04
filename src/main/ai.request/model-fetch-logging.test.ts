@@ -5,8 +5,8 @@
  * habit of quoting the submitted key back inside the 401 body.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const { openAIModelsListMock, getLocalModelsMock, probeOllamaMock, entries } = vi.hoisted(
-  () => ({
+const { openAIModelsListMock, getLocalModelsMock, probeOllamaMock, entries } =
+  vi.hoisted(() => ({
     openAIModelsListMock: vi.fn(),
     getLocalModelsMock: vi.fn().mockResolvedValue([]),
     probeOllamaMock: vi.fn().mockResolvedValue({ reachable: true, models: [] }),
@@ -16,11 +16,11 @@ const { openAIModelsListMock, getLocalModelsMock, probeOllamaMock, entries } = v
       message: string;
       context?: LogContext;
     }[],
-  }),
-);
+  }));
 vi.mock("~/main/logging/logService", () => {
   const record =
-    (level: LogLevel) => (scope: string, message: string, context?: LogContext) => {
+    (level: LogLevel) =>
+    (scope: string, message: string, context?: LogContext) => {
       entries.push({ level, scope, message, context });
     };
   return {
@@ -32,13 +32,21 @@ vi.mock("~/main/logging/logService", () => {
     },
   };
 });
+/** What electron-store persists: JSON. */
+type StoredValue =
+  | string
+  | number
+  | boolean
+  | null
+  | StoredValue[]
+  | { [key: string]: StoredValue };
 vi.mock("electron-store", () => {
   class MockStore {
-    private data: Record<string, unknown> = {};
-    get(key: string, defaultValue?: unknown) {
+    private data: Record<string, StoredValue> = {};
+    get(key: string, defaultValue?: StoredValue) {
       return key in this.data ? this.data[key] : defaultValue;
     }
-    set(key: string, value: unknown) {
+    set(key: string, value: StoredValue) {
       this.data[key] = value;
     }
     store = {};
@@ -64,7 +72,9 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
 vi.mock("@openrouter/ai-sdk-provider", () => ({
   createOpenRouter: vi.fn(() => vi.fn(() => ({ provider: "openrouter" }))),
 }));
-vi.mock("@ai-sdk/openai", () => ({ createOpenAI: vi.fn(() => ({ chat: vi.fn() })) }));
+vi.mock("@ai-sdk/openai", () => ({
+  createOpenAI: vi.fn(() => ({ chat: vi.fn() })),
+}));
 vi.mock("ai", () => ({ generateText: vi.fn() }));
 vi.mock("openai", () => ({
   OpenAI: class {
@@ -82,9 +92,11 @@ vi.mock("~/main/llm/models/discover", () => ({
   probeOllama: probeOllamaMock,
 }));
 vi.mock("~/main/llm/providers/ollama/client", () => ({
-  createOllamaClient: () => ({ chat: vi.fn() }), ollamaClient: { chat: vi.fn() },
+  createOllamaClient: () => ({ chat: vi.fn() }),
+  ollamaClient: { chat: vi.fn() },
 }));
 import { redactLogContext } from "~/features/logs/shared/logging";
+import { KEY_FAMILY_LOG_FIELD } from "~/features/providers/shared/providerKeyFamilies";
 import { fetchAvailableModels } from "./shared";
 import type { LogContext, LogLevel } from "~/features/logs/shared/logging";
 
@@ -101,11 +113,13 @@ describe("model-list fetch logging", () => {
 
     await fetchAvailableModels(OPENAI_KEY, "openai", false);
 
-    const [fetched] = entries.filter((entry) => entry.scope === "provider.models");
+    const [fetched] = entries.filter(
+      (entry) => entry.scope === "provider.models",
+    );
     expect(fetched?.context).toMatchObject({
       provider: "openai",
       keyPresent: true,
-      keyShape: "openai-project",
+      [KEY_FAMILY_LOG_FIELD]: "openai-project",
     });
     expect(JSON.stringify(entries)).not.toContain(OPENAI_KEY);
   });
@@ -148,8 +162,10 @@ describe("model-list fetch logging", () => {
   it("says a key was absent rather than inventing a shape", async () => {
     await fetchAvailableModels("", "openai", false);
 
-    const [fetched] = entries.filter((entry) => entry.scope === "provider.models");
+    const [fetched] = entries.filter(
+      (entry) => entry.scope === "provider.models",
+    );
     expect(fetched?.context?.keyPresent).toBe(false);
-    expect(fetched?.context?.keyShape).toBeUndefined();
+    expect(fetched?.context?.[KEY_FAMILY_LOG_FIELD]).toBeUndefined();
   });
 });

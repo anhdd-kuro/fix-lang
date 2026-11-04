@@ -1,3 +1,5 @@
+import type { JsonValue } from "~/main/jsonValue";
+
 const GITHUB_LATEST_RELEASE_URL =
   "https://api.github.com/repos/anhdd-kuro/fix-lang/releases/latest";
 
@@ -6,7 +8,7 @@ const REQUEST_TIMEOUT_MS = 10_000;
 type GitHubResponse = Readonly<{
   ok: boolean;
   status: number;
-  json: () => Promise<unknown>;
+  json: () => Promise<JsonValue>;
 }>;
 
 export type GitHubFetch = (
@@ -18,17 +20,17 @@ export type GitHubFetch = (
 ) => Promise<GitHubResponse>;
 
 export type GitHubReleaseSource = Readonly<{
-  getLatestRelease: () => Promise<unknown>;
+  getLatestRelease: () => Promise<JsonValue>;
 }>;
 
 /**
- * Fetches only the fixed, public GitHub Releases endpoint. The response remains
- * unknown until the update service validates its release metadata.
+ * Fetches only the fixed, public GitHub Releases endpoint. The response is raw
+ * JSON until the update service validates its release metadata.
  */
 export const createGitHubReleaseSource = (
   fetchLatest: GitHubFetch = globalThis.fetch,
 ): GitHubReleaseSource => ({
-  getLatestRelease: async (): Promise<unknown> => {
+  getLatestRelease: async (): Promise<JsonValue> => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 

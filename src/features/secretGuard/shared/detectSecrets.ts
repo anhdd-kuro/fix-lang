@@ -60,7 +60,8 @@ export type SecretScanOptions = { highEntropyRule?: boolean };
 const EMPTY_RESULT: SecretScanResult = { matches: [], ruleIds: [] };
 
 /** Fresh regex per scan: a shared `lastIndex` would make results order-dependent. */
-const clonePattern = (pattern: RegExp): RegExp => new RegExp(pattern.source, pattern.flags);
+const clonePattern = (pattern: RegExp): RegExp =>
+  new RegExp(pattern.source, pattern.flags);
 
 const collectRuleMatches = (rule: SecretRule, text: string): SecretMatch[] => {
   const pattern = clonePattern(rule.pattern);
@@ -74,7 +75,10 @@ const collectRuleMatches = (rule: SecretRule, text: string): SecretMatch[] => {
     }
     const groups = match.groups ?? {};
     const value = rule.span === "value" ? (groups.value ?? "") : match[0];
-    const start = rule.span === "value" ? match.index + (groups.lead ?? "").length : match.index;
+    const start =
+      rule.span === "value"
+        ? match.index + (groups.lead ?? "").length
+        : match.index;
     const accepted =
       value.length > 0 &&
       // Text that already went through the masker is not a credential. Without
@@ -110,7 +114,10 @@ const collectRuleMatches = (rule: SecretRule, text: string): SecretMatch[] => {
 type RuleRank = { index: number; priority: number };
 
 const RULE_RANK = new Map<SecretRuleId, RuleRank>(
-  SECRET_RULES.map((rule, index) => [rule.id, { index, priority: rule.priority }]),
+  SECRET_RULES.map((rule, index) => [
+    rule.id,
+    { index, priority: rule.priority },
+  ]),
 );
 
 /**
@@ -120,7 +127,8 @@ const RULE_RANK = new Map<SecretRuleId, RuleRank>(
  */
 const UNKNOWN_RULE_RANK: RuleRank = { index: SECRET_RULES.length, priority: 0 };
 
-const rankOf = (ruleId: SecretRuleId): RuleRank => RULE_RANK.get(ruleId) ?? UNKNOWN_RULE_RANK;
+const rankOf = (ruleId: SecretRuleId): RuleRank =>
+  RULE_RANK.get(ruleId) ?? UNKNOWN_RULE_RANK;
 
 const compareMatches = (left: SecretMatch, right: SecretMatch): number =>
   left.start - right.start ||
@@ -148,7 +156,9 @@ const mergeOverlaps = (sorted: readonly SecretMatch[]): SecretMatch[] =>
     }
     const maskable = last.maskable && candidate.maskable;
     if (candidate.end <= last.end) {
-      return maskable === last.maskable ? kept : [...kept.slice(0, -1), { ...last, maskable }];
+      return maskable === last.maskable
+        ? kept
+        : [...kept.slice(0, -1), { ...last, maskable }];
     }
     const extended: SecretMatch = {
       ...last,
@@ -182,7 +192,10 @@ export const isFullyMaskable = (result: SecretScanResult): boolean =>
  * the only rule with a real false-positive rate, and a false positive is what
  * trains a user to click through the dialog that matters.
  */
-export const scanForSecrets = (text: string, options?: SecretScanOptions): SecretScanResult => {
+export const scanForSecrets = (
+  text: string,
+  options?: SecretScanOptions,
+): SecretScanResult => {
   if (text.length === 0) return EMPTY_RESULT;
 
   const activeRules = SECRET_RULES.filter(

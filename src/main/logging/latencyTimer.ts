@@ -41,10 +41,6 @@ export type LatencyOutcome =
   | "denied-app"
   /** Guard refused: the selection exceeds the char limit and the user declined. */
   | "declined-size"
-  /** Guard refused: the clipboard is past the age limit and the user declined. */
-  | "declined-stale"
-  /** Guard refused: the clipboard predates the app and the user declined. */
-  | "declined-unknown-age"
   /** Guard refused: secrets were found and the user declined to proceed. */
   | "secret-declined";
 

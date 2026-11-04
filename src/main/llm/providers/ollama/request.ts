@@ -9,6 +9,9 @@ import { getProviderEndpoint } from "~/features/providers/store/apiStore";
 import { getLocalModels } from "~/main/llm/models/discover";
 import { notifyRequestError } from "~/main/notifications/error";
 import { createOllamaClient } from "./client";
+import type { ChatResponse, Options } from "ollama";
+import { z } from "zod";
+import { messageContentText } from "~/main/llm/providers/messageContentText";
 import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
 
 /**
@@ -29,10 +32,16 @@ import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
  * trusted. The `ollama` package types both counts as a required `number`, but an
  * older daemon or a proxy in front of it can omit them.
  */
-const tokenCount = (raw: unknown): number | null =>
-  typeof raw === "number" && Number.isFinite(raw) ? raw : null;
+const TokenCountSchema = z.number();
+
+const tokenCount = (raw: ChatResponse["eval_count"]): number | null => {
+  const count = TokenCountSchema.safeParse(raw);
+  return count.success ? count.data : null;
+};
 
 export const makeLocalAIRequest = async (options: AIRequestOptions) => {
+  // SAFETY: production calls arrive only through the provider registry from
+  // `makeAIRequest`, which always sets `model` to the resolved raw model id.
   const modelId = options.model as string;
 
   console.log(`Sending request to local LLM with model: ${modelId}`);
@@ -79,10 +88,7 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
           : msg.role === "system"
             ? "system"
             : "user",
-      content:
-        typeof msg.content === "string"
-          ? msg.content
-          : JSON.stringify(msg.content),
+      content: messageContentText(msg.content),
     }));
     // Make the request to the local LLM.
     //
@@ -108,17 +114,16 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
     // caller therefore cannot tell the two apart, and `isAbortError`
     // (`~/main/notifications/error`) keeps both silent.
     options.abortSignal?.throwIfAborted();
+    const chatOptions: Partial<Options> = { top_p: options.top_p || 0.9 };
+    if (options.maxOutputTokens !== undefined) {
+      chatOptions.num_predict = options.maxOutputTokens;
+    }
+    if (options.stop) chatOptions.stop = options.stop;
     const response = await client
       .chat({
         messages: serializedMessages,
         model: modelId,
-        options: {
-          top_p: options.top_p || 0.9,
-          ...(options.maxOutputTokens !== undefined
-            ? { num_predict: options.maxOutputTokens }
-            : {}),
-          ...(options.stop ? { stop: options.stop } : {}),
-        },
+        options: chatOptions,
       })
       .finally(() => {
         options.abortSignal?.removeEventListener("abort", abortClient);
@@ -146,7 +151,11 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("Local LLM request failed:", error);
-    notifyRequestError(options, error, "The local AI request failed. Please try again.");
+    notifyRequestError(
+      options,
+      error,
+      "The local AI request failed. Please try again.",
+    );
     throw error;
   }
 };

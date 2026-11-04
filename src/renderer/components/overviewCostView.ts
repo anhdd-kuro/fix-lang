@@ -35,7 +35,7 @@ const STANDARD_DISPLAY = {
 
 /** Maps an N/A-aware cost sum to a render intent — not yet a formatted string. */
 export const resolveOverviewCostHint = (
-  cost: CostSum
+  cost: CostSum,
 ): OverviewCostHintDisplay => {
   if (cost.total === 0) {
     return { kind: "none" };
@@ -62,7 +62,7 @@ export const resolveOverviewCostHint = (
 export const formatOverviewCostHint = (
   cost: CostSum,
   t: Translator,
-  formatNumber: Formatters["formatNumber"]
+  formatNumber: Formatters["formatNumber"],
 ): string | undefined => {
   const display = resolveOverviewCostHint(cost);
   if (display.kind === "none") {

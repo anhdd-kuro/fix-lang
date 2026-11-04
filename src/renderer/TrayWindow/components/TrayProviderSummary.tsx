@@ -36,7 +36,6 @@ import { useOpenAIUsage } from "../../hooks/useOpenAIUsage";
 import { useOpenRouterAnalytics } from "../../hooks/useOpenRouterAnalytics";
 import { useI18n } from "../../i18n/useI18n";
 import type { ProviderId } from "~/features/providers/shared/providers";
-import type { CardResult, Credits } from "~/main/llm/providers/openrouter/parsers";
 
 /** The tray's own window is not the dashboard, so opening a tab closes it. */
 const openUsageTab = (provider: ProviderId): void => {
@@ -59,9 +58,9 @@ const SummaryLine: React.FC<{
   </>
 );
 
-const MutedMessage: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span className="text-sm text-muted-foreground">{children}</span>
-);
+const MutedMessage: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => <span className="text-sm text-muted-foreground">{children}</span>;
 
 const Figure: React.FC<{ emphasize?: boolean; children: React.ReactNode }> = ({
   emphasize = false,
@@ -80,7 +79,7 @@ const Figure: React.FC<{ emphasize?: boolean; children: React.ReactNode }> = ({
 const OpenRouterCreditBody: React.FC<BodyProps> = ({ label }) => {
   const { t } = useI18n();
   const { data, loading, hasKey } = useOpenRouterAnalytics("7d");
-  const credits = data?.credits as CardResult<Credits> | undefined;
+  const credits = data?.credits;
 
   if (hasKey === false) {
     return <MutedMessage>{t("tray.credit.missingKey")}</MutedMessage>;
@@ -89,7 +88,7 @@ const OpenRouterCreditBody: React.FC<BodyProps> = ({ label }) => {
     return <MutedMessage>{t("common.loading")}</MutedMessage>;
   }
   if (!credits?.ok) {
-    const reason = (credits?.reason ?? "unavailable") as OpenRouterDegradedReason;
+    const reason: OpenRouterDegradedReason = credits?.reason ?? "unavailable";
     return <MutedMessage>{openRouterDegradedMessage(reason, t)}</MutedMessage>;
   }
 
@@ -120,13 +119,15 @@ const OpenAIProjectSpendBody: React.FC<BodyProps> = ({ label }) => {
   }
   // `undefined` is "not read yet" — only a resolved `null` means unconfigured.
   if (projectId === null) {
-    return <MutedMessage>{t("tray.providers.openai.missingProject")}</MutedMessage>;
+    return (
+      <MutedMessage>{t("tray.providers.openai.missingProject")}</MutedMessage>
+    );
   }
   if (projectId === undefined || (loading && !projectCosts)) {
     return <MutedMessage>{t("common.loading")}</MutedMessage>;
   }
   if (!projectCosts?.ok) {
-    const reason = (projectCosts?.reason ?? "unavailable") as UsageDegradedReason;
+    const reason: UsageDegradedReason = projectCosts?.reason ?? "unavailable";
     return <MutedMessage>{usageDegradedMessage(reason, t)}</MutedMessage>;
   }
 
@@ -192,7 +193,7 @@ export const TrayProviderSummary: React.FC = () => {
         <MutedMessage>{t("tray.providers.empty")}</MutedMessage>
       ) : (
         <>
-          <nav
+          <div
             className="mb-1.5 flex gap-1"
             role="tablist"
             aria-label={t("tray.providers.tabsAriaLabel")}
@@ -221,7 +222,7 @@ export const TrayProviderSummary: React.FC = () => {
                 </Button>
               );
             })}
-          </nav>
+          </div>
 
           {/* The panel is the `tabpanel`, not the button inside it: a `role` on
               the button would strip the semantics that make it activatable. */}

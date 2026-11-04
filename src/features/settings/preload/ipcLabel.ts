@@ -9,5 +9,5 @@ import { isLabel, type Label } from "~/features/i18n/shared/message";
  * a shape mismatch here should degrade to "no error text" rather than reach
  * `tl()`/`resolveLabel()` with something they do not expect.
  */
-export const asLabel = (value: unknown): Label | undefined =>
+export const asLabel = <Value>(value: Value): Label | undefined =>
   isLabel(value) ? value : undefined;

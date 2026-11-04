@@ -20,7 +20,11 @@ vi.mock("~/main/logging/logService", () => ({
 
 let idCounter = 0;
 
-const entry = (scope: string, timestamp: string, context: LogContext): LogEntry => {
+const entry = (
+  scope: string,
+  timestamp: string,
+  context: LogContext,
+): LogEntry => {
   idCounter += 1;
   return {
     id: `entry-${String(idCounter)}`,
@@ -83,7 +87,10 @@ describe("collectSecurityStats", () => {
 
     await collectSecurityStats("7d", NOW);
 
-    expect(readPersistedDay.mock.calls.map(([day]) => day)).toEqual(["2026-08-11", "2026-08-09"]);
+    expect(readPersistedDay.mock.calls.map(([day]) => day)).toEqual([
+      "2026-08-11",
+      "2026-08-09",
+    ]);
   });
 
   /**
@@ -108,7 +115,9 @@ describe("collectSecurityStats", () => {
   it("ignores non-guard lines sharing a day file", async () => {
     listPersistedDays.mockResolvedValue(["2026-08-11"]);
     readPersistedDay.mockResolvedValue([
-      entry("correction.hotkey", "2026-08-11T09:00:00.000Z", { delivery: "paste" }),
+      entry("correction.hotkey", "2026-08-11T09:00:00.000Z", {
+        delivery: "paste",
+      }),
       entry("logs", "2026-08-11T09:00:01.000Z", {}),
       blocked("2026-08-11T09:00:02.000Z"),
     ]);

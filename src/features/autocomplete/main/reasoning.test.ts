@@ -48,7 +48,7 @@ describe("autocomplete reasoning", () => {
     expect(serviceCode).not.toContain("reasoningEffort");
   });
 
-  it("sends the literal \"none\"", () => {
+  it('sends the literal "none"', () => {
     expect(serviceCode).toContain('reasoning: "none"');
   });
 

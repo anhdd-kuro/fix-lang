@@ -31,7 +31,7 @@ export const SettingsButton: React.FC<SettingsButtonProps> = ({
       onClick={onClick}
       className={twJoin(
         "text-card-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring rounded-md cursor-pointer",
-        className
+        className,
       )}
       aria-label={resolvedTitle}
       title={resolvedTitle}

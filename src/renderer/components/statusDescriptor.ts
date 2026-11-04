@@ -18,20 +18,33 @@
  * (translated, a `Label` "message" case) share one wrapper without either
  * half freezing into a string before render.
  */
-import { msg, type Label, type Message, type MessageKey, type MessageParams, type Translate } from "~/features/i18n/shared/message";
+import {
+  msg,
+  type Label,
+  type Message,
+  type MessageKey,
+  type MessageParams,
+  type Translate,
+} from "~/features/i18n/shared/message";
 
 export type StatusDescriptor =
   | { kind: "plain"; message: Message }
   | { kind: "wrapped"; reason: Label };
 
 /** Builds a `StatusDescriptor` for a single catalog message (no wrapper). */
-export const plainStatus = (key: MessageKey, params?: MessageParams): StatusDescriptor => ({
+export const plainStatus = (
+  key: MessageKey,
+  params?: MessageParams,
+): StatusDescriptor => ({
   kind: "plain",
   message: msg(key, params),
 });
 
 /** Builds a `StatusDescriptor` that wraps `reason` in the generic "settings.general.error" template. */
-export const wrappedError = (reason: Label): StatusDescriptor => ({ kind: "wrapped", reason });
+export const wrappedError = (reason: Label): StatusDescriptor => ({
+  kind: "wrapped",
+  reason,
+});
 
 /**
  * Resolves a `StatusDescriptor` to display text. Call only during render

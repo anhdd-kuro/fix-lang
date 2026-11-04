@@ -31,7 +31,7 @@ export type LocaleMeta = {
   intlTag: string;
 };
 
-export const LOCALE_META: Record<Locale, LocaleMeta> = {
+export const LOCALE_META = {
   en: {
     code: "en",
     label: "English",
@@ -46,7 +46,7 @@ export const LOCALE_META: Record<Locale, LocaleMeta> = {
     dir: "ltr",
     intlTag: "ja-JP",
   },
-};
+} satisfies Record<Locale, LocaleMeta>;
 
 /** Ordered list of locale metadata, for rendering pickers. */
 export const LOCALE_OPTIONS: readonly LocaleMeta[] = LOCALE_CODES.map(

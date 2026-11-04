@@ -4,13 +4,7 @@
  *
  * Usage: bun run themes:generate
  */
-import {
-  mkdir,
-  readdir,
-  readFile,
-  unlink,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmThemeToSemanticTokens } from "../src/themes/tmThemeToSemanticTokens";
 import type { SemanticTokenKey, TmTheme } from "../src/themes/tmThemeTypes";
@@ -33,14 +27,14 @@ type ThemeEntry = {
   tokens: ReturnType<typeof tmThemeToSemanticTokens>;
 };
 
+// SAFETY: `tmThemeToSemanticTokens` returns a `SemanticTokens` record, whose
+// keys are exactly the `SemanticTokenKey` union.
 const SEMANTIC_KEYS = Object.keys(
   tmThemeToSemanticTokens({ name: "fallback", colors: {} }),
 ) as SemanticTokenKey[];
 
 const toCssBlock = (selector: string, tokens: ThemeEntry["tokens"]): string => {
-  const lines = SEMANTIC_KEYS.map(
-    (key) => `  ${key}: ${tokens[key]};`,
-  );
+  const lines = SEMANTIC_KEYS.map((key) => `  ${key}: ${tokens[key]};`);
   return `${selector} {\n${lines.join("\n")}\n}`;
 };
 
@@ -186,7 +180,7 @@ const themeDescription = (id: string, type: "dark" | "light"): string => {
 };
 
 const loadThemeEntries = async (): Promise<ThemeEntry[]> => {
-  const sourceFiles: Array<{ id: string; filePath: string }> = [];
+  const sourceFiles: { id: string; filePath: string }[] = [];
 
   const shikiFiles = (await readdir(THEME_JSON_DIR))
     .filter((file) => file.endsWith(".json"))
@@ -200,7 +194,7 @@ const loadThemeEntries = async (): Promise<ThemeEntry[]> => {
   }
 
   for (const dir of [THEME_TERMINAL_JSON_DIR, THEME_BRANDS_JSON_DIR]) {
-    let files: string[] = [];
+    let files: string[];
     try {
       files = (await readdir(dir))
         .filter((file) => file.endsWith(".json"))
@@ -235,6 +229,9 @@ const loadThemeEntries = async (): Promise<ThemeEntry[]> => {
 
   for (const source of sourceFiles) {
     const raw = await readFile(source.filePath, "utf8");
+    // SAFETY: every source is a checked-in tm-theme JSON written by
+    // `themes:download` (shiki tm-themes) or `alacrittyToTmTheme`, and
+    // `tmThemeToSemanticTokens` falls back for any absent optional field.
     const theme = JSON.parse(raw) as TmTheme;
     const tokens = tmThemeToSemanticTokens(theme);
     const type = theme.type === "light" ? "light" : "dark";
@@ -287,11 +284,7 @@ const main = async (): Promise<void> => {
     const cssPath = path.join(THEME_CSS_DIR, cssFileName);
     const isDefault = entry.id === DEFAULT_THEME_ID;
 
-    await writeFile(
-      cssPath,
-      `${toPresetCss(entry, isDefault)}\n`,
-      "utf8",
-    );
+    await writeFile(cssPath, `${toPresetCss(entry, isDefault)}\n`, "utf8");
     importLines.push(`@import "./${cssFileName}";`);
   }
 
@@ -312,8 +305,8 @@ ${importLines.join("\n")}
   );
 };
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
+main().catch((cause: unknown) => {
+  const message = cause instanceof Error ? cause.message : String(cause);
   console.error(`Theme generation failed: ${message}`);
   process.exit(1);
 });

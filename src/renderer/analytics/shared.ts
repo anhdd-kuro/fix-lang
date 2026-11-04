@@ -10,10 +10,10 @@ import type { HistoryEntry } from "~/features/history/store/historyStore";
 
 export type AnalyticsRange = "all" | "30d" | "7d";
 
-const RANGE_DAYS: Record<Exclude<AnalyticsRange, "all">, number> = {
+const RANGE_DAYS = {
   "30d": 30,
   "7d": 7,
-};
+} satisfies Record<Exclude<AnalyticsRange, "all">, number>;
 
 /**
  * Filter entries to a range window using each entry's timestamp. "all" returns
@@ -23,7 +23,7 @@ const RANGE_DAYS: Record<Exclude<AnalyticsRange, "all">, number> = {
 export const filterByRange = (
   entries: HistoryEntry[],
   range: AnalyticsRange,
-  now: Date
+  now: Date,
 ): HistoryEntry[] => {
   if (range === "all") {
     return entries;
@@ -37,7 +37,11 @@ export const filterByRange = (
  * Whether an entry carries a real (summable) cost: `costStatus` "ok"/"zero"
  * with a numeric `estimatedCostUsd`. "na"/absent are NOT summable.
  */
-export const isPricedEntry = (entry: HistoryEntry): boolean =>
+type PricedHistoryEntry = HistoryEntry & { estimatedCostUsd: number };
+
+export const isPricedEntry = (
+  entry: HistoryEntry,
+): entry is PricedHistoryEntry =>
   (entry.costStatus === "ok" || entry.costStatus === "zero") &&
   entry.estimatedCostUsd !== undefined &&
   entry.estimatedCostUsd !== null;
@@ -64,7 +68,7 @@ export const sumCost = (entries: HistoryEntry[]): CostSum => {
   let hasNa = false;
   for (const e of entries) {
     if (isPricedEntry(e)) {
-      totalUsd += e.estimatedCostUsd as number;
+      totalUsd += e.estimatedCostUsd;
       pricedCount += 1;
     } else {
       hasNa = true;
@@ -98,7 +102,7 @@ export const denseDayKeys = (
   entries: HistoryEntry[],
   range: AnalyticsRange,
   now: Date,
-  minDays?: number
+  minDays?: number,
 ): string[] => {
   const end = new Date(now);
   end.setHours(0, 0, 0, 0);

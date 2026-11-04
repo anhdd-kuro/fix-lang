@@ -10,7 +10,10 @@
  * the panel itself prompts for the key — but it does decide the ORDER, so the
  * tab that opens first is one that can actually render numbers.
  */
-import { PROVIDER_ORDER, type ProviderId } from "~/features/providers/shared/providers";
+import {
+  PROVIDER_ORDER,
+  type ProviderId,
+} from "~/features/providers/shared/providers";
 import type { MessageKey } from "~/features/i18n/shared/message";
 
 /** Providers with an account-level usage API. Mirrors the main-process registry. */
@@ -32,10 +35,10 @@ export type UsageSubTab = {
   hasAdminKey: boolean;
 };
 
-const LABEL_KEYS: Readonly<Partial<Record<ProviderId, MessageKey>>> = {
-  openai: "usage.provider.openai",
-  openrouter: "usage.provider.openrouter",
-};
+const LABEL_KEYS: ReadonlyMap<ProviderId, MessageKey> = new Map([
+  ["openai", "usage.provider.openai"],
+  ["openrouter", "usage.provider.openrouter"],
+]);
 
 export const isUsageProvider = (provider: ProviderId): boolean =>
   USAGE_PROVIDERS.includes(provider);
@@ -52,7 +55,7 @@ export const buildUsageSubTabs = (
     (provider) =>
       isUsageProvider(provider) &&
       states[provider]?.connected === true &&
-      LABEL_KEYS[provider] !== undefined,
+      LABEL_KEYS.get(provider) !== undefined,
   );
 
   const withKey = visible.filter(
@@ -62,11 +65,17 @@ export const buildUsageSubTabs = (
     (provider) => states[provider]?.provisioningKeySet !== true,
   );
 
-  return [...withKey, ...withoutKey].map((provider) => ({
-    provider,
-    labelKey: LABEL_KEYS[provider] as MessageKey,
-    hasAdminKey: states[provider]?.provisioningKeySet === true,
-  }));
+  return [...withKey, ...withoutKey].flatMap((provider) => {
+    const labelKey = LABEL_KEYS.get(provider);
+    if (labelKey === undefined) return [];
+    return [
+      {
+        provider,
+        labelKey,
+        hasAdminKey: states[provider]?.provisioningKeySet === true,
+      },
+    ];
+  });
 };
 
 /**
@@ -123,7 +132,10 @@ export const buildUsageBar = (
   providerTabs.length === 0
     ? [PROVIDERS_EMPTY_BAR_TAB, AUTOCOMPLETE_BAR_TAB]
     : [
-        ...providerTabs.map((tab) => ({ key: tab.provider, labelKey: tab.labelKey })),
+        ...providerTabs.map((tab) => ({
+          key: tab.provider,
+          labelKey: tab.labelKey,
+        })),
         AUTOCOMPLETE_BAR_TAB,
       ];
 

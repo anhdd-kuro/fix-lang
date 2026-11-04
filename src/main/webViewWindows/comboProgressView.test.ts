@@ -53,10 +53,24 @@ describe("buildComboProgressStyle — running geometry", () => {
   });
 
   it("walks the 3-step ring's active segment across each position", () => {
-    expect([at(3, 1), at(3, 2), at(3, 3)].map((style) => style.vars)).toMatchObject([
-      { "--seg-done": "0", "--seg-active-start": "0deg", "--seg-active-end": "120deg" },
-      { "--seg-done": "1", "--seg-active-start": "120deg", "--seg-active-end": "240deg" },
-      { "--seg-done": "2", "--seg-active-start": "240deg", "--seg-active-end": "360deg" },
+    expect(
+      [at(3, 1), at(3, 2), at(3, 3)].map((style) => style.vars),
+    ).toMatchObject([
+      {
+        "--seg-done": "0",
+        "--seg-active-start": "0deg",
+        "--seg-active-end": "120deg",
+      },
+      {
+        "--seg-done": "1",
+        "--seg-active-start": "120deg",
+        "--seg-active-end": "240deg",
+      },
+      {
+        "--seg-done": "2",
+        "--seg-active-start": "240deg",
+        "--seg-active-end": "360deg",
+      },
     ]);
   });
 

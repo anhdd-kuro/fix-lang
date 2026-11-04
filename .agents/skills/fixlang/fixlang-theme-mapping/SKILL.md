@@ -1,6 +1,6 @@
 ---
 name: fixlang-theme-mapping
-description: "Use when editing theme color derivation, semantic tokens, contrast adjustment, or adding new themes. Examples: \"add Nord theme support\", \"why are card backgrounds washing out\", \"how to increase surface contrast\", \"adjust theme contrast floors\". Covers src/themes/ (compositeColor.ts, tmThemeToSemanticTokens.ts, adjustSemanticTokenContrast.ts) and src/renderer/themes/generated/."
+description: 'Use when editing theme color derivation, semantic tokens, contrast adjustment, or adding new themes. Examples: "add Nord theme support", "why are card backgrounds washing out", "how to increase surface contrast", "adjust theme contrast floors". Covers src/themes/ (compositeColor.ts, tmThemeToSemanticTokens.ts, adjustSemanticTokenContrast.ts) and src/renderer/themes/generated/.'
 ---
 
 # FixLang — Theme Color Mapping & Semantic Tokens
@@ -139,6 +139,7 @@ Crucially: `tmThemeToSemanticTokens` does **not** re-enforce contrast. It trusts
 - Derives `--overlay-backdrop` (semi-transparent overlay for modals)
 
 **Does NOT:**
+
 - Re-derive surfaces — that breaks the carefully-built elevation ladder
 - Re-adjust accent saturation — that already happened in `tmThemeToSemanticTokens`
 
@@ -202,13 +203,13 @@ Every surface ships its own foreground (`secondary`/`secondary-foreground`,
 `success`/`success-foreground`). The derive ladder guarantees contrast **within a
 pair**, and nothing else. Measured across all 149 presets:
 
-| pairing | below 3:1 | worst |
-|---|---|---|
-| `foreground` on `secondary` | 36 | **1.00** (`tc-night-owl-light`: both `#403f53`) |
-| `foreground` on `primary` | 123 | 1.01 (`ayu-dark`) |
-| `foreground` on `card` | 37 | 1.00 |
-| `foreground` on `success` | 133 | 1.01 |
-| each `X` + `X-foreground` | **0** | ≥ 4.27 |
+| pairing                     | below 3:1 | worst                                           |
+| --------------------------- | --------- | ----------------------------------------------- |
+| `foreground` on `secondary` | 36        | **1.00** (`tc-night-owl-light`: both `#403f53`) |
+| `foreground` on `primary`   | 123       | 1.01 (`ayu-dark`)                               |
+| `foreground` on `card`      | 37        | 1.00                                            |
+| `foreground` on `success`   | 133       | 1.01                                            |
+| each `X` + `X-foreground`   | **0**     | ≥ 4.27                                          |
 
 ❌ **WRONG**: `className="bg-secondary text-foreground"` — reads fine in the theme
 you happened to be running, invisible in `tc-night-owl-light`
@@ -220,7 +221,7 @@ changes underneath text whose token did not.
 ### Pitfall: Third-party components with their own hardcoded palette
 
 react-select's `optionCSS` hardcodes `colors.primary25` (`#DEEBFF`) for the
-focused menu row and merely *inherits* the text colour, so a themed foreground
+focused menu row and merely _inherits_ the text colour, so a themed foreground
 landed on a light blue nothing in the theme chose. `styles.option` had never been
 supplied, so every select on the default `Option` had an unreadable hover;
 `ModelSelect` looked correct only because it renders a custom `Option`.

@@ -1,6 +1,6 @@
 ---
 name: fixlang-hotkeys
-description: "Use when editing transform presets, hotkey bindings, or the keybinding system. Examples: \"add a transform preset\", \"why did transforms stop firing after switching profiles\", \"validate hotkey conflicts\". Covers src/main/keybindings/ and src/features/correction/store/keybindingStore.ts."
+description: 'Use when editing transform presets, hotkey bindings, or the keybinding system. Examples: "add a transform preset", "why did transforms stop firing after switching profiles", "validate hotkey conflicts". Covers src/main/keybindings/ and src/features/correction/store/keybindingStore.ts.'
 ---
 
 # FixLang — Hotkey & Preset Gotchas
@@ -51,7 +51,7 @@ Transform **and PromptGen** system prompts carry the frontmost app name (block b
 
 Either way, the frontmost-app read must run before anything that can steal focus — `showOverlaySpinner()`, the PromptGen window, or any result window. Put a FixLang window on screen first and the read returns FixLang, `parseActiveApp` drops it as own-app, and every request silently loses its context with no error anywhere. For the combined Transform path this means the overlay spinner can only be shown from the callback `getHighlightedTextWithActiveApp` invokes right after its script returns (before the clipboard-change poll) — never any earlier or later.
 
-The block goes on the **system prompt**, never the user prompt: the user prompt carries the text to transform, and metadata sitting next to it gets mistaken for content. It is *appended* after the preset/PromptGen prompt so a null read leaves the string byte-identical — which also keeps the provider prompt cache (`src/main/ai.request/cache-strategy.ts`) hitting for the no-context case.
+The block goes on the **system prompt**, never the user prompt: the user prompt carries the text to transform, and metadata sitting next to it gets mistaken for content. It is _appended_ after the preset/PromptGen prompt so a null read leaves the string byte-identical — which also keeps the provider prompt cache (`src/main/ai.request/cache-strategy.ts`) hitting for the no-context case.
 
 Own-app filtering covers the packaged bundle id (`com.fixlang.app`) **and** `com.github.Electron` — dev runs report the bare Electron shell, which would otherwise inject "Electron" into every dev prompt.
 

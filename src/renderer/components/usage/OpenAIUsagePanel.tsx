@@ -37,13 +37,7 @@ import { UsagePanelSkeleton } from "../Skeleton";
 import type { TranslationKey } from "~/features/i18n/shared/keys";
 import type { Translator } from "~/features/i18n/shared/translate";
 import type { UsageRange } from "~/features/usage/shared/usage";
-import type {
-  CardResult,
-  OpenAICompletionsUsage,
-  OpenAICosts,
-  OpenAIProjectCosts,
-  OpenAIProjectSpendRow,
-} from "~/main/llm/providers/openai/usage.parsers";
+import type { OpenAIProjectSpendRow } from "~/main/llm/providers/openai/usage.parsers";
 
 type OpenAIUsagePanelProps = {
   /** Opens the Settings modal (General tab) for the empty-state affordance. */
@@ -55,7 +49,7 @@ const RANGES: { id: UsageRange; labelKey: TranslationKey }[] = [
   { id: "30d", labelKey: "usage.range.30d" },
 ];
 
-type CardShape = { ok: false; reason: string } | { ok: true };
+type CardOutcome = { ok: false; reason: UsageDegradedReason } | { ok: true };
 
 const CardShell = ({
   title,
@@ -65,7 +59,9 @@ const CardShell = ({
   children: React.ReactNode;
 }) => (
   <div className="rounded-lg border border-card-control-border bg-card p-3">
-    <div className="mb-1 text-xs uppercase tracking-wide text-primary">{title}</div>
+    <div className="mb-1 text-xs uppercase tracking-wide text-primary">
+      {title}
+    </div>
     {children}
   </div>
 );
@@ -81,7 +77,7 @@ const CardBody = ({
   t,
   children,
 }: {
-  result: CardShape;
+  result: CardOutcome;
   t: Translator;
   children: React.ReactNode;
 }) =>
@@ -89,7 +85,7 @@ const CardBody = ({
     <>{children}</>
   ) : (
     <div className="text-sm text-muted-foreground">
-      {usageDegradedMessage((result as { reason: UsageDegradedReason }).reason, t)}
+      {usageDegradedMessage(result.reason, t)}
     </div>
   );
 
@@ -100,7 +96,7 @@ const Card = ({
   children,
 }: {
   title: string;
-  result: CardShape;
+  result: CardOutcome;
   t: Translator;
   children: React.ReactNode;
 }) => (
@@ -151,7 +147,10 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
           <p className="mb-3 text-sm text-muted-foreground">
             {t("usage.openai.emptyState.description")}
           </p>
-          <Button onClick={onOpenSettings} className="rounded px-3 py-1.5 text-sm">
+          <Button
+            onClick={onOpenSettings}
+            className="rounded px-3 py-1.5 text-sm"
+          >
             {t("usage.emptyState.openSettings")}
           </Button>
         </div>
@@ -159,13 +158,9 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
     );
   }
 
-  const costs = data?.costs as CardResult<OpenAICosts> | undefined;
-  const completions = data?.completions as
-    | CardResult<OpenAICompletionsUsage>
-    | undefined;
-  const projectCosts = data?.projectCosts as
-    | CardResult<OpenAIProjectCosts>
-    | undefined;
+  const costs = data?.costs;
+  const completions = data?.completions;
+  const projectCosts = data?.projectCosts;
 
   if (loading && data === null) {
     return <UsagePanelSkeleton ariaLabel={t("usage.loading")} />;
@@ -252,7 +247,7 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
                             className="border-t border-card-control-border"
                           >
                             <td
-                              className="py-1 pr-2 text-foreground max-w-[14rem] truncate"
+                              className="py-1 pr-2 text-foreground max-w-56 truncate"
                               title={label}
                             >
                               {label}
@@ -342,9 +337,12 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
               </thead>
               <tbody>
                 {completions.data.perModel.map((row) => (
-                  <tr key={row.model} className="border-t border-card-control-border">
+                  <tr
+                    key={row.model}
+                    className="border-t border-card-control-border"
+                  >
                     <td
-                      className="py-1 pr-2 text-foreground max-w-[10rem] truncate"
+                      className="py-1 pr-2 text-foreground max-w-40 truncate"
                       title={row.model}
                     >
                       {row.model}
@@ -368,7 +366,9 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
       {/* Charts. Cost comes from the costs card, tokens from the usage card, so
           each chart renders only when ITS source parsed. */}
       {costs?.ok && <UsageDailyCostChart points={costs.data.daily} />}
-      {completions?.ok && <UsageDailyTokenChart points={completions.data.daily} />}
+      {completions?.ok && (
+        <UsageDailyTokenChart points={completions.data.daily} />
+      )}
       {costs?.ok && (
         <UsageCostShareChart
           slices={costs.data.lineItems}

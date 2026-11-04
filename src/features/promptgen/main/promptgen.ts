@@ -3,7 +3,10 @@
  * @description IPC handlers for prompt generation functionality
  */
 import { ipcMain, clipboard } from "electron";
-import { getProfileSetting, updateProfileSetting } from "~/features/providers/store/apiStore";
+import {
+  getProfileSetting,
+  updateProfileSetting,
+} from "~/features/providers/store/apiStore";
 // Note: generatePrompt is only used in hotkey.ts
 
 /**

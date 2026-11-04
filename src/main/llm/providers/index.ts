@@ -40,16 +40,17 @@ import type {
  * nothing, and this is a genuinely new fact — not derivable from the key tables
  * (LM Studio accepts an optional key yet has no usage endpoint).
  */
-const PROVIDER_SUPPORTS_USAGE: Readonly<Record<ProviderId, boolean>> = Object.freeze({
-  openai: true,
-  openrouter: true,
-  // Anthropic's usage/cost reports need an org admin key, which no profile
-  // stores — see `PROVIDER_SUPPORTS_PROVISIONING_KEY`.
-  anthropic: false,
-  bedrock: false,
-  ollama: false,
-  lmstudio: false,
-});
+const PROVIDER_SUPPORTS_USAGE: Readonly<Record<ProviderId, boolean>> =
+  Object.freeze({
+    openai: true,
+    openrouter: true,
+    // Anthropic's usage/cost reports need an org admin key, which no profile
+    // stores — see `PROVIDER_SUPPORTS_PROVISIONING_KEY`.
+    anthropic: false,
+    bedrock: false,
+    ollama: false,
+    lmstudio: false,
+  });
 
 export type ProviderCapabilities = {
   id: ProviderId;
@@ -73,58 +74,73 @@ const capabilities = (
   ...behaviour,
 });
 
-export const PROVIDER_CAPABILITIES: Readonly<Record<ProviderId, ProviderCapabilities>> =
-  Object.freeze({
-    openai: capabilities("openai", {
-      fetchModels: (apiKey) =>
-        import("./openai/models").then((m) => m.fetchOpenAIModels(apiKey)),
-      makeRequest: (options) =>
-        import("./openai/request").then((m) => m.makeOpenAIAIRequest(options)),
-    }),
-    openrouter: capabilities("openrouter", {
-      fetchModels: (apiKey) =>
-        import("./openrouter/models").then((m) => m.fetchOpenRouterModels(apiKey)),
-      makeRequest: (options) =>
-        import("./openrouter/request").then((m) =>
-          m.makeOpenRouterAIRequest(options),
-        ),
-    }),
-    anthropic: capabilities("anthropic", {
-      fetchModels: (apiKey) =>
-        import("./anthropic/models").then((m) => m.fetchAnthropicModels(apiKey)),
-      makeRequest: (options) =>
-        import("./anthropic/request").then((m) => m.makeAnthropicAIRequest(options)),
-    }),
-    bedrock: capabilities("bedrock", {
-      fetchModels: (_apiKey) =>
-        import("./bedrock/models").then(async (m) => {
-          const { getCurrentProfileId } = await import("~/features/providers/store/apiStore");
-          const { getProfileSecret } = await import("~/features/providers/store/profileSecretStore");
-          const { resolveBedrockRegion } = await import("~/features/providers/shared/bedrockEndpoint");
-          const { getProviderEndpoint } = await import("~/features/providers/store/apiStore");
-          const profileId = getCurrentProfileId();
-          if (!profileId) return [];
-          const accessKeyId = await getProfileSecret(profileId, "bedrock", "api");
-          const secretAccessKey = await getProfileSecret(profileId, "bedrock", "secret");
-          if (!accessKeyId || !secretAccessKey) return [];
-          return m.fetchBedrockModels({
-            accessKeyId,
-            secretAccessKey,
-            region: resolveBedrockRegion(getProviderEndpoint("bedrock")),
-          });
-        }),
-      makeRequest: (options) =>
-        import("./bedrock/request").then((m) => m.makeBedrockAIRequest(options)),
-    }),
-    ollama: capabilities("ollama", {
-      makeRequest: (options) =>
-        import("./ollama/request").then((m) => m.makeLocalAIRequest(options)),
-    }),
-    lmstudio: capabilities("lmstudio", {
-      makeRequest: (options) =>
-        import("./lmstudio/request").then((m) => m.makeLmStudioAIRequest(options)),
-    }),
-  });
+export const PROVIDER_CAPABILITIES: Readonly<
+  Record<ProviderId, ProviderCapabilities>
+> = Object.freeze({
+  openai: capabilities("openai", {
+    fetchModels: (apiKey) =>
+      import("./openai/models").then((m) => m.fetchOpenAIModels(apiKey)),
+    makeRequest: (options) =>
+      import("./openai/request").then((m) => m.makeOpenAIAIRequest(options)),
+  }),
+  openrouter: capabilities("openrouter", {
+    fetchModels: (apiKey) =>
+      import("./openrouter/models").then((m) =>
+        m.fetchOpenRouterModels(apiKey),
+      ),
+    makeRequest: (options) =>
+      import("./openrouter/request").then((m) =>
+        m.makeOpenRouterAIRequest(options),
+      ),
+  }),
+  anthropic: capabilities("anthropic", {
+    fetchModels: (apiKey) =>
+      import("./anthropic/models").then((m) => m.fetchAnthropicModels(apiKey)),
+    makeRequest: (options) =>
+      import("./anthropic/request").then((m) =>
+        m.makeAnthropicAIRequest(options),
+      ),
+  }),
+  bedrock: capabilities("bedrock", {
+    fetchModels: (_apiKey) =>
+      import("./bedrock/models").then(async (m) => {
+        const { getCurrentProfileId } =
+          await import("~/features/providers/store/apiStore");
+        const { getProfileSecret } =
+          await import("~/features/providers/store/profileSecretStore");
+        const { resolveBedrockRegion } =
+          await import("~/features/providers/shared/bedrockEndpoint");
+        const { getProviderEndpoint } =
+          await import("~/features/providers/store/apiStore");
+        const profileId = getCurrentProfileId();
+        if (!profileId) return [];
+        const accessKeyId = await getProfileSecret(profileId, "bedrock", "api");
+        const secretAccessKey = await getProfileSecret(
+          profileId,
+          "bedrock",
+          "secret",
+        );
+        if (!accessKeyId || !secretAccessKey) return [];
+        return m.fetchBedrockModels({
+          accessKeyId,
+          secretAccessKey,
+          region: resolveBedrockRegion(getProviderEndpoint("bedrock")),
+        });
+      }),
+    makeRequest: (options) =>
+      import("./bedrock/request").then((m) => m.makeBedrockAIRequest(options)),
+  }),
+  ollama: capabilities("ollama", {
+    makeRequest: (options) =>
+      import("./ollama/request").then((m) => m.makeLocalAIRequest(options)),
+  }),
+  lmstudio: capabilities("lmstudio", {
+    makeRequest: (options) =>
+      import("./lmstudio/request").then((m) =>
+        m.makeLmStudioAIRequest(options),
+      ),
+  }),
+});
 
 export const providerCapabilities = (id: ProviderId): ProviderCapabilities =>
   PROVIDER_CAPABILITIES[id];

@@ -15,7 +15,8 @@ import type { KeyBindings } from "~/features/providers/store/apiStore";
  * @see https://platform.openai.com/docs/pricing
  * @see https://platform.openai.com/docs/models
  */
-export const DEFAULT_OPENAI_MODEL = "openai/gpt-4.1-mini" satisfies OpenAIModel["id"];
+export const DEFAULT_OPENAI_MODEL =
+  "openai/gpt-4.1-mini" satisfies OpenAIModel["id"];
 
 /**
  * Normalize a string for flexible matching: lowercase + strip every
@@ -39,7 +40,9 @@ type ModelLike = { id: string; created?: number };
  * `Model` requires but `ModelLike` doesn't guarantee — nothing here
  * reads either, so there is nothing to assert.
  */
-const resolveNewestGptMini = <T extends ModelLike>(models: readonly T[]): T | null => {
+const resolveNewestGptMini = <T extends ModelLike>(
+  models: readonly T[],
+): T | null => {
   const gptMinis = models.filter((model) => {
     const id = normalizeForSearch(model.id);
     return id.includes("gpt") && id.includes("mini");

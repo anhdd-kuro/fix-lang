@@ -319,12 +319,15 @@ export const useGhostText = ({
     ): void => {
       const decision = skipThrottleRef.current.admit(reason, Date.now());
       if (!decision.emit) return;
-      window.electronAPI?.reportAutocompleteSkip?.({
+      const skipReport: Parameters<
+        NonNullable<typeof window.electronAPI.reportAutocompleteSkip>
+      >[0] = {
         reason,
         prefixLength,
         suppressedSincePrevious: decision.suppressedSincePrevious,
-        ...(requestId === undefined ? {} : { requestId }),
-      });
+      };
+      if (requestId !== undefined) skipReport.requestId = requestId;
+      window.electronAPI?.reportAutocompleteSkip?.(skipReport);
     },
     [],
   );
@@ -377,7 +380,10 @@ export const useGhostText = ({
       anchorRef.current = anchor;
 
       const prefix = rawPrefix.slice(-MAX_PREFIX_CHARS_SENT);
-      const suffix = text.slice(selectionStart, selectionStart + MAX_SUFFIX_CHARS_SENT);
+      const suffix = text.slice(
+        selectionStart,
+        selectionStart + MAX_SUFFIX_CHARS_SENT,
+      );
 
       debounceTimerRef.current = setTimeout(() => {
         debounceTimerRef.current = undefined;
@@ -398,7 +404,7 @@ export const useGhostText = ({
         // is indistinguishable from every other silent path this file now
         // reports. The Ask window's payload arriving proves the preload loaded,
         // so the reporting method below is reachable even when this one is not.
-        if (typeof window.electronAPI?.requestAutocompleteSuggestion !== "function") {
+        if (!window.electronAPI?.requestAutocompleteSuggestion) {
           reportSkip("bridge-unavailable", prefix.length);
           invalidate();
           return;

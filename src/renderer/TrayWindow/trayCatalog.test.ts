@@ -66,7 +66,9 @@ describe.each([
       .filter((key) => {
         const enPlaceholders = placeholdersOf(en[key]);
         const jaPlaceholders = placeholdersOf(ja[key]);
-        return JSON.stringify(enPlaceholders) !== JSON.stringify(jaPlaceholders);
+        return (
+          JSON.stringify(enPlaceholders) !== JSON.stringify(jaPlaceholders)
+        );
       });
     expect(mismatches).toEqual([]);
   });

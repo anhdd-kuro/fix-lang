@@ -6,7 +6,10 @@
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { alacrittyToTmTheme, parseAlacrittyToml } from "../src/themes/alacrittyToTmTheme";
+import {
+  alacrittyToTmTheme,
+  parseAlacrittyToml,
+} from "../src/themes/alacrittyToTmTheme";
 import { THEME_TERMINAL_JSON_DIR, TERMINALCOLORS_BASE } from "./themes-paths";
 
 const THEME_PAGE_PATTERN = /href="(\/themes\/[^"#?]+\/)"/g;
@@ -92,8 +95,8 @@ const main = async (): Promise<void> => {
   );
 };
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
+main().catch((cause: unknown) => {
+  const message = cause instanceof Error ? cause.message : String(cause);
   console.error(`Terminal theme download failed: ${message}`);
   process.exit(1);
 });

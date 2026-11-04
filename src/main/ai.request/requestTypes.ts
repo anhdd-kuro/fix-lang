@@ -10,9 +10,20 @@
  *
  * `shared.ts` re-exports everything here, so existing call sites are unaffected.
  */
+import { z } from "zod";
+import {
+  objectLike,
+  AnyNumberSchema,
+} from "~/features/core/shared/schemaGuard";
 import type { ReasoningEffort } from "~/features/correction/shared/reasoningEffort";
 import type { HistorySessionData } from "~/features/history/shared/historySession";
 import type { ProviderId } from "~/features/providers/shared/providers";
+
+/** Message content as text: a string as-is, anything else as its JSON. */
+export const contentAsText = (content: CoreMessage["content"]): string => {
+  const text = z.string().safeParse(content);
+  return text.success ? text.data : JSON.stringify(content);
+};
 
 export type CoreMessage = {
   role: "system" | "user" | "assistant" | "tool";
@@ -97,31 +108,51 @@ export type AIRequestResponse = {
 export const toConversation = (messages: CoreMessage[]) => {
   const system = messages
     .filter((message) => message.role === "system")
-    .map((message) =>
-      typeof message.content === "string" ? message.content : JSON.stringify(message.content),
-    )
+    .map((message) => contentAsText(message.content))
     .join("\n\n");
   return {
     system,
+    // SAFETY: no caller sets `options.messages` today, so the only messages
+    // reaching here are the ones `makeAIRequest` builds from the system and
+    // user prompt strings; once system
+    // entries are folded into `system` above, every remaining turn is
+    // `{ role: "user", content: string }` — valid in every provider SDK's
+    // message type. `never` because each SDK names that type differently.
     messages: messages.filter((message) => message.role !== "system") as never,
   };
 };
 
 /** Read token counts under either the v6 or v7 AI SDK usage field names. */
-export const usageCounts = (
-  usage: unknown,
-): { promptTokens: number | null; completionTokens: number | null } => {
-  if (!usage || typeof usage !== "object") {
+export type UsageCounts = {
+  promptTokens: number | null;
+  completionTokens: number | null;
+};
+
+/**
+ * Both generations of field name. Each is read as-is: a v6 field that holds a
+ * non-null non-number still shadows its v7 sibling, as `??` would have it.
+ */
+const UsageFieldsSchema = objectLike({
+  promptTokens: z.unknown().optional(),
+  inputTokens: z.unknown().optional(),
+  completionTokens: z.unknown().optional(),
+  outputTokens: z.unknown().optional(),
+});
+
+export const usageCounts = <Input>(usage: Input): UsageCounts => {
+  const fields = UsageFieldsSchema.safeParse(usage);
+  if (!fields.success) {
     return { promptTokens: null, completionTokens: null };
   }
-  const value = usage as Record<string, unknown>;
-  const count = (primary: string, fallback: string): number | null => {
-    const raw = value[primary] ?? value[fallback];
-    return typeof raw === "number" ? raw : null;
-  };
+  const prompt = AnyNumberSchema.safeParse(
+    fields.data.promptTokens ?? fields.data.inputTokens,
+  );
+  const completion = AnyNumberSchema.safeParse(
+    fields.data.completionTokens ?? fields.data.outputTokens,
+  );
   return {
-    promptTokens: count("promptTokens", "inputTokens"),
-    completionTokens: count("completionTokens", "outputTokens"),
+    promptTokens: prompt.success ? prompt.data : null,
+    completionTokens: completion.success ? completion.data : null,
   };
 };
 
@@ -131,11 +162,16 @@ export const usageCounts = (
  * used no tokens" rather than "the provider reported none".
  */
 export const sumTokenField = (
-  counts: readonly { promptTokens: number | null; completionTokens: number | null }[],
+  counts: readonly {
+    promptTokens: number | null;
+    completionTokens: number | null;
+  }[],
   key: "promptTokens" | "completionTokens",
 ): number | null => {
   const values = counts
     .map((count) => count[key])
     .filter((count): count is number => count !== null);
-  return values.length > 0 ? values.reduce((total, count) => total + count, 0) : null;
+  return values.length > 0
+    ? values.reduce((total, count) => total + count, 0)
+    : null;
 };

@@ -1,3 +1,11 @@
+import { z } from "zod";
+import {
+  AnyNumberSchema,
+  everyItemSchema,
+  NonArrayObjectSchema,
+  schemaGuard,
+} from "~/features/core/shared/schemaGuard";
+
 /** Supported structured-log severities, ordered from least to most severe. */
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -11,7 +19,12 @@ export const LOG_LEVEL_ORDER: readonly LogLevel[] = [
 
 /** JSON-safe values accepted as structured log metadata. */
 export type LogValue =
-  string | number | boolean | null | LogValue[] | { [key: string]: LogValue };
+  | string
+  | number
+  | boolean
+  | null
+  | LogValue[]
+  | { [key: string]: LogValue };
 
 /** Metadata attached to a log entry. */
 export type LogContext = Record<string, LogValue>;
@@ -67,14 +80,26 @@ export const redactLogMessage = (message: string): string =>
     )
     .replace(/\b(openrouter_api_key)\s*[:=]\s*[^\s,;]+/gi, `$1=${REDACTED}`);
 
+const isPrimitiveString = schemaGuard(z.string());
+
+/**
+ * Object-ness only — the same test `typeof value === "object"` made, so a
+ * null-prototype or otherwise exotic record is still walked and redacted.
+ */
+const isContextRecord = schemaGuard(
+  z.custom<LogContext>(
+    (value) => NonArrayObjectSchema.safeParse(value).success,
+  ),
+);
+
 const redactLogValue = (value: LogValue): LogValue => {
-  if (typeof value === "string") {
+  if (isPrimitiveString(value)) {
     return redactLogMessage(value);
   }
   if (Array.isArray(value)) {
     return value.map((item) => redactLogValue(item));
   }
-  if (value !== null && typeof value === "object") {
+  if (isContextRecord(value)) {
     return redactLogContext(value);
   }
   return value;
@@ -142,11 +167,10 @@ export type LogQueryResult = {
   hasMore: boolean;
 };
 
-const LOG_LEVELS = new Set<LogLevel>(LOG_LEVEL_ORDER);
+const LogLevelSchema = z.enum(LOG_LEVEL_ORDER);
 
 /** Type guard for one severity token (used at every untrusted boundary). */
-export const isLogLevel = (value: unknown): value is LogLevel =>
-  typeof value === "string" && LOG_LEVELS.has(value as LogLevel);
+export const isLogLevel = schemaGuard(LogLevelSchema);
 
 /**
  * Canonicalizes an untrusted level selection: keeps only known severities, in
@@ -154,7 +178,7 @@ export const isLogLevel = (value: unknown): value is LogLevel =>
  * four checked" mean "no level filter", so downstream code has exactly one
  * shape to reason about.
  */
-export const normalizeLogLevels = (value: unknown): LogLevel[] => {
+export const normalizeLogLevels = <Selection>(value: Selection): LogLevel[] => {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -168,38 +192,41 @@ export const logEntryMatchesLevels = (
   levels: readonly LogLevel[],
 ): boolean => levels.length === 0 || levels.includes(entry.level);
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const LogScalarSchema = z.union([
+  z.null(),
+  z.string(),
+  AnyNumberSchema,
+  z.boolean(),
+]);
 
-const isLogValue = (value: unknown): value is LogValue => {
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
-  ) {
-    return true;
-  }
-  if (Array.isArray(value)) {
-    return value.every((item) => isLogValue(item));
-  }
-  return (
-    isRecord(value) && Object.values(value).every((item) => isLogValue(item))
-  );
-};
+const isNonArrayObject = schemaGuard(NonArrayObjectSchema);
 
-const isLogContext = (value: unknown): value is LogContext =>
-  isRecord(value) && Object.values(value).every((item) => isLogValue(item));
+/** Own enumerable values only, as `Object.values` reads them. */
+const LogContextSchema: z.ZodType<LogContext> = z.custom<LogContext>(
+  (value) =>
+    isNonArrayObject(value) &&
+    Object.values(value).every(
+      (item) => LogValueSchema.safeParse(item).success,
+    ),
+);
+
+const LogValueSchema: z.ZodType<LogValue> = z.lazy(() =>
+  z.union([LogScalarSchema, LogArraySchema, LogContextSchema]),
+);
+
+const LogArraySchema = everyItemSchema(LogValueSchema);
+
+export const LogEntrySchema: z.ZodType<LogEntry> = z.object({
+  id: z.string(),
+  timestamp: z.string(),
+  level: LogLevelSchema,
+  scope: z.string(),
+  message: z.string(),
+  context: LogContextSchema.optional(),
+});
 
 /** Type guard for a persisted / IPC log entry. */
-export const isLogEntry = (value: unknown): value is LogEntry =>
-  isRecord(value) &&
-  typeof value.id === "string" &&
-  typeof value.timestamp === "string" &&
-  isLogLevel(value.level) &&
-  typeof value.scope === "string" &&
-  typeof value.message === "string" &&
-  (value.context === undefined || isLogContext(value.context));
+export const isLogEntry = schemaGuard(LogEntrySchema);
 
 /** Serializes one entry as a JSONL line (no trailing newline). */
 export const serializeLogJsonLine = (entry: LogEntry): string =>
@@ -239,4 +266,3 @@ export const logEntryMatchesSearch = (
     .toLocaleLowerCase();
   return searchable.includes(normalizedSearch);
 };
-

@@ -9,14 +9,16 @@ describe("applyTypographyToDocument", () => {
   it("sets css variables and data attributes on the document root", () => {
     applyTypographyToDocument({ fontSize: "lg", fontFamily: "mono" });
 
-    expect(document.documentElement.style.getPropertyValue("--font-size-base")).toBe(
-      "16px",
-    );
+    expect(
+      document.documentElement.style.getPropertyValue("--font-size-base"),
+    ).toBe("16px");
     expect(
       document.documentElement.style.getPropertyValue("--font-family-ui"),
     ).toContain("monospace");
     expect(document.documentElement.dataset.fontSize).toBe("lg");
     expect(document.documentElement.dataset.fontFamily).toBe("mono");
-    expect(document.documentElement.style.getPropertyValue("font-size")).toBe("");
+    expect(document.documentElement.style.getPropertyValue("font-size")).toBe(
+      "",
+    );
   });
 });

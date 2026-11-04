@@ -134,8 +134,7 @@ export const totalComboTokens = (
 export const effectiveComboStepModelRef = (
   preset: Pick<CorrectionPreset, "model"> | undefined,
   globalDefaultModelRef: string,
-): string =>
-  preset?.model?.trim() || globalDefaultModelRef.trim();
+): string => preset?.model?.trim() || globalDefaultModelRef.trim();
 
 export type ComboStepProviderResolution = {
   /** `null` when the ref is empty, or a bare id that matches no fetched model. */

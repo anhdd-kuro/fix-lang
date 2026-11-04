@@ -1,15 +1,15 @@
 /**
  * @file correction-selection-guards.test.ts
  * @description Guard for the selection-guard block wired into
- * `registerCorrectionShortcut`'s ordinary (non-Ask) preset branch: a stale
- * clipboard, a denied frontmost app, or an oversized selection must be
- * stopped before `fixGrammar`/`pasteText` run, with exactly one latency
- * `finish` per press either way.
+ * `registerCorrectionShortcut`'s ordinary (non-Ask) preset branch: a denied
+ * frontmost app or an oversized selection must be stopped before
+ * `fixGrammar`/`pasteText` run, with exactly one latency `finish` per press
+ * either way.
  *
  * `evaluateSelectionGuards` (`~/features/guards/shared/selectionGuards`) and
  * `startLatencyTimer` (`../logging/latencyTimer`) are kept REAL and pure —
  * only their electron-touching neighbours (`guardStore`,
- * `clipboardChangeTracker`, `confirmSelectionGuard`) are mocked, same as
+ * `confirmSelectionGuard`) are mocked, same as
  * `correction-preset-hotkeys.test.ts` keeps `normalizeCorrectionSettings`
  * real while mocking `apiStore`'s electron-store backing.
  */
@@ -38,7 +38,7 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
+  // oxlint-disable-next-line typescript/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return {
     ...real,
@@ -59,12 +59,13 @@ vi.mock("~/features/correction/store/keybindingStore", () => ({
 vi.mock("~/features/correction/store/outputModeStore", () => ({
   // "paste" (not "popup") so the delivery assertions below exercise the same
   // `pasteText` call site the card's criteria name explicitly.
-  outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("paste") },
+  outputModeStore: {
+    getCorrectionOutputMode: vi.fn().mockReturnValue("paste"),
+  },
 }));
 vi.mock("~/features/guards/store/guardStore", () => ({
   guardStore: { getSelectionGuardSettings: vi.fn() },
 }));
-vi.mock("../clipboard/clipboardChangeTracker", () => ({ clipboardAge: vi.fn() }));
 vi.mock("../notifications/confirmSelectionGuard", () => ({
   confirmSelectionGuard: vi.fn(),
 }));
@@ -98,7 +99,9 @@ vi.mock("./askEnvironment", () => ({
     timeZone: "Asia/Tokyo",
     recentTransforms: [],
   }),
-  buildAskDirectives: vi.fn().mockReturnValue("App locale: en\nSystem language: en-US"),
+  buildAskDirectives: vi
+    .fn()
+    .mockReturnValue("App locale: en\nSystem language: en-US"),
 }));
 // `withHotkeyThrottle` stays REAL, same reason as `correction-preset-hotkeys.test.ts`.
 vi.mock("./utils", async (importOriginal) => {
@@ -112,17 +115,19 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
 }));
 import { guardStore } from "~/features/guards/store/guardStore";
 import { redactLogContext } from "~/features/logs/shared/logging";
-import { getProfileSetting, normalizeCorrectionSettings } from "~/features/providers/store/apiStore";
+import {
+  getProfileSetting,
+  normalizeCorrectionSettings,
+} from "~/features/providers/store/apiStore";
 import { registerCorrectionShortcut } from "./correction";
 import { handleError, resetHotkeyThrottleForTests } from "./utils";
 import { getHighlightedTextWithActiveApp, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
-import * as clipboardChangeTracker from "../clipboard/clipboardChangeTracker";
 import { logger } from "../logging/logService";
 import { confirmSelectionGuard } from "../notifications/confirmSelectionGuard";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import type * as KeybindingUtils from "./utils";
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, WebContents } from "electron";
 import type { Mock } from "vitest";
 
 const CORRECTION_HOTKEY = "Control+Shift+F";
@@ -141,20 +146,26 @@ const SINGLE_BUILT_IN_PROFILE = {
   selectedPresetId: "correction",
 };
 
-const fakeMainWindow = () =>
-  ({
+/** The two members the hotkey path touches; everything else is never read. */
+type FakeMainWindow = {
+  isDestroyed: BrowserWindow["isDestroyed"];
+  webContents: Pick<WebContents, "send">;
+};
+
+const fakeMainWindow = (): BrowserWindow => {
+  const fake: FakeMainWindow = {
     isDestroyed: () => false,
     webContents: { send: vi.fn() },
-  }) as unknown as BrowserWindow;
+  };
+  return fake as BrowserWindow;
+};
 
 const defaultGuardSettings = (
   overrides: Partial<{
-    clipboardMaxAgeSeconds: number;
     maxSelectionChars: number;
     deniedBundleIds: string[];
   }> = {},
 ) => ({
-  clipboardMaxAgeSeconds: 5,
   maxSelectionChars: 20_000,
   deniedBundleIds: ["com.1password.1password"],
   ...overrides,
@@ -163,7 +174,9 @@ const defaultGuardSettings = (
 /** Registers the single correction preset and returns its hotkey handler. */
 const registerCorrectionHandler = (): (() => Promise<void>) => {
   (getProfileSetting as Mock).mockImplementation((key: string) =>
-    key === "models" ? [] : normalizeCorrectionSettings(SINGLE_BUILT_IN_PROFILE),
+    key === "models"
+      ? []
+      : normalizeCorrectionSettings(SINGLE_BUILT_IN_PROFILE),
   );
 
   registerCorrectionShortcut(fakeMainWindow());
@@ -179,7 +192,9 @@ const registerCorrectionHandler = (): (() => Promise<void>) => {
 
 /** Every `logger.info` call recorded against the latency scope, in order. */
 const latencyFinishCalls = () =>
-  (logger.info as Mock).mock.calls.filter(([scope]) => scope === "correction.latency");
+  (logger.info as Mock).mock.calls.filter(
+    ([scope]) => scope === "correction.latency",
+  );
 
 /**
  * Configures `getHighlightedTextWithActiveApp` to invoke its
@@ -205,8 +220,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   resetHotkeyThrottleForTests();
   (globalShortcut.register as Mock).mockReturnValue(true);
-  (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(defaultGuardSettings());
-  (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue(null);
+  (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
+    defaultGuardSettings(),
+  );
   (fixGrammar as Mock).mockResolvedValue({
     correctedText: "corrected text",
     promptTokens: 10,
@@ -220,7 +236,11 @@ beforeEach(() => {
 
 describe("correction selection guards — allow", () => {
   it("runs fixGrammar and pasteText, with exactly one delivered latency finish", async () => {
-    mockSelection({ text: "some selected text", activeApp: null, changed: true });
+    mockSelection({
+      text: "some selected text",
+      activeApp: null,
+      changed: true,
+    });
 
     const handler = registerCorrectionHandler();
     await handler();
@@ -232,96 +252,6 @@ describe("correction selection guards — allow", () => {
     const finishes = latencyFinishCalls();
     expect(finishes).toHaveLength(1);
     expect(finishes[0][2]).toMatchObject({ outcome: "delivered" });
-  });
-});
-
-describe("correction selection guards — confirm: stale-clipboard", () => {
-  /**
-   * CONFIRM, not block. An identical re-copy folds into "no change" (same
-   * hash) and Electron exposes no pasteboard change counter, so a hard block
-   * left a user who deliberately re-copied the same text with no way to clear
-   * it except copying something else first. The dialog keeps the accidental
-   * send in front of them without creating that dead end.
-   */
-  it("asks before any provider call, and dispatches nothing when declined", async () => {
-    mockSelection({ text: "a password copied 40 minutes ago", activeApp: null, changed: false });
-    (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
-      defaultGuardSettings({ clipboardMaxAgeSeconds: 5 }),
-    );
-    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 600_000, origin: "change" });
-    (confirmSelectionGuard as Mock).mockResolvedValue(false);
-
-    const handler = registerCorrectionHandler();
-    await handler();
-
-    expect(confirmSelectionGuard).toHaveBeenCalledWith({
-      kind: "confirm",
-      reason: "stale-clipboard",
-      ageMs: 600_000,
-      limitMs: 5_000,
-    });
-    expect(fixGrammar).not.toHaveBeenCalled();
-    expect(pasteText).not.toHaveBeenCalled();
-    expect(hideOverlaySpinner).toHaveBeenCalled();
-    expect(showOverlaySpinner).toHaveBeenCalledTimes(1); // only the initial combined-read callback
-
-    expect(logger.info).toHaveBeenCalledWith(
-      "correction.hotkey",
-      "Transform declined at a selection-guard confirm",
-      {
-        presetId: "correction",
-        guardEvent: "declined",
-        guardReason: "stale-clipboard",
-        selectionAgeMs: 600_000,
-        ageLimitMs: 5_000,
-      },
-    );
-
-    // Feed the ACTUAL object the guard block emitted — not a hand-copied
-    // literal — through the REAL redactor. `redactLogContext` blanks any
-    // context key merely CONTAINING `clipboard`/`token`/`secret`/`password`/
-    // `selected_text`, silently. `clipboardChanged` already shipped that
-    // trap once (it is now `selectionChanged` in `utils.ts`); the natural
-    // name here would be `clipboardAgeMs`, which this line would catch.
-    const [, , staleClipboardContext] = (logger.info as Mock).mock.calls[0];
-    expect(redactLogContext(staleClipboardContext)).toEqual(staleClipboardContext);
-
-    // Cancel is a choice, not an error — no toast, or people learn to dismiss
-    // toasts.
-    expect(handleError).not.toHaveBeenCalled();
-
-    const finishes = latencyFinishCalls();
-    expect(finishes).toHaveLength(1);
-    expect(finishes[0][2]).toMatchObject({ outcome: "declined-stale" });
-  });
-
-  /**
-   * The startup hole, at the handler level: a baseline age is a lower bound,
-   * so text sitting on the pasteboard since before FixLang launched reports
-   * a few milliseconds and would otherwise sail straight through.
-   */
-  it("asks about a baseline-origin age even when the number is well under the limit", async () => {
-    mockSelection({ text: "a password copied before launch", activeApp: null, changed: false });
-    (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
-      defaultGuardSettings({ clipboardMaxAgeSeconds: 5 }),
-    );
-    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 12, origin: "baseline" });
-    (confirmSelectionGuard as Mock).mockResolvedValue(false);
-
-    const handler = registerCorrectionHandler();
-    await handler();
-
-    expect(confirmSelectionGuard).toHaveBeenCalledWith({
-      kind: "confirm",
-      reason: "unknown-clipboard-age",
-      ageMs: 12,
-      limitMs: 5_000,
-    });
-    expect(fixGrammar).not.toHaveBeenCalled();
-
-    const finishes = latencyFinishCalls();
-    expect(finishes).toHaveLength(1);
-    expect(finishes[0][2]).toMatchObject({ outcome: "declined-unknown-age" });
   });
 });
 
@@ -351,8 +281,7 @@ describe("correction selection guards — block: denied-app", () => {
       },
     );
 
-    // Same real-redactor feed as the stale-clipboard block above, against
-    // this branch's own emitted keys (`deniedBundleId`, not `selectionAgeMs`).
+    // Fed through the real redactor, against this branch's own emitted keys.
     const [, , deniedAppContext] = (logger.warn as Mock).mock.calls[0];
     expect(redactLogContext(deniedAppContext)).toEqual(deniedAppContext);
 
@@ -363,7 +292,9 @@ describe("correction selection guards — block: denied-app", () => {
       messageKey: "notifications.error.appNotAllowed.body",
       messageParams: { app: "1Password" },
     });
-    expect(reportedError.messageKey).not.toBe("notifications.error.noTextSelected.body");
+    expect(reportedError.messageKey).not.toBe(
+      "notifications.error.noTextSelected.body",
+    );
 
     const finishes = latencyFinishCalls();
     expect(finishes).toHaveLength(1);
@@ -406,7 +337,8 @@ describe("correction selection guards — confirm: Cancel", () => {
     // Same real-redactor feed as the block tests above — `textLength` and
     // `charLimit` are this branch's own emitted keys.
     const declinedSizeContext = (logger.info as Mock).mock.calls.find(
-      ([, message]) => message === "Transform declined at a selection-guard confirm",
+      ([, message]) =>
+        message === "Transform declined at a selection-guard confirm",
     )?.[2];
     expect(redactLogContext(declinedSizeContext)).toEqual(declinedSizeContext);
 
@@ -436,7 +368,11 @@ describe("correction selection guards — confirm: Send", () => {
       limit: 20_000,
     });
     expect(fixGrammar).toHaveBeenCalledTimes(1);
-    expect(fixGrammar).toHaveBeenCalledWith(bigText, "correction", expect.anything());
+    expect(fixGrammar).toHaveBeenCalledWith(
+      bigText,
+      "correction",
+      expect.anything(),
+    );
     expect(pasteText).toHaveBeenCalledTimes(1);
     expect(handleError).not.toHaveBeenCalled();
 
@@ -456,20 +392,24 @@ describe("correction selection guards — log key redaction safety", () => {
   /**
    * The natural-sounding names a future reader would reach for instead of
    * the approved ones — and the reason this guard block must never use them.
-   * `clipboardAgeMs` reads better than `selectionAgeMs`, but `redactLogContext`
-   * blanks any key merely CONTAINING `clipboard`, silently. This repo has
-   * already shipped that exact mistake once: `clipboardChanged` persisted as
-   * `"[REDACTED]"` in production until `utils.ts` renamed it to
-   * `selectionChanged`. Pinning the rejects (not just the approved names
+   * `selectedTextLength` reads better than `textLength`, but `redactLogContext`
+   * blanks any key merely CONTAINING `selectedText` (or `clipboard`, …),
+   * silently. This repo has already shipped that exact mistake once:
+   * `clipboardChanged` persisted as `"[REDACTED]"` in production until
+   * `utils.ts` renamed it to `selectionChanged`. Pinning the rejects (not just the approved names
    * above) is what stops a future "simplification" back to the natural name.
    */
-  it.each([
-    ["clipboardAgeMs", "selectionAgeMs"],
-    ["selectedTextLength", "textLength"],
-  ] as const)("%s is blanked by the real redactor — ship %s instead", (rejected, approved) => {
-    expect(redactLogContext({ [rejected]: 600_000 })[rejected]).toBe(REDACTED);
-    expect(redactLogContext({ [approved]: 600_000 })[approved]).not.toBe(REDACTED);
-  });
+  it.each([["selectedTextLength", "textLength"]] as const)(
+    "%s is blanked by the real redactor — ship %s instead",
+    (rejected, approved) => {
+      expect(redactLogContext({ [rejected]: 600_000 })[rejected]).toBe(
+        REDACTED,
+      );
+      expect(redactLogContext({ [approved]: 600_000 })[approved]).not.toBe(
+        REDACTED,
+      );
+    },
+  );
 });
 
 describe("correction selection guards — confirm: Send with a slow dialog", () => {
@@ -564,7 +504,7 @@ describe("correction selection guards — confirm dialog rejects", () => {
 });
 
 describe("correction selection guards — precedence", () => {
-  it("blocks as denied-app even when the same selection is also stale and oversized", async () => {
+  it("blocks as denied-app even when the same selection is also oversized", async () => {
     const bigText = "x".repeat(30_000);
     mockSelection({
       text: bigText,
@@ -572,9 +512,8 @@ describe("correction selection guards — precedence", () => {
       changed: false,
     });
     (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
-      defaultGuardSettings({ clipboardMaxAgeSeconds: 5, maxSelectionChars: 20_000 }),
+      defaultGuardSettings({ maxSelectionChars: 20_000 }),
     );
-    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 600_000, origin: "change" });
 
     const handler = registerCorrectionHandler();
     await handler();

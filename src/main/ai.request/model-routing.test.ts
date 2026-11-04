@@ -29,14 +29,22 @@ const {
     showErrorNotificationMock: vi.fn(),
   };
 });
+/** What electron-store persists: JSON. */
+type StoredValue =
+  | string
+  | number
+  | boolean
+  | null
+  | StoredValue[]
+  | { [key: string]: StoredValue };
 // Stateful so the real apiStore helpers can read back the seeded profile.
 vi.mock("electron-store", () => {
   class MockStore {
-    private data: Record<string, unknown> = {};
-    get(key: string, defaultValue?: unknown) {
+    private data: Record<string, StoredValue> = {};
+    get(key: string, defaultValue?: StoredValue) {
       return key in this.data ? this.data[key] : defaultValue;
     }
-    set(key: string, value: unknown) {
+    set(key: string, value: StoredValue) {
       this.data[key] = value;
     }
     delete(key: string) {
@@ -65,9 +73,13 @@ vi.mock("electron", () => ({
 // was notified" rather than "some function was called".
 vi.mock("~/main/notifications/error", () => ({
   showErrorNotification: showErrorNotificationMock,
-  notifyRequestError: (options: { quiet?: boolean }, error: unknown, fallback?: string) => {
+  notifyRequestError: (
+    options: { quiet?: boolean },
+    cause: unknown,
+    fallback?: string,
+  ) => {
     if (options.quiet) return;
-    showErrorNotificationMock(error, fallback);
+    showErrorNotificationMock(cause, fallback);
   },
 }));
 vi.mock("@openrouter/ai-sdk-provider", () => ({
@@ -89,14 +101,24 @@ vi.mock("~/features/providers/store/profileSecretStore", () => ({
 vi.mock("~/main/llm/models/discover", () => ({
   getLocalModels: getLocalModelsMock,
 }));
-vi.mock("~/main/llm/providers/ollama/client", () => ({ createOllamaClient: () => ({ chat: ollamaChatMock }), ollamaClient: { chat: ollamaChatMock } }));
+vi.mock("~/main/llm/providers/ollama/client", () => ({
+  createOllamaClient: () => ({ chat: ollamaChatMock }),
+  ollamaClient: { chat: ollamaChatMock },
+}));
 import { apiStore } from "~/features/providers/store/apiStore";
+import { fakeGenerateText } from "~/main/llm/providers/testing/fakeGenerateText";
 import * as sharedModule from "./shared";
 import { isLocalModelId, makeAIRequest } from "./shared";
-import type { Model, Profile, SettingsStore } from "~/features/providers/store/apiStore";
+import type {
+  Model,
+  Profile,
+  SettingsStore,
+} from "~/features/providers/store/apiStore";
 
-const buildSettings = (models: Model[], selectedModel = ""): SettingsStore =>
-  ({
+const buildSettings = (models: Model[], selectedModel = ""): SettingsStore => {
+  // Partial, then narrowed: no per-profile fixture sets `profiles`/
+  // `currentProfileId`, and a fixture missing keys cannot be a SettingsStore.
+  const fixture: Partial<SettingsStore> = {
     apiKey: "",
     models,
     selectedModel,
@@ -105,7 +127,12 @@ const buildSettings = (models: Model[], selectedModel = ""): SettingsStore =>
     customUserPrompt: "",
     tone: "",
     settingsCorrect: { presets: [], selectedPresetId: "" },
-    settingsSummarize: { minLength: 0, maxLength: 0, model: "", targetLanguage: "en" },
+    settingsSummarize: {
+      minLength: 0,
+      maxLength: 0,
+      model: "",
+      targetLanguage: "en",
+    },
     settingsPromptGen: {
       minLength: 50,
       maxLength: 150,
@@ -115,9 +142,9 @@ const buildSettings = (models: Model[], selectedModel = ""): SettingsStore =>
       autoCopy: false,
       model: "",
     },
-    // Via `unknown`: no per-profile fixture sets `profiles`/`currentProfileId`,
-    // so a direct `as SettingsStore` is a TS2352 no-overlap error.
-  }) as unknown as SettingsStore;
+  };
+  return fixture as SettingsStore;
+};
 
 const seed = (models: Model[], selectedModel = ""): void => {
   apiStore.set("profiles", [
@@ -165,11 +192,12 @@ describe("makeAIRequest — ref-based routing", () => {
       message: { content: "local answer" },
       total_duration: 1,
     });
-    generateTextMock.mockResolvedValue({
-      text: "answer",
-      usage: { promptTokens: 1, completionTokens: 2 },
-      response: { body: {} },
-    });
+    generateTextMock.mockImplementation(
+      fakeGenerateText({
+        text: "answer",
+        usage: { inputTokens: 1, outputTokens: 2 },
+      }),
+    );
   });
 
   it("an openai:: ref routes to the OpenAI path with the RAW id", async () => {
@@ -220,12 +248,15 @@ describe("makeAIRequest — ref-based routing", () => {
     expect(ollamaChatMock).toHaveBeenCalledOnce();
   });
 
+  // The served model is read from `response.modelId`, never from the raw body.
   it("keeps AIRequestResponse.model and resolvedModel raw, never composite", async () => {
-    generateTextMock.mockResolvedValue({
-      text: "answer",
-      usage: { promptTokens: 1, completionTokens: 2 },
-      response: { body: { model: "gpt-4o-2024-11-20" } },
-    });
+    generateTextMock.mockImplementation(
+      fakeGenerateText({
+        text: "answer",
+        usage: { inputTokens: 1, outputTokens: 2 },
+        modelId: "gpt-4o-2024-11-20",
+      }),
+    );
 
     const response = await request("openai::gpt-4o");
 
@@ -234,18 +265,31 @@ describe("makeAIRequest — ref-based routing", () => {
     expect(response.resolvedModel).not.toContain("::");
   });
 
-  it("a prefixed unresolvable ref throws naming both the provider and the model id", async () => {
-    await expect(request("openai::ghost-model")).rejects.toThrow(
-      /ghost-model/,
+  it("an openrouter:: ref reports the served model from response.modelId", async () => {
+    generateTextMock.mockImplementation(
+      fakeGenerateText({
+        text: "answer",
+        usage: { inputTokens: 1, outputTokens: 2 },
+        modelId: "anthropic/claude-3.5-sonnet-20241022",
+      }),
     );
+
+    const response = await request("openrouter::anthropic/claude-3.5-sonnet");
+
+    expect(response.model).toBe("anthropic/claude-3.5-sonnet");
+    expect(response.resolvedModel).toBe("anthropic/claude-3.5-sonnet-20241022");
+  });
+
+  it("a prefixed unresolvable ref throws naming both the provider and the model id", async () => {
+    await expect(request("openai::ghost-model")).rejects.toThrow(/ghost-model/);
     await expect(request("openai::ghost-model")).rejects.toThrow(/OpenAI/);
     expect(showErrorNotificationMock).toHaveBeenCalled();
   });
 
   it("a bare unresolvable id throws naming the model id and no guessed provider", async () => {
     let message = "";
-    await request("ghost-model").catch((error: unknown) => {
-      message = error instanceof Error ? error.message : String(error);
+    await request("ghost-model").catch((cause: unknown) => {
+      message = cause instanceof Error ? cause.message : String(cause);
     });
 
     expect(message).toContain("ghost-model");
@@ -272,10 +316,7 @@ describe("makeAIRequest — ref-based routing", () => {
   });
 
   it("the same holds for an OpenRouter profile — the break was provider-agnostic", async () => {
-    seed(
-      [openRouterModel],
-      "openrouter::anthropic/claude-3.5-sonnet",
-    );
+    seed([openRouterModel], "openrouter::anthropic/claude-3.5-sonnet");
 
     const response = await makeAIRequest({
       systemPrompt: "sys",
@@ -291,7 +332,9 @@ describe("makeAIRequest — ref-based routing", () => {
   });
 
   it("does not cross-resolve: an openai:: ref for an OpenRouter-only model throws", async () => {
-    await expect(request("openai::anthropic/claude-3.5-sonnet")).rejects.toThrow();
+    await expect(
+      request("openai::anthropic/claude-3.5-sonnet"),
+    ).rejects.toThrow();
     expect(createOpenAIMock).not.toHaveBeenCalled();
   });
 });
@@ -311,10 +354,7 @@ describe("isLocalModelId", () => {
   });
 
   it("is false when the provider is known and is not ollama, even for a colliding cached local id", () => {
-    seed([
-      { ...ollamaModel, id: "gpt-4o" },
-      openAiModel,
-    ]);
+    seed([{ ...ollamaModel, id: "gpt-4o" }, openAiModel]);
     expect(isLocalModelId("gpt-4o", "openai")).toBe(false);
   });
 

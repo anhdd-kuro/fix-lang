@@ -4,7 +4,11 @@
  * single-provider `Profile.provider` shape to composite model refs. The
  * store-facing driver lives in `apiStore.ts`.
  */
-import { formatModelRef, isModelRef } from "~/features/providers/shared/modelRef";
+import { z } from "zod";
+import {
+  formatModelRef,
+  isModelRef,
+} from "~/features/providers/shared/modelRef";
 import {
   groupModelsByProvider,
   isProviderId,
@@ -12,49 +16,85 @@ import {
   type Model,
   type ProviderId,
 } from "~/features/providers/shared/providers";
-import type { CorrectionPreset, Profile, SettingsStore } from "./apiStore";
+import type {
+  CorrectionPreset,
+  Profile,
+  SettingsStore,
+} from "~/features/providers/store/apiStore";
+
+/**
+ * Any non-array, non-function object, copied key-for-key in its own order —
+ * the same keys a spread would copy from a JSON-read value. Anything else
+ * (`null`, a primitive, an array, a function) is not a record.
+ */
+const StoredRecordSchema = z.looseObject({});
+
+type StoredRecord = z.infer<typeof StoredRecordSchema>;
+
+/** Degrades a non-record to `{}` so the migration stays total over junk. */
+const StoredRecordOrEmptySchema = StoredRecordSchema.catch(() => ({}));
+
+const StoredArraySchema = z.array(z.unknown());
+
+/** A non-string model value reads as "no model". */
+const StoredModelIdSchema = z.string().catch("");
+
+/**
+ * `SettingsStore` plus the retired `settingsTranslate` bucket, which is off
+ * the typed shape but still on disk for upgrading users.
+ */
+type MigratedSettingsStore = SettingsStore & {
+  settingsTranslate?: StoredRecord;
+};
 
 /** Historical default for a profile carrying no `provider` key at all. */
 const LEGACY_DEFAULT_PROVIDER: ProviderId = "openrouter";
 
-const asRecord = (value: unknown): Record<string, unknown> =>
-  value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-
-const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
-
-const asObjectArray = (value: unknown): Record<string, unknown>[] =>
-  asArray(value)
-    .filter((entry) => entry !== null && typeof entry === "object" && !Array.isArray(entry))
-    .map((entry) => entry as Record<string, unknown>);
-
-const asModelIdString = (value: unknown): string => (typeof value === "string" ? value : "");
+/** Keeps the record entries of an array; a non-array reads as empty. */
+const storedRecordEntries = (value: StoredRecord[string]): StoredRecord[] => {
+  const array = StoredArraySchema.safeParse(value);
+  if (!array.success) return [];
+  return array.data.flatMap((entry) => {
+    const record = StoredRecordSchema.safeParse(entry);
+    return record.success ? [record.data] : [];
+  });
+};
 
 /**
  * Prefix a stored model value with the legacy provider. The `isModelRef`
  * short-circuit is one of the two guards making the whole migration idempotent:
  * an already-prefixed ref passes through untouched.
  */
-const prefixModelRef = (legacyProvider: ProviderId, value: unknown): string => {
-  const raw = asModelIdString(value);
+const prefixModelRef = (legacyProvider: ProviderId, raw: string): string => {
   if (raw === "" || isModelRef(raw)) {
     return raw;
   }
   return formatModelRef(legacyProvider, raw);
 };
 
-const isBareModelValue = (value: unknown): boolean => {
-  const raw = asModelIdString(value);
+const prefixStoredModelRef = (
+  legacyProvider: ProviderId,
+  value: StoredRecord[string],
+): string => prefixModelRef(legacyProvider, StoredModelIdSchema.parse(value));
+
+const isBareModelValue = (value: StoredRecord[string]): boolean => {
+  const raw = StoredModelIdSchema.parse(value);
   return raw !== "" && !isModelRef(raw);
 };
 
-const migratePresets = (legacyProvider: ProviderId, value: unknown): CorrectionPreset[] =>
-  asObjectArray(value).map(
+const migratePresets = (
+  legacyProvider: ProviderId,
+  value: StoredRecord[string],
+): CorrectionPreset[] =>
+  storedRecordEntries(value).map(
     (preset) =>
+      // SAFETY: only `model` is rewritten here; every other preset field is
+      // carried over as stored, and `apiStore.set("profiles", …)` checks the
+      // properties `apiStoreSchema` declares before it is written back
+      // (undeclared nested keys pass unchecked, as they always have).
       ({
         ...preset,
-        model: prefixModelRef(legacyProvider, preset.model),
+        model: prefixStoredModelRef(legacyProvider, preset.model),
       }) as CorrectionPreset,
   );
 
@@ -65,15 +105,15 @@ const migratePresets = (legacyProvider: ProviderId, value: unknown): CorrectionP
  */
 const migrateSettingsCorrect = (
   legacyProvider: ProviderId,
-  value: unknown,
-): Record<string, unknown> => {
-  const record = asRecord(value);
-  const migrated: Record<string, unknown> = {
+  record: StoredRecord,
+): StoredRecord => {
+  const migrated: StoredRecord = {
     ...record,
     presets: migratePresets(legacyProvider, record.presets),
   };
-  if (typeof record.model === "string") {
-    migrated.model = prefixModelRef(legacyProvider, record.model);
+  const model = z.string().safeParse(record.model);
+  if (model.success) {
+    migrated.model = prefixModelRef(legacyProvider, model.data);
   }
   return migrated;
 };
@@ -85,16 +125,14 @@ const migrateSettingsCorrect = (
  */
 const migrateLegacyTranslateSettings = (
   legacyProvider: ProviderId,
-  value: unknown,
-): Record<string, unknown> => {
-  const record = asRecord(value);
-  if (typeof record.model !== "string") {
+  record: StoredRecord,
+): StoredRecord => {
+  const model = z.string().safeParse(record.model);
+  if (!model.success) {
     return record;
   }
-  return { ...record, model: prefixModelRef(legacyProvider, record.model) };
+  return { ...record, model: prefixModelRef(legacyProvider, model.data) };
 };
-
-const asModelsArray = (value: unknown): Model[] => asObjectArray(value) as Model[];
 
 /**
  * Never recompute `enabledProviders` from `legacyProvider` on an already-migrated
@@ -106,16 +144,20 @@ const asModelsArray = (value: unknown): Model[] => asObjectArray(value) as Model
 const resolveEnabledProviders = (
   legacyProvider: ProviderId,
   needsMigration: boolean,
-  settings: Record<string, unknown>,
+  settings: StoredRecord,
 ): ProviderId[] => {
   const existing = settings.enabledProviders;
-  if (Array.isArray(existing) && existing.length > 0) {
-    return sanitizeEnabledProviders(existing);
+  const existingArray = StoredArraySchema.safeParse(existing);
+  if (existingArray.success && existingArray.data.length > 0) {
+    return sanitizeEnabledProviders(existingArray.data);
   }
   if (!needsMigration) {
     return sanitizeEnabledProviders(existing);
   }
-  const models = asModelsArray(settings.models);
+  // SAFETY: `groupModelsByProvider` → `isModelForProvider` reads only
+  // `model.provider` (strict equality / `=== undefined`) and `model.local`
+  // (`!== undefined` / truthiness), both total over any record entry.
+  const models = storedRecordEntries(settings.models) as Model[];
   const providersWithModels = groupModelsByProvider(models)
     .filter((group) => group.models.length > 0)
     .map((group) => group.provider);
@@ -130,49 +172,70 @@ const resolveEnabledProviders = (
  * `prefixModelRef`'s `isModelRef` short-circuit and `resolveEnabledProviders`'s
  * `needsMigration` gate.
  */
-export const migrateProfileForModelRefs = (profile: unknown): Profile => {
-  const raw = asRecord(profile);
+export const migrateProfileForModelRefs = <Input>(profile: Input): Profile => {
+  const raw = StoredRecordOrEmptySchema.parse(profile);
   const hasLegacyProviderField = isProviderId(raw.provider);
   const legacyProvider: ProviderId = isProviderId(raw.provider)
     ? raw.provider
     : LEGACY_DEFAULT_PROVIDER;
 
-  const settings = asRecord(raw.settings);
-  const settingsCorrect = asRecord(settings.settingsCorrect);
-  const settingsPromptGen = asRecord(settings.settingsPromptGen);
-  const settingsSummarize = asRecord(settings.settingsSummarize);
+  const settings = StoredRecordOrEmptySchema.parse(raw.settings);
+  const settingsCorrect = StoredRecordOrEmptySchema.parse(
+    settings.settingsCorrect,
+  );
+  const settingsPromptGen = StoredRecordOrEmptySchema.parse(
+    settings.settingsPromptGen,
+  );
+  const settingsSummarize = StoredRecordOrEmptySchema.parse(
+    settings.settingsSummarize,
+  );
   const hasSettingsTranslate = "settingsTranslate" in settings;
-  const settingsTranslate = settings.settingsTranslate;
+  const settingsTranslate = StoredRecordOrEmptySchema.parse(
+    settings.settingsTranslate,
+  );
 
-  const rawPresets = asObjectArray(settingsCorrect.presets);
+  const rawPresets = storedRecordEntries(settingsCorrect.presets);
   const needsMigration =
     hasLegacyProviderField ||
     isBareModelValue(settings.selectedModel) ||
     isBareModelValue(settingsCorrect.model) ||
     isBareModelValue(settingsPromptGen.model) ||
     isBareModelValue(settingsSummarize.model) ||
-    isBareModelValue(asRecord(settingsTranslate).model) ||
+    isBareModelValue(settingsTranslate.model) ||
     rawPresets.some((preset) => isBareModelValue(preset.model));
 
-  const migratedSettings = {
+  // SAFETY: only model-ref strings and `enabledProviders` are rewritten; the
+  // rest is the stored settings as read, and `apiStore.set("profiles", …)`
+  // checks the properties `apiStoreSchema` declares before writing it.
+  const migratedSettings: MigratedSettingsStore = {
     ...settings,
-    selectedModel: prefixModelRef(legacyProvider, settings.selectedModel),
+    selectedModel: prefixStoredModelRef(legacyProvider, settings.selectedModel),
     settingsCorrect: migrateSettingsCorrect(legacyProvider, settingsCorrect),
     settingsPromptGen: {
       ...settingsPromptGen,
-      model: prefixModelRef(legacyProvider, settingsPromptGen.model),
+      model: prefixStoredModelRef(legacyProvider, settingsPromptGen.model),
     },
     settingsSummarize: {
       ...settingsSummarize,
-      model: prefixModelRef(legacyProvider, settingsSummarize.model),
+      model: prefixStoredModelRef(legacyProvider, settingsSummarize.model),
     },
-    enabledProviders: resolveEnabledProviders(legacyProvider, needsMigration, settings),
-    ...(hasSettingsTranslate
-      ? { settingsTranslate: migrateLegacyTranslateSettings(legacyProvider, settingsTranslate) }
-      : {}),
+    enabledProviders: resolveEnabledProviders(
+      legacyProvider,
+      needsMigration,
+      settings,
+    ),
   } as SettingsStore;
+  if (hasSettingsTranslate) {
+    migratedSettings.settingsTranslate = migrateLegacyTranslateSettings(
+      legacyProvider,
+      settingsTranslate,
+    );
+  }
 
   const { provider: _legacyProviderField, ...profileWithoutProvider } = raw;
+  // SAFETY: same invariant as `migratedSettings` above — identity fields are
+  // carried over as stored and `apiStoreSchema` checks its declared
+  // properties on write.
   return {
     ...profileWithoutProvider,
     settings: migratedSettings,

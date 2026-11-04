@@ -21,7 +21,10 @@
  * Kept import-cycle-free and renderer-free: the main bundle is CJS (`.cjs`)
  * on Electron 43, and a cycle or a renderer import here breaks the build.
  */
-import { createFormatters, type Formatters } from "~/features/i18n/shared/format";
+import {
+  createFormatters,
+  type Formatters,
+} from "~/features/i18n/shared/format";
 import {
   createTranslator,
   type TKey,

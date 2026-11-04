@@ -7,11 +7,12 @@
  *
  * The shape check is deliberately separate from "does this path exist?": only
  * main may touch the filesystem, and only main may act on the answer. A
- * renderer that pre-filters with `hasAppBundlePathShape` is a convenience for
+ * renderer that pre-filters with `looksLikeAppBundlePath` is a convenience for
  * the user (a dropped .txt is reported, not silently swallowed), never the
  * check that protects the filesystem — `~/features/guards/main/appBundleIds.ts`
  * re-validates every path it is handed and rejects rather than coerces.
  */
+import { z } from "zod";
 import { isLabel, type Label } from "~/features/i18n/shared/message";
 
 /**
@@ -36,16 +37,29 @@ export const MAX_APP_BUNDLE_PATH_LENGTH = 1024;
  * created with, while existence is NOT checked here — that is a filesystem
  * question and belongs in main.
  */
-// eslint-disable-next-line no-control-regex -- rejecting control chars is the point
+// oxlint-disable-next-line no-control-regex -- rejecting control chars is the point
 const CONTROL_CHARACTERS_PATTERN = /[\x00-\x1f\x7f-\x9f]/;
 
-export const hasAppBundlePathShape = (value: unknown): value is string => {
-  if (typeof value !== "string") return false;
-  if (value.length === 0 || value.length > MAX_APP_BUNDLE_PATH_LENGTH) return false;
-  if (!value.startsWith("/")) return false;
-  if (!value.toLowerCase().endsWith(".app")) return false;
-  return !CONTROL_CHARACTERS_PATTERN.test(value);
-};
+/**
+ * Checks run in order and stop at the first failure (`abort`) — zod would
+ * otherwise still run the later refines, so a too-long string would reach
+ * `toLowerCase` and the regex.
+ */
+const AppBundlePathSchema = z
+  .string()
+  .min(1, { abort: true })
+  .max(MAX_APP_BUNDLE_PATH_LENGTH, { abort: true })
+  .startsWith("/", { abort: true })
+  .refine((value) => value.toLowerCase().endsWith(".app"), { abort: true })
+  .refine((value) => !CONTROL_CHARACTERS_PATTERN.test(value));
+
+/**
+ * Re-checked at runtime rather than trusted from the parameter type: the
+ * preload and main both call this on lists that crossed a process boundary,
+ * where a non-string must read as "not an app path", never throw.
+ */
+export const looksLikeAppBundlePath = (value: string): boolean =>
+  AppBundlePathSchema.safeParse(value).success;
 
 /**
  * Reply of both `choose-denied-apps` and `resolve-app-bundle-ids`. A
@@ -60,14 +74,25 @@ export type AppBundleIdsResult =
   | { success: true; bundleIds: string[] }
   | { success: false; error: Label };
 
-const isStringArray = (value: unknown): value is string[] =>
-  Array.isArray(value) && value.every((entry) => typeof entry === "string");
+/**
+ * Built on `Array#every`, which skips holes, rather than on `z.array`, which
+ * would read them as `undefined` and refuse; the array itself is the result.
+ */
+const BundleIdListSchema = z.custom<string[]>(
+  (value) =>
+    Array.isArray(value) &&
+    value.every((entry) => z.string().safeParse(entry).success),
+);
 
-/** Validates an `AppBundleIdsResult` arriving over IPC, for the preload bridge. */
-export const isAppBundleIdsResult = (value: unknown): value is AppBundleIdsResult => {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  if (record.success === true) return isStringArray(record.bundleIds);
-  if (record.success !== false) return false;
-  return isLabel(record.error);
-};
+/**
+ * Validates an `AppBundleIdsResult` arriving over IPC, for the preload bridge.
+ * A success is judged only by its id list and a failure only by its `Label`;
+ * any other key is carried along untouched.
+ */
+export const AppBundleIdsResultSchema = z.union([
+  z.looseObject({ success: z.literal(true), bundleIds: BundleIdListSchema }),
+  z.looseObject({
+    success: z.literal(false),
+    error: z.custom<Label>((value) => isLabel(value)),
+  }),
+]);

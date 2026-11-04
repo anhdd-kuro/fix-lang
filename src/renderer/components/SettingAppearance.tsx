@@ -87,7 +87,10 @@ export const SettingAppearance: React.FC = () => {
               className="w-full"
               onBlur={(event) => {
                 const trimmed = event.target.value.trim();
-                if (trimmed.length === 0 || trimmed === typography.customFontSize) {
+                if (
+                  trimmed.length === 0 ||
+                  trimmed === typography.customFontSize
+                ) {
                   event.target.value = typography.customFontSize;
                   return;
                 }
@@ -139,11 +142,16 @@ export const SettingAppearance: React.FC = () => {
               type="text"
               defaultValue={typography.customFontFamily}
               disabled={typographyLoading}
-              placeholder={t("settings.appearance.fontFamily.customPlaceholder")}
+              placeholder={t(
+                "settings.appearance.fontFamily.customPlaceholder",
+              )}
               className="w-full"
               onBlur={(event) => {
                 const trimmed = event.target.value.trim();
-                if (trimmed.length === 0 || trimmed === typography.customFontFamily) {
+                if (
+                  trimmed.length === 0 ||
+                  trimmed === typography.customFontFamily
+                ) {
                   event.target.value = typography.customFontFamily;
                   return;
                 }

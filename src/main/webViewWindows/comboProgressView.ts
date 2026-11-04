@@ -66,7 +66,8 @@ const CANCELLING_RING_OPACITY = 0.45;
  * into an `executeJavaScript` payload and a raised cap must not start emitting
  * seventeen-digit floats.
  */
-const degrees = (value: number): string => `${Math.round(value * 1000) / 1000}deg`;
+const degrees = (value: number): string =>
+  `${Math.round(value * 1000) / 1000}deg`;
 
 const clampInteger = (value: number, min: number, max: number): number => {
   if (!Number.isFinite(value)) return min;
@@ -92,7 +93,9 @@ const centreGlyph = (state: ComboProgressState, current: number): string => {
  * running chain and end up inside an `executeJavaScript` string, so every one
  * is clamped into a drawable range instead of trusted.
  */
-export const buildComboProgressStyle = (view: ComboProgressView): ComboProgressStyle => {
+export const buildComboProgressStyle = (
+  view: ComboProgressView,
+): ComboProgressStyle => {
   const total = clampInteger(view.total, 1, MAX_COMBO_RING_SEGMENTS);
   const current = clampInteger(view.current, 1, total);
   // Done segments sit strictly BEFORE the current one. The active overlay is

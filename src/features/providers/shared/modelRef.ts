@@ -70,14 +70,16 @@ export const modelRefForModel = (model: Model): string =>
     model.id,
   );
 
-export const isModelRef = (raw: string): boolean => parseModelRef(raw).provider !== null;
+export const isModelRef = (raw: string): boolean =>
+  parseModelRef(raw).provider !== null;
 
 /**
  * Single-pass by design — do not make this loop. A nested ref strips to the
  * inner ref, so it stays visibly corrupt to `resolveModelRef` and the request
  * path instead of being silently laundered into a valid-looking id.
  */
-export const stripModelRefPrefix = (raw: string): string => parseModelRef(raw).modelId;
+export const stripModelRefPrefix = (raw: string): string =>
+  parseModelRef(raw).modelId;
 
 /**
  * A prefixed ref checks only its own provider and then stops: widening the
@@ -94,7 +96,9 @@ export const resolveModelRef = (
   const candidates = parsed.provider ? [parsed.provider] : PROVIDER_ORDER;
   for (const provider of candidates) {
     const model = models.find(
-      (candidate) => candidate.id === parsed.modelId && isModelForProvider(candidate, provider),
+      (candidate) =>
+        candidate.id === parsed.modelId &&
+        isModelForProvider(candidate, provider),
     );
     if (model) {
       return { provider, model, ref: formatModelRef(provider, parsed.modelId) };

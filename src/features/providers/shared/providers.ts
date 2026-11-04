@@ -7,6 +7,8 @@
  * Electron, its store binding, or anything under the app's stores directory —
  * such a dependency breaks `bun run build`, not the tests.
  */
+import { z } from "zod";
+import { schemaGuard } from "~/features/core/shared/schemaGuard";
 
 export const PROVIDER_IDS = Object.freeze([
   "openai",
@@ -18,11 +20,21 @@ export const PROVIDER_IDS = Object.freeze([
 ] as const);
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
-export const isProviderId = (value: unknown): value is ProviderId =>
-  typeof value === "string" && (PROVIDER_IDS as readonly string[]).includes(value);
+/**
+ * Parses a provider id. Membership is exact: `"constructor"`, a boxed string
+ * or a padded id is not a provider.
+ */
+export const ProviderIdSchema = z.enum(PROVIDER_IDS);
+
+/**
+ * Narrowing form of `ProviderIdSchema` for callers that hold a raw value.
+ */
+export const isProviderId = schemaGuard(ProviderIdSchema);
 
 /** A tuple holding every member of `T` exactly once, so a new provider fails the build. */
-type Permutation<T extends string, Rest extends string = T> = [T] extends [never]
+type Permutation<T extends string, Rest extends string = T> = [T] extends [
+  never,
+]
   ? []
   : { [K in Rest]: [K, ...Permutation<Exclude<T, K>>] }[Rest];
 
@@ -45,37 +57,40 @@ export const PROVIDER_ORDER: readonly ProviderId[] = Object.freeze([
 ] satisfies Permutation<ProviderId>);
 
 /** Diagnostics only — user-facing provider names come from the i18n catalogs via `t()`. */
-export const PROVIDER_LOG_LABELS: Readonly<Record<ProviderId, string>> = Object.freeze({
-  openai: "OpenAI",
-  openrouter: "OpenRouter",
-  anthropic: "Anthropic",
-  bedrock: "AWS Bedrock",
-  ollama: "Ollama",
-  lmstudio: "LM Studio",
-});
+export const PROVIDER_LOG_LABELS: Readonly<Record<ProviderId, string>> =
+  Object.freeze({
+    openai: "OpenAI",
+    openrouter: "OpenRouter",
+    anthropic: "Anthropic",
+    bedrock: "AWS Bedrock",
+    ollama: "Ollama",
+    lmstudio: "LM Studio",
+  });
 
-export const PROVIDER_REQUIRES_API_KEY: Readonly<Record<ProviderId, boolean>> = Object.freeze({
-  openai: true,
-  openrouter: true,
-  anthropic: true,
-  bedrock: true,
-  ollama: false,
-  lmstudio: false,
-});
+export const PROVIDER_REQUIRES_API_KEY: Readonly<Record<ProviderId, boolean>> =
+  Object.freeze({
+    openai: true,
+    openrouter: true,
+    anthropic: true,
+    bedrock: true,
+    ollama: false,
+    lmstudio: false,
+  });
 
 /**
  * Whether the provider can store an API key in safeStorage. Required-key
  * providers are a subset; LM Studio supports an optional key without requiring
  * one for connect.
  */
-export const PROVIDER_SUPPORTS_API_KEY: Readonly<Record<ProviderId, boolean>> = Object.freeze({
-  openai: true,
-  openrouter: true,
-  anthropic: true,
-  bedrock: true,
-  ollama: false,
-  lmstudio: true,
-});
+export const PROVIDER_SUPPORTS_API_KEY: Readonly<Record<ProviderId, boolean>> =
+  Object.freeze({
+    openai: true,
+    openrouter: true,
+    anthropic: true,
+    bedrock: true,
+    ollama: false,
+    lmstudio: true,
+  });
 
 /**
  * Whether the provider has an admin-scoped key distinct from its request key —
@@ -87,23 +102,32 @@ export const PROVIDER_SUPPORTS_API_KEY: Readonly<Record<ProviderId, boolean>> = 
  * Anthropic Usage sub-tab, and a stored key nothing reads is a credential held
  * for no reason.
  */
-export const PROVIDER_SUPPORTS_PROVISIONING_KEY: Readonly<Record<ProviderId, boolean>> =
-  Object.freeze({
-    openai: true,
-    openrouter: true,
-    anthropic: false,
-    bedrock: false,
-    ollama: false,
-    lmstudio: false,
-  });
+export const PROVIDER_SUPPORTS_PROVISIONING_KEY: Readonly<
+  Record<ProviderId, boolean>
+> = Object.freeze({
+  openai: true,
+  openrouter: true,
+  anthropic: false,
+  bedrock: false,
+  ollama: false,
+  lmstudio: false,
+});
 
 /**
  * Narrowing guard for every admin-key boundary (IPC payloads, settings cards).
  * Goes through `isProviderId` first so an inherited key like `"constructor"`
  * cannot read truthy off the lookup map's prototype.
  */
-export const supportsAdminKey = (value: unknown): value is ProviderId =>
+export const supportsAdminKey = <Input>(
+  value: Input,
+): value is Input & ProviderId =>
   isProviderId(value) && PROVIDER_SUPPORTS_PROVISIONING_KEY[value];
+
+/**
+ * One tuning value of a local model, as Ollama's model info reports it
+ * (`temperature 0.7`, `num_ctx 4096`, a `stop` sequence list).
+ */
+export type LocalModelParameterValue = string | number | boolean | string[];
 
 export type Model = {
   id: string;
@@ -128,29 +152,40 @@ export type Model = {
       temperature?: number;
       top_p?: number;
       repeat_penalty?: number;
-      [key: string]: unknown;
+      [key: string]: LocalModelParameterValue | undefined;
     };
   };
 };
 
-export const isModelForProvider = (model: Model, provider: ProviderId): boolean =>
+export const isModelForProvider = (
+  model: Model,
+  provider: ProviderId,
+): boolean =>
   provider === "ollama"
     ? model.provider === "ollama" || model.local !== undefined
     : model.provider === provider ||
-      (provider === "openrouter" && model.provider === undefined && !model.local);
+      (provider === "openrouter" &&
+        model.provider === undefined &&
+        !model.local);
 
 /** Use this over `m.provider === provider`, which silently drops untagged legacy entries. */
-export const modelsForProvider = (models: readonly Model[], provider: ProviderId): Model[] =>
-  models.filter((model) => isModelForProvider(model, provider));
+export const modelsForProvider = (
+  models: readonly Model[],
+  provider: ProviderId,
+): Model[] => models.filter((model) => isModelForProvider(model, provider));
 
 /** Empty groups are kept so the caller decides whether to render a heading for them. */
 export const groupModelsByProvider = (
   models: readonly Model[],
   order: readonly ProviderId[] = PROVIDER_ORDER,
 ): { provider: ProviderId; models: Model[] }[] =>
-  order.map((provider) => ({ provider, models: modelsForProvider(models, provider) }));
+  order.map((provider) => ({
+    provider,
+    models: modelsForProvider(models, provider),
+  }));
 
-export const providerOfModel = (model: Model): ProviderId => model.provider ?? "openrouter";
+export const providerOfModel = (model: Model): ProviderId =>
+  model.provider ?? "openrouter";
 
 /**
  * `provider` is re-validated despite its type: values reach here from a
@@ -162,13 +197,20 @@ export const isProviderConfigured = (
   state: { hasApiKey: boolean; explicitlyEnabled: boolean },
 ): boolean =>
   isProviderId(provider) &&
-  (PROVIDER_REQUIRES_API_KEY[provider] ? state.hasApiKey : state.explicitlyEnabled);
+  (PROVIDER_REQUIRES_API_KEY[provider]
+    ? state.hasApiKey
+    : state.explicitlyEnabled);
 
-export const sanitizeEnabledProviders = (raw: unknown): ProviderId[] => {
-  if (!Array.isArray(raw)) return [];
-  const known = new Set<ProviderId>();
-  for (const value of raw) {
-    if (isProviderId(value)) known.add(value);
-  }
+/**
+ * A stored `enabledProviders` list: not an array reads as `[]`, entries that
+ * are not provider ids are dropped. Order and duplicates are settled by the
+ * sanitizer below, not here.
+ */
+export const StoredEnabledProvidersSchema = z
+  .array(ProviderIdSchema.nullable().catch(null))
+  .catch([]);
+
+export const sanitizeEnabledProviders = <Input>(raw: Input): ProviderId[] => {
+  const known = new Set(StoredEnabledProvidersSchema.parse(raw));
   return PROVIDER_ORDER.filter((provider) => known.has(provider));
 };

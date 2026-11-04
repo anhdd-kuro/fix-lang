@@ -58,7 +58,9 @@ describe("window titles", () => {
     const askResult = buildAskResultWindowTitle();
 
     expect(promptGen).toBe(tJa("notifications.window.promptGen.title"));
-    expect(correctionResult).toBe(tJa("notifications.window.correctionResult.title"));
+    expect(correctionResult).toBe(
+      tJa("notifications.window.correctionResult.title"),
+    );
     expect(errorPopup).toBe(tJa("notifications.errorPopup.title"));
     expect(errorClose).toBe(tJa("common.close"));
     expect(askInput).toBe(tJa("notifications.window.askInput.title"));

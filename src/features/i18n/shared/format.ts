@@ -15,6 +15,8 @@
  */
 
 import { enUS, ja, type Locale as DateFnsLocale } from "date-fns/locale";
+import { z } from "zod";
+import { schemaGuard } from "~/features/core/shared/schemaGuard";
 import { LOCALE_META, type Locale } from "./registry";
 
 /** Anything a caller might reasonably hand us as a point in time. */
@@ -27,7 +29,10 @@ export type Formatters = {
   formatCurrency: (value: number, currency?: string) => string;
   /** `value` is a 0..1 ratio, e.g. `0.42` → `"42%"`. */
   formatPercent: (value: number, fractionDigits?: number) => string;
-  formatDate: (value: DateInput, options?: Intl.DateTimeFormatOptions) => string;
+  formatDate: (
+    value: DateInput,
+    options?: Intl.DateTimeFormatOptions,
+  ) => string;
   formatDateTime: (value: DateInput) => string;
   formatRelativeTime: (value: DateInput, now?: DateInput) => string;
   dateFnsLocale: DateFnsLocale;
@@ -37,29 +42,30 @@ export type Formatters = {
 // Intl instance cache
 // ---------------------------------------------------------------------------
 
+type IntlFormatOptions =
+  | Intl.NumberFormatOptions
+  | Intl.DateTimeFormatOptions
+  | Intl.RelativeTimeFormatOptions;
+
 /**
- * Sorts object keys (recursively) so two option objects with the same
- * key/value pairs in different insertion order produce the same cache key.
+ * Sorts option keys so two option objects with the same key/value pairs in
+ * different insertion order produce the same cache key. Intl options are
+ * flat (primitive values only), so one level of sorting is the whole job.
  */
-const canonicalize = (value: unknown): unknown => {
-  if (value === null || typeof value !== "object") {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map(canonicalize);
-  }
-  return Object.keys(value as Record<string, unknown>)
-    .sort()
-    .reduce<Record<string, unknown>>((acc, key) => {
-      acc[key] = canonicalize((value as Record<string, unknown>)[key]);
-      return acc;
-    }, {});
-};
+const cacheKey = (locale: Locale, options: IntlFormatOptions = {}): string =>
+  `${locale}:${JSON.stringify(
+    Object.fromEntries(
+      Object.entries(options).sort(([left], [right]) =>
+        left < right ? -1 : left > right ? 1 : 0,
+      ),
+    ),
+  )}`;
 
-const cacheKey = (locale: Locale, options?: object): string =>
-  `${locale}:${JSON.stringify(canonicalize(options ?? {}))}`;
-
-const getOrCreate = <T>(cache: Map<string, T>, key: string, factory: () => T): T => {
+const getOrCreate = <T>(
+  cache: Map<string, T>,
+  key: string,
+  factory: () => T,
+): T => {
   const existing = cache.get(key);
   if (existing) {
     return existing;
@@ -77,36 +83,49 @@ const getNumberFormat = (
   locale: Locale,
   options?: Intl.NumberFormatOptions,
 ): Intl.NumberFormat =>
-  getOrCreate(numberFormatCache, cacheKey(locale, options), () =>
-    new Intl.NumberFormat(LOCALE_META[locale].intlTag, options),
+  getOrCreate(
+    numberFormatCache,
+    cacheKey(locale, options),
+    () => new Intl.NumberFormat(LOCALE_META[locale].intlTag, options),
   );
 
 const getDateTimeFormat = (
   locale: Locale,
   options?: Intl.DateTimeFormatOptions,
 ): Intl.DateTimeFormat =>
-  getOrCreate(dateTimeFormatCache, cacheKey(locale, options), () =>
-    new Intl.DateTimeFormat(LOCALE_META[locale].intlTag, options),
+  getOrCreate(
+    dateTimeFormatCache,
+    cacheKey(locale, options),
+    () => new Intl.DateTimeFormat(LOCALE_META[locale].intlTag, options),
   );
 
 const getRelativeTimeFormat = (
   locale: Locale,
   options?: Intl.RelativeTimeFormatOptions,
 ): Intl.RelativeTimeFormat =>
-  getOrCreate(relativeTimeFormatCache, cacheKey(locale, options), () =>
-    new Intl.RelativeTimeFormat(LOCALE_META[locale].intlTag, options),
+  getOrCreate(
+    relativeTimeFormatCache,
+    cacheKey(locale, options),
+    () => new Intl.RelativeTimeFormat(LOCALE_META[locale].intlTag, options),
   );
 
 // ---------------------------------------------------------------------------
 // Safe input coercion
 // ---------------------------------------------------------------------------
 
+const isNonFiniteNumber = schemaGuard(
+  z.union([
+    z.nan(),
+    z.literal([Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]),
+  ]),
+);
+
 /** Parses `value` into a valid `Date`, or `null` if it can't be. */
 const toValidDate = (value: DateInput): Date | null => {
   if (value instanceof Date) {
     return Number.isNaN(value.getTime()) ? null : value;
   }
-  if (typeof value === "number" && !Number.isFinite(value)) {
+  if (isNonFiniteNumber(value)) {
     return null;
   }
   const parsed = new Date(value);
@@ -121,19 +140,28 @@ const formatNumberImpl = (
   locale: Locale,
   value: number,
   options?: Intl.NumberFormatOptions,
-): string => (Number.isFinite(value) ? getNumberFormat(locale, options).format(value) : "");
+): string =>
+  Number.isFinite(value) ? getNumberFormat(locale, options).format(value) : "";
 
 const formatCompactNumberImpl = (locale: Locale, value: number): string =>
   Number.isFinite(value)
     ? getNumberFormat(locale, { notation: "compact" }).format(value)
     : "";
 
-const formatCurrencyImpl = (locale: Locale, value: number, currency = "USD"): string =>
+const formatCurrencyImpl = (
+  locale: Locale,
+  value: number,
+  currency = "USD",
+): string =>
   Number.isFinite(value)
     ? getNumberFormat(locale, { style: "currency", currency }).format(value)
     : "";
 
-const formatPercentImpl = (locale: Locale, value: number, fractionDigits = 0): string =>
+const formatPercentImpl = (
+  locale: Locale,
+  value: number,
+  fractionDigits = 0,
+): string =>
   Number.isFinite(value)
     ? getNumberFormat(locale, {
         style: "percent",
@@ -172,14 +200,17 @@ const formatDateTimeImpl = (_locale: Locale, value: DateInput): string => {
 // Relative time
 // ---------------------------------------------------------------------------
 
+/** A relative-time amount and the `Intl` unit it is expressed in. */
+type RelativeTimeDivision = {
+  amount: number;
+  unit: Intl.RelativeTimeFormatUnit;
+};
+
 /**
  * Cascading unit thresholds (seconds → minutes → hours → days → months →
  * years), the standard `Intl.RelativeTimeFormat` "pick a unit" algorithm.
  */
-const RELATIVE_TIME_DIVISIONS: readonly {
-  amount: number;
-  unit: Intl.RelativeTimeFormatUnit;
-}[] = [
+const RELATIVE_TIME_DIVISIONS: readonly RelativeTimeDivision[] = [
   { amount: 60, unit: "second" },
   { amount: 60, unit: "minute" },
   { amount: 24, unit: "hour" },
@@ -188,9 +219,7 @@ const RELATIVE_TIME_DIVISIONS: readonly {
   { amount: Number.POSITIVE_INFINITY, unit: "year" },
 ];
 
-const selectRelativeUnit = (
-  deltaSeconds: number,
-): { amount: number; unit: Intl.RelativeTimeFormatUnit } => {
+const selectRelativeUnit = (deltaSeconds: number): RelativeTimeDivision => {
   let duration = deltaSeconds;
   for (const division of RELATIVE_TIME_DIVISIONS) {
     if (Math.abs(duration) < division.amount) {
@@ -202,7 +231,11 @@ const selectRelativeUnit = (
   return { amount: Math.round(duration), unit: "year" };
 };
 
-const formatRelativeTimeImpl = (locale: Locale, value: DateInput, now?: DateInput): string => {
+const formatRelativeTimeImpl = (
+  locale: Locale,
+  value: DateInput,
+  now?: DateInput,
+): string => {
   const target = toValidDate(value);
   const reference = toValidDate(now ?? new Date());
   if (!target || !reference) {
@@ -210,26 +243,37 @@ const formatRelativeTimeImpl = (locale: Locale, value: DateInput, now?: DateInpu
   }
   const deltaSeconds = (target.getTime() - reference.getTime()) / 1000;
   const { amount, unit } = selectRelativeUnit(deltaSeconds);
-  return getRelativeTimeFormat(locale, { numeric: "auto" }).format(amount, unit);
+  return getRelativeTimeFormat(locale, { numeric: "auto" }).format(
+    amount,
+    unit,
+  );
 };
 
 // ---------------------------------------------------------------------------
 // date-fns locale mapping
 // ---------------------------------------------------------------------------
 
-const DATE_FNS_LOCALES: Record<Locale, DateFnsLocale> = {
+const DATE_FNS_LOCALES = {
   en: enUS,
   ja,
-};
+} satisfies Record<Locale, DateFnsLocale>;
 
 /** Maps a FixLang {@link Locale} to its `date-fns/locale` object. */
-export const dateFnsLocaleFor = (locale: Locale): DateFnsLocale => DATE_FNS_LOCALES[locale];
+export const dateFnsLocaleFor = (locale: Locale): DateFnsLocale =>
+  DATE_FNS_LOCALES[locale];
 
 // ---------------------------------------------------------------------------
 // Public factory
 // ---------------------------------------------------------------------------
 
 const formattersCache = new Map<Locale, Formatters>();
+
+/** Entry counts of each `Intl.*` memoization cache. */
+type FormatCacheSizes = {
+  numberFormat: number;
+  dateTimeFormat: number;
+  relativeTimeFormat: number;
+};
 
 /**
  * Test-only escape hatch: peek at the cached `Intl.*` instances (and cache
@@ -240,18 +284,22 @@ const formattersCache = new Map<Locale, Formatters>();
  * Not used by production code.
  */
 export const __peekFormatCachesForTests = {
-  numberFormat: (locale: Locale, options?: Intl.NumberFormatOptions): Intl.NumberFormat | undefined =>
+  numberFormat: (
+    locale: Locale,
+    options?: Intl.NumberFormatOptions,
+  ): Intl.NumberFormat | undefined =>
     numberFormatCache.get(cacheKey(locale, options)),
   dateTimeFormat: (
     locale: Locale,
     options?: Intl.DateTimeFormatOptions,
-  ): Intl.DateTimeFormat | undefined => dateTimeFormatCache.get(cacheKey(locale, options)),
+  ): Intl.DateTimeFormat | undefined =>
+    dateTimeFormatCache.get(cacheKey(locale, options)),
   relativeTimeFormat: (
     locale: Locale,
     options?: Intl.RelativeTimeFormatOptions,
   ): Intl.RelativeTimeFormat | undefined =>
     relativeTimeFormatCache.get(cacheKey(locale, options)),
-  sizes: (): { numberFormat: number; dateTimeFormat: number; relativeTimeFormat: number } => ({
+  sizes: (): FormatCacheSizes => ({
     numberFormat: numberFormatCache.size,
     dateTimeFormat: dateTimeFormatCache.size,
     relativeTimeFormat: relativeTimeFormatCache.size,
@@ -286,11 +334,14 @@ export const createFormatters = (locale: Locale): Formatters => {
   const formatters: Formatters = {
     formatNumber: (value, options) => formatNumberImpl(locale, value, options),
     formatCompactNumber: (value) => formatCompactNumberImpl(locale, value),
-    formatCurrency: (value, currency) => formatCurrencyImpl(locale, value, currency),
-    formatPercent: (value, fractionDigits) => formatPercentImpl(locale, value, fractionDigits),
+    formatCurrency: (value, currency) =>
+      formatCurrencyImpl(locale, value, currency),
+    formatPercent: (value, fractionDigits) =>
+      formatPercentImpl(locale, value, fractionDigits),
     formatDate: (value, options) => formatDateImpl(locale, value, options),
     formatDateTime: (value) => formatDateTimeImpl(locale, value),
-    formatRelativeTime: (value, now) => formatRelativeTimeImpl(locale, value, now),
+    formatRelativeTime: (value, now) =>
+      formatRelativeTimeImpl(locale, value, now),
     dateFnsLocale: dateFnsLocaleFor(locale),
   };
 

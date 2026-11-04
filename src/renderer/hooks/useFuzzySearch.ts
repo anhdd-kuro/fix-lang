@@ -17,7 +17,7 @@ type FuseConfig = {
 // presetName is now a direct string field on HistoryEntry, so no featureMap lookup is needed.
 export function useFuzzySearch(
   history: HistoryEntry[],
-  searchQuery: string
+  searchQuery: string,
 ): HistoryEntry[] {
   // Default configuration for Fuse.js
   const fuseConfig: FuseConfig = useMemo(() => {
@@ -58,7 +58,7 @@ export function useFuzzySearch(
     const result = fuse.search(searchQuery).map((result) => result.item);
     const sortedLastByTimestamp = result.sort(
       (a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
     return sortedLastByTimestamp;
   }, [history, searchQuery, fuseConfig]);

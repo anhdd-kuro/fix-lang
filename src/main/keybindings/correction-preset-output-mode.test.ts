@@ -36,7 +36,7 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
+  // oxlint-disable-next-line typescript/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return {
     ...real,
@@ -55,15 +55,19 @@ vi.mock("~/features/correction/store/keybindingStore", () => ({
   },
 }));
 vi.mock("~/features/correction/store/outputModeStore", () => ({
-  outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("paste") },
+  outputModeStore: {
+    getCorrectionOutputMode: vi.fn().mockReturnValue("paste"),
+  },
 }));
 vi.mock("../../utils", () => ({
   getHighlightedTextWithActiveApp: vi
     .fn()
-    .mockImplementation(async (onFrontmostReadAndKeystrokeSent?: () => void) => {
-      onFrontmostReadAndKeystrokeSent?.();
-      return { text: "some selected text", activeApp: null };
-    }),
+    .mockImplementation(
+      async (onFrontmostReadAndKeystrokeSent?: () => void) => {
+        onFrontmostReadAndKeystrokeSent?.();
+        return { text: "some selected text", activeApp: null };
+      },
+    ),
   pasteText: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../ai.request", () => ({ fixGrammar: vi.fn() }));
@@ -91,12 +95,17 @@ vi.mock("./askEnvironment", () => ({
     timeZone: "Asia/Tokyo",
     recentTransforms: [],
   }),
-  buildAskDirectives: vi.fn().mockReturnValue("App locale: en\nSystem language: en-US"),
+  buildAskDirectives: vi
+    .fn()
+    .mockReturnValue("App locale: en\nSystem language: en-US"),
 }));
 vi.mock("./utils", () => ({
   checkShortcut: vi.fn(),
   handleError: vi.fn(),
-  withHotkeyThrottle: (_accelerator: string, handler: () => unknown) => handler,
+  withHotkeyThrottle: (
+    _accelerator: string,
+    handler: () => void | Promise<void>,
+  ) => handler,
 }));
 vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
   showErrorPopup: vi.fn(),
@@ -107,18 +116,27 @@ import { registerCorrectionShortcut } from "./correction";
 import { pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
 import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWindow";
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, WebContents } from "electron";
 import type { Mock } from "vitest";
 import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
 import type { PresetOutputMode } from "~/features/correction/shared/presetOutputMode";
+import type { CorrectionPreset } from "~/features/providers/store/apiStore";
 
 const HOTKEY = "Control+Shift+F";
 
-const fakeMainWindow = () =>
-  ({
+/** The two members the hotkey path touches; everything else is never read. */
+type FakeMainWindow = {
+  isDestroyed: BrowserWindow["isDestroyed"];
+  webContents: Pick<WebContents, "send">;
+};
+
+const fakeMainWindow = (): BrowserWindow => {
+  const fake: FakeMainWindow = {
     isDestroyed: () => false,
     webContents: { send: vi.fn() },
-  }) as unknown as BrowserWindow;
+  };
+  return fake as BrowserWindow;
+};
 
 /**
  * Runs the ordinary (non-`requiresInput`) preset hotkey with a given
@@ -132,21 +150,20 @@ const runPolishHotkey = async ({
   globalMode: CorrectionOutputMode;
 }) => {
   (outputModeStore.getCorrectionOutputMode as Mock).mockReturnValue(globalMode);
+  const preset: CorrectionPreset = {
+    id: "correction-default",
+    name: "Correction",
+    hotkey: HOTKEY,
+    systemPrompt: "Fix grammar.",
+    model: "",
+    isBuiltIn: true,
+  };
+  if (presetOutputMode) preset.outputMode = presetOutputMode;
   (getProfileSetting as Mock).mockImplementation((key: string) =>
     key === "models"
       ? []
       : {
-          presets: [
-            {
-              id: "correction-default",
-              name: "Correction",
-              hotkey: HOTKEY,
-              systemPrompt: "Fix grammar.",
-              model: "",
-              isBuiltIn: true,
-              ...(presetOutputMode ? { outputMode: presetOutputMode } : {}),
-            },
-          ],
+          presets: [preset],
           selectedPresetId: "correction-default",
         },
   );

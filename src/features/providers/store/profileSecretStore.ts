@@ -9,7 +9,7 @@
 import { rm, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { app, safeStorage } from "electron";
-import { findKeyShapeMismatch } from "~/features/providers/shared/providerKeyShapes";
+import { findKeyFamilyMismatch } from "~/features/providers/shared/providerKeyFamilies";
 import {
   PROVIDER_IDS,
   PROVIDER_LOG_LABELS,
@@ -36,11 +36,15 @@ const isValidProfileId = (profileId: string): boolean =>
 export const secretKindsForProvider = (provider: ProviderId): SecretKind[] => [
   ...(PROVIDER_SUPPORTS_API_KEY[provider] ? (["api"] as const) : []),
   ...(provider === "bedrock" ? (["secret"] as const) : []),
-  ...(PROVIDER_SUPPORTS_PROVISIONING_KEY[provider] ? (["provisioning"] as const) : []),
+  ...(PROVIDER_SUPPORTS_PROVISIONING_KEY[provider]
+    ? (["provisioning"] as const)
+    : []),
 ];
 
 const provisioningProviderNames = (): string =>
-  PROVIDER_IDS.filter((provider) => PROVIDER_SUPPORTS_PROVISIONING_KEY[provider])
+  PROVIDER_IDS.filter(
+    (provider) => PROVIDER_SUPPORTS_PROVISIONING_KEY[provider],
+  )
     .map((provider) => PROVIDER_LOG_LABELS[provider])
     .join(" and ");
 
@@ -91,7 +95,7 @@ const validateSecret = (
 ): { value: string } | { error: string } => {
   const value = raw.trim();
   if (!value) return { error: "API key must not be empty" };
-  const mismatch = findKeyShapeMismatch(provider, kind, value);
+  const mismatch = findKeyFamilyMismatch(provider, kind, value);
   if (mismatch) {
     return {
       error: `That key does not belong to ${PROVIDER_LOG_LABELS[provider]}'s ${
@@ -136,7 +140,10 @@ export const getProfileSecret = async (
   kind: SecretKind,
 ): Promise<string | null> => {
   try {
-    const content = await readFile(getProfileSecretPath(profileId, provider, kind), "utf8");
+    const content = await readFile(
+      getProfileSecretPath(profileId, provider, kind),
+      "utf8",
+    );
     if (!content.trim() || !safeStorage.isEncryptionAvailable()) return null;
     return safeStorage.decryptString(Buffer.from(content, "base64"));
   } catch {
@@ -150,7 +157,10 @@ export const hasProfileSecret = async (
   kind: SecretKind,
 ): Promise<boolean> => {
   try {
-    const content = await readFile(getProfileSecretPath(profileId, provider, kind), "utf8");
+    const content = await readFile(
+      getProfileSecretPath(profileId, provider, kind),
+      "utf8",
+    );
     return Boolean(content.trim());
   } catch {
     return false;
@@ -204,7 +214,8 @@ export const getActiveProfileSecret = async (
   kind: SecretKind,
 ): Promise<string | null> => {
   if (!secretKindsForProvider(provider).includes(kind)) return null;
-  const { getCurrentProfileId } = await import("~/features/providers/store/apiStore");
+  const { getCurrentProfileId } =
+    await import("~/features/providers/store/apiStore");
   const profileId = getCurrentProfileId();
   return profileId ? getProfileSecret(profileId, provider, kind) : null;
 };

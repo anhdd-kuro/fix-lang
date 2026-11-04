@@ -91,7 +91,7 @@ export const AskResultWindow = () => {
         payload.markdown ? (
           <MarkdownView markdown={answer} />
         ) : (
-          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+          <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed">
             {answer}
           </p>
         ),

@@ -38,14 +38,19 @@ describe("buildModelOptionLabel", () => {
       pricing: { prompt: "0.0000004" } as ModelForLabel["pricing"],
     };
     const label = buildModelOptionLabel(model, depsFor("ja"));
-    expect(label).toBe("openai/gpt-5-mini, 2024-03-15, 100万トークンあたり$0.40");
+    expect(label).toBe(
+      "openai/gpt-5-mini, 2024-03-15, 100万トークンあたり$0.40",
+    );
   });
 
   it("shows the model size for a local model with a known size (EN)", () => {
     const model: ModelForLabel = {
       id: "llama3:70b",
       created: CREATED_SECONDS,
-      local: { path: "/models/llama3-70b.gguf", size: 70 } as ModelForLabel["local"],
+      local: {
+        path: "/models/llama3-70b.gguf",
+        size: 70,
+      } as ModelForLabel["local"],
     };
     const label = buildModelOptionLabel(model, depsFor("en"));
     expect(label).toBe("llama3:70b, 2024-03-15, 70B");
@@ -55,7 +60,10 @@ describe("buildModelOptionLabel", () => {
     const model: ModelForLabel = {
       id: "llama3:70b",
       created: CREATED_SECONDS,
-      local: { path: "/models/llama3-70b.gguf", size: 70 } as ModelForLabel["local"],
+      local: {
+        path: "/models/llama3-70b.gguf",
+        size: 70,
+      } as ModelForLabel["local"],
     };
     const label = buildModelOptionLabel(model, depsFor("ja"));
     expect(label).toBe("llama3:70b, 2024-03-15, 70B");
@@ -133,12 +141,15 @@ describe("models.select.optionLabel comma contract", () => {
     "models.select.optionLabel.cloud",
   ] as const;
 
-  it.each(CONTRACT_KEYS)("%s has exactly two ASCII commas in every locale", (key) => {
-    for (const locale of LOCALE_CODES) {
-      const template = CATALOGS[locale][key];
-      expect(template, `${locale}/${key} is missing`).toBeDefined();
-      const commaCount = (template ?? "").split(",").length - 1;
-      expect(commaCount, `${locale}/${key}: "${template}"`).toBe(2);
-    }
-  });
+  it.each(CONTRACT_KEYS)(
+    "%s has exactly two ASCII commas in every locale",
+    (key) => {
+      for (const locale of LOCALE_CODES) {
+        const template = CATALOGS[locale][key];
+        expect(template, `${locale}/${key} is missing`).toBeDefined();
+        const commaCount = (template ?? "").split(",").length - 1;
+        expect(commaCount, `${locale}/${key}: "${template}"`).toBe(2);
+      }
+    },
+  );
 });

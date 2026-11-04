@@ -27,37 +27,37 @@ export const registerProfileSwitchShortcut = (): void => {
   const ret = globalShortcut.register(
     accelerator,
     withHotkeyThrottle(accelerator, async () => {
-    console.log("Profile switch shortcut triggered");
+      console.log("Profile switch shortcut triggered");
 
-    try {
-      const nextProfile = switchToNextProfile();
+      try {
+        const nextProfile = switchToNextProfile();
 
-      if (nextProfile) {
-        globalShortcut.unregisterAll();
-        const mainWindow = getMainWindow();
-        if (mainWindow) {
-          const { registerHotkeys } = await import("./index");
-          registerHotkeys(mainWindow);
+        if (nextProfile) {
+          globalShortcut.unregisterAll();
+          const mainWindow = getMainWindow();
+          if (mainWindow) {
+            const { registerHotkeys } = await import("./index");
+            registerHotkeys(mainWindow);
+          }
+          // This path never crosses preload, so no renderer would otherwise learn
+          // that every profile-scoped credential just changed underneath it.
+          notifyActiveProfileChanged();
+          new Notification(
+            buildProfileSwitchHotkeyNotification(nextProfile.name),
+          ).show();
+        } else {
+          handleError(
+            new LocalizedError(
+              "No profiles available.",
+              "notifications.error.noProfilesAvailable.body",
+            ),
+          );
         }
-        // This path never crosses preload, so no renderer would otherwise learn
-        // that every profile-scoped credential just changed underneath it.
-        notifyActiveProfileChanged();
-        new Notification(
-          buildProfileSwitchHotkeyNotification(nextProfile.name),
-        ).show();
-      } else {
-        handleError(
-          new LocalizedError(
-            "No profiles available.",
-            "notifications.error.noProfilesAvailable.body",
-          ),
-        );
+      } catch (error) {
+        console.error("Error switching profile:", error);
+        handleError(error);
       }
-    } catch (error) {
-      console.error("Error switching profile:", error);
-      handleError(error);
-    }
-  }),
+    }),
   );
 
   checkShortcut(ret);

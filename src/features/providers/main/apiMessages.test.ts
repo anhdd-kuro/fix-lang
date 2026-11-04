@@ -21,6 +21,8 @@
  * `textLabel` rather than guessing at translatability.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { IpcMainInvokeEvent, ipcMain } from "electron";
+import type { ProviderEndpointMap } from "~/features/providers/store/apiStore";
 import { isLabel, resolveLabel } from "~/features/i18n/shared/message";
 import { createTranslator } from "~/features/i18n/shared/translate";
 // `registerApiHandlers` (registers the real handlers into `handlers`) and the
@@ -31,11 +33,15 @@ import { createTranslator } from "~/features/i18n/shared/translate";
 // the trailing `type`-only group).
 import { registerApiHandlers } from "./api";
 import type { Label } from "~/features/i18n/shared/message";
+import type { ProviderId } from "~/features/providers/shared/providers";
+import type { Profile } from "~/features/providers/store/apiStore";
 
 const tEn = createTranslator("en");
 const tJa = createTranslator("ja");
 
-const resolveBoth = (label: unknown): { en: string; ja: string } => {
+type ResolvedInBothLocales = { en: string; ja: string };
+
+const resolveBoth = (label: Label | undefined): ResolvedInBothLocales => {
   expect(isLabel(label)).toBe(true);
   return {
     en: resolveLabel(label as Label, tEn),
@@ -43,11 +49,18 @@ const resolveBoth = (label: unknown): { en: string; ja: string } => {
   };
 };
 
-const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
+// Electron's own listener contract: its `any` args and result are Electron's
+// declaration, not ours. The handlers under test never read the event.
+type IpcInvokeListener = Parameters<typeof ipcMain.handle>[1];
+const unusedEvent = {} as IpcMainInvokeEvent;
+const handlers = new Map<string, IpcInvokeListener>();
 vi.mock("electron", () => ({
-  ipcMain: { handle: (channel: string, listener: (event: unknown, ...args: unknown[]) => unknown) => {
-    handlers.set(channel, listener);
-  }, on: vi.fn() },
+  ipcMain: {
+    handle: (channel: string, listener: IpcInvokeListener) => {
+      handlers.set(channel, listener);
+    },
+    on: vi.fn(),
+  },
 }));
 
 const {
@@ -93,10 +106,13 @@ vi.mock("~/main/ai.request", () => ({
   fetchModelsForProviders: fetchModelsForProvidersMock,
 }));
 vi.mock("~/main/llm/models/discover", () => ({ probeOllama: probeOllamaMock }));
-vi.mock("~/main/llm/providers/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
+vi.mock("~/main/llm/providers/lmstudio/client", () => ({
+  probeLmStudio: probeLmStudioMock,
+}));
 vi.mock("~/main/keybindings", () => ({ reloadHotkeys: vi.fn() }));
 vi.mock("~/main/llm", () => ({
-  createOllamaClient: () => ({ pull: vi.fn(), delete: vi.fn(), chat: vi.fn() }), ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
+  createOllamaClient: () => ({ pull: vi.fn(), delete: vi.fn(), chat: vi.fn() }),
+  ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
 }));
 vi.mock("~/main/llm/models/compatibility", () => ({
   checkModelCompatibility: checkModelCompatibilityMock,
@@ -123,11 +139,12 @@ vi.mock("~/features/providers/store/apiStore", () => ({
   getCurrentProfileId: getCurrentProfileIdMock,
   getDefaultModelId: vi.fn(),
   getProfileSetting: getProfileSettingMock,
-    getProviderEndpoint: () => undefined,
-    sanitizeProviderEndpoints: (raw: unknown) => (raw && typeof raw === "object" ? raw : {}),
+  getProviderEndpoint: () => undefined,
+  sanitizeProviderEndpoints: (raw: ProviderEndpointMap | undefined) =>
+    raw && typeof raw === "object" ? raw : {},
   resetCurrentProfileSettings: resetCurrentProfileSettingsMock,
   updateProfileSetting: updateProfileSettingMock,
-  withoutProfileSecrets: vi.fn((profile: unknown) => profile),
+  withoutProfileSecrets: vi.fn((profile: Profile) => profile),
 }));
 vi.mock("~/features/correction/store/keybindingStore", () => ({
   keybindingStore: { resetKeyBindings: vi.fn() },
@@ -158,7 +175,7 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     setProfileSecretMock.mockResolvedValue({ success: true });
     clearProfileSecretMock.mockResolvedValue({ success: true });
     probeOllamaMock.mockResolvedValue({ reachable: true, models: [] });
-  probeLmStudioMock.mockResolvedValue({ reachable: true, models: [] });
+    probeLmStudioMock.mockResolvedValue({ reachable: true, models: [] });
     fetchModelsForProvidersMock.mockResolvedValue({ models: [], errors: {} });
     connectProviderToActiveProfileMock.mockReturnValue({ id: "profile_1" });
     disconnectProviderFromActiveProfileMock.mockReturnValue(null);
@@ -167,7 +184,10 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
 
   it("set-api-key: a non-string key is a translatable 'Invalid key' Message", async () => {
     const handler = handlers.get("set-api-key");
-    const result = (await handler?.(undefined, 42)) as { success: boolean; error?: unknown };
+    const result = (await handler?.(unusedEvent, 42)) as {
+      success: boolean;
+      error?: Label;
+    };
 
     expect(result.success).toBe(false);
     const { en, ja } = resolveBoth(result.error);
@@ -178,9 +198,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
 
   it("fetch-provider-models: an unparseable payload is a translatable 'Invalid provider setup' Message", async () => {
     const handler = handlers.get("fetch-provider-models");
-    const result = (await handler?.(undefined, { provider: "bogus" })) as {
+    const result = (await handler?.(unusedEvent, { provider: "bogus" })) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -192,10 +212,10 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
 
   it("fetch-provider-models: an admin key on a provider without that slot is a translatable Message", async () => {
     const handler = handlers.get("fetch-provider-models");
-    const result = (await handler?.(undefined, {
+    const result = (await handler?.(unusedEvent, {
       provider: "lmstudio",
       provisioningKey: "sk-x",
-    })) as { success: boolean; error?: unknown };
+    })) as { success: boolean; error?: Label };
 
     expect(result.success).toBe(false);
     const { en, ja } = resolveBoth(result.error);
@@ -207,27 +227,31 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
   it("fetch-provider-models: a missing API key is a translatable, parameterized Message naming the provider", async () => {
     getProfileSecretMock.mockResolvedValue(null);
     const handler = handlers.get("fetch-provider-models");
-    const result = (await handler?.(undefined, { provider: "openai" })) as {
+    const result = (await handler?.(unusedEvent, { provider: "openai" })) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
     const { en, ja } = resolveBoth(result.error);
     expect(en).toBe(
-      tEn("models.providerSetup.error.apiKeyRequiredFirst", { provider: "OpenAI" }),
+      tEn("models.providerSetup.error.apiKeyRequiredFirst", {
+        provider: "OpenAI",
+      }),
     );
     expect(ja).toBe(
-      tJa("models.providerSetup.error.apiKeyRequiredFirst", { provider: "OpenAI" }),
+      tJa("models.providerSetup.error.apiKeyRequiredFirst", {
+        provider: "OpenAI",
+      }),
     );
     expect(ja).not.toBe(en);
   });
 
   it("connect-provider: an unparseable payload is a translatable 'Invalid provider setup' Message", async () => {
     const handler = handlers.get("connect-provider");
-    const result = (await handler?.(undefined, { provider: "bogus" })) as {
+    const result = (await handler?.(unusedEvent, { provider: "bogus" })) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -240,18 +264,24 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
   it("connect-provider: a missing API key is a translatable, parameterized Message naming the provider", async () => {
     getProfileSecretMock.mockResolvedValue(null);
     const handler = handlers.get("connect-provider");
-    const result = (await handler?.(undefined, { provider: "openrouter" })) as {
+    const result = (await handler?.(unusedEvent, {
+      provider: "openrouter",
+    })) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
     const { en, ja } = resolveBoth(result.error);
     expect(en).toBe(
-      tEn("models.providerSetup.error.apiKeyRequired", { provider: "OpenRouter" }),
+      tEn("models.providerSetup.error.apiKeyRequired", {
+        provider: "OpenRouter",
+      }),
     );
     expect(ja).toBe(
-      tJa("models.providerSetup.error.apiKeyRequired", { provider: "OpenRouter" }),
+      tJa("models.providerSetup.error.apiKeyRequired", {
+        provider: "OpenRouter",
+      }),
     );
     expect(ja).not.toBe(en);
   });
@@ -265,9 +295,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     const handler = handlers.get("connect-provider");
     // No `apiKey` supplied and `hasProfileSecret` resolves false — the
     // "already verified" branch fails without writing a new secret.
-    const result = (await handler?.(undefined, { provider: "openai" })) as {
+    const result = (await handler?.(unusedEvent, { provider: "openai" })) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -285,9 +315,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     ]);
     connectProviderToActiveProfileMock.mockReturnValue(null);
     const handler = handlers.get("connect-provider");
-    const result = (await handler?.(undefined, { provider: "openai" })) as {
+    const result = (await handler?.(unusedEvent, { provider: "openai" })) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -298,11 +328,15 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
   });
 
   it("connect-provider: an unreachable Ollama daemon is a translatable Message", async () => {
-    probeOllamaMock.mockResolvedValue({ reachable: false, models: [], error: "ECONNREFUSED" });
+    probeOllamaMock.mockResolvedValue({
+      reachable: false,
+      models: [],
+      error: "ECONNREFUSED",
+    });
     const handler = handlers.get("connect-provider");
-    const result = (await handler?.(undefined, { provider: "ollama" })) as {
+    const result = (await handler?.(unusedEvent, { provider: "ollama" })) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -315,9 +349,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
   it("connect-provider: the reachable-but-empty Ollama note is a translatable Message on a SUCCESS", async () => {
     probeOllamaMock.mockResolvedValue({ reachable: true, models: [] });
     const handler = handlers.get("connect-provider");
-    const result = (await handler?.(undefined, { provider: "ollama" })) as {
+    const result = (await handler?.(unusedEvent, { provider: "ollama" })) as {
       success: boolean;
-      note?: unknown;
+      note?: Label;
     };
 
     expect(result.success).toBe(true);
@@ -329,9 +363,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
 
   it("disconnect-provider: an unknown provider is a translatable 'Invalid provider setup' Message", async () => {
     const handler = handlers.get("disconnect-provider");
-    const result = (await handler?.(undefined, "bogus")) as {
+    const result = (await handler?.(unusedEvent, "bogus")) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -348,9 +382,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
         : ["openai"],
     );
     const handler = handlers.get("set-selected-model");
-    const result = (await handler?.(undefined, "openrouter::x")) as {
+    const result = (await handler?.(unusedEvent, "openrouter::x")) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -362,9 +396,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
 
   it("set-feature-model: an unsupported feature is a translatable Message", async () => {
     const handler = handlers.get("set-feature-model");
-    const result = (await handler?.(undefined, "notAFeature", "model-x")) as {
+    const result = (await handler?.(unusedEvent, "notAFeature", "model-x")) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -377,9 +411,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
   it("check-model-compatibility: an unknown model is a translatable, parameterized Message", async () => {
     findRecommendedModelMock.mockReturnValue(undefined);
     const handler = handlers.get("check-model-compatibility");
-    const result = (await handler?.(undefined, "no-such-model")) as {
+    const result = (await handler?.(unusedEvent, "no-such-model")) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -402,10 +436,16 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
       error: "Active profile not found",
     });
     const handler = handlers.get("reset-profile-settings");
-    const result = (await handler?.(undefined)) as { success: boolean; error?: unknown };
+    const result = (await handler?.(unusedEvent)) as {
+      success: boolean;
+      error?: Label;
+    };
 
     expect(result.success).toBe(false);
-    expect(result.error).toEqual({ kind: "text", text: "Active profile not found" });
+    expect(result.error).toEqual({
+      kind: "text",
+      text: "Active profile not found",
+    });
     const { en, ja } = resolveBoth(result.error);
     expect(en).toBe("Active profile not found");
     expect(ja).toBe("Active profile not found");

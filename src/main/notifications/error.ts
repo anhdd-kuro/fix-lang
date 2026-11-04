@@ -1,10 +1,34 @@
-import { app, Notification } from "electron";
+import {
+  app,
+  Notification,
+  type NotificationConstructorOptions,
+} from "electron";
+import { z } from "zod";
 import { mainT } from "~/main/i18n";
 import { showErrorPopup } from "~/main/webViewWindows/errorPopupWindow";
 import type { TKey, TranslateParams } from "~/features/i18n/shared/translate";
 
 const notifiedErrors = new WeakSet<object>();
 const pendingErrors = new WeakSet<object>();
+
+/**
+ * One link of a thrown value's `cause` chain: any non-null, non-function
+ * object, read through inherited properties (`Error#name` lives on the
+ * prototype).
+ */
+const ErrorChainLinkSchema = z.object({
+  name: z.unknown().optional(),
+  cause: z.unknown().optional(),
+});
+
+/**
+ * Thrown values the dedupe sets can hold: non-null objects and arrays, never
+ * primitives or functions.
+ */
+const TrackableErrorSchema = z.union([z.object({}), z.array(z.unknown())]);
+
+const isTrackableError = (cause: unknown): cause is object =>
+  TrackableErrorSchema.safeParse(cause).success;
 
 /**
  * An `Error` manufactured purely to signal a control-flow condition (no text
@@ -28,7 +52,11 @@ export class LocalizedError extends Error {
   readonly messageKey: TKey;
   readonly messageParams?: TranslateParams;
 
-  constructor(devMessage: string, messageKey: TKey, messageParams?: TranslateParams) {
+  constructor(
+    devMessage: string,
+    messageKey: TKey,
+    messageParams?: TranslateParams,
+  ) {
     super(devMessage);
     this.name = "LocalizedError";
     this.messageKey = messageKey;
@@ -38,8 +66,8 @@ export class LocalizedError extends Error {
 
 /**
  * Thrown by `getHighlightedText`/`pasteText` (`~/utils`) when macOS's
- * Accessibility permission has been revoked — e.g. after an unsigned-app
- * update changes the app's code identity — so keystroke synthesis via
+ * Accessibility permission has been revoked — e.g. after an update changes the
+ * app's code identity (each ad-hoc signed release has a new one) — so keystroke synthesis via
  * `osascript` fails with "not allowed to send keystrokes. (1002)" (detected
  * by `isKeystrokePermissionDenied` in `~/main/accessibility/keystrokePermission`).
  *
@@ -71,21 +99,21 @@ export class AccessibilityPermissionError extends LocalizedError {
  */
 export const notifyRequestError = (
   options: { quiet?: boolean },
-  error: unknown,
+  cause: unknown,
   fallbackMessage?: string,
 ): void => {
   if (options.quiet) {
     return;
   }
   if (fallbackMessage === undefined) {
-    showErrorNotification(error);
+    showErrorNotification(cause);
     return;
   }
-  showErrorNotification(error, fallbackMessage);
+  showErrorNotification(cause, fallbackMessage);
 };
 
 /**
- * True when `error` is (or wraps) a cancellation rather than a failure.
+ * True when `cause` is (or wraps) a cancellation rather than a failure.
  *
  * A caller that aborts its own request already knows the outcome, so telling
  * the user about it is noise at best. It is a correctness issue for any caller
@@ -98,42 +126,47 @@ export const notifyRequestError = (
  * and the AI SDK re-wraps both, so the `cause` chain is walked rather than only
  * the outermost error inspected.
  */
-export const isAbortError = (error: unknown): boolean => {
+export const isAbortError = (cause: unknown): boolean => {
   const seen = new Set<unknown>();
-  let current = error;
-  while (current !== null && typeof current === "object" && !seen.has(current)) {
+  let current = cause;
+  while (!seen.has(current)) {
+    // The schema only takes plain objects; a thrown array is read through
+    // its own properties.
+    const link = ErrorChainLinkSchema.safeParse(
+      Array.isArray(current) ? { ...current } : current,
+    );
+    if (!link.success) return false;
     seen.add(current);
-    const { name } = current as { name?: unknown };
-    if (name === "AbortError" || name === "TimeoutError") {
+    if (link.data.name === "AbortError" || link.data.name === "TimeoutError") {
       return true;
     }
-    current = (current as { cause?: unknown }).cause;
+    current = link.data.cause;
   }
   return false;
 };
 
 /**
- * Resolves the user-facing notification body for `error`: the catalog
+ * Resolves the user-facing notification body for `cause`: the catalog
  * translation for a {@link LocalizedError}, `error.message` verbatim for any
  * other `Error` (assumed already safe, locale-agnostic user copy), or
  * `fallbackMessage` for a non-`Error` value.
  */
 const resolveNotificationBody = (
-  error: unknown,
+  cause: unknown,
   fallbackMessage: string,
 ): string => {
-  if (error instanceof LocalizedError) {
-    return mainT(error.messageKey, error.messageParams);
+  if (cause instanceof LocalizedError) {
+    return mainT(cause.messageKey, cause.messageParams);
   }
-  return error instanceof Error ? error.message : fallbackMessage;
+  return cause instanceof Error ? cause.message : fallbackMessage;
 };
 
 /**
  * Shows a desktop notification, falling back to the in-app error popup when
  * the platform cannot deliver one.
  *
- * FixLang ships unsigned, and macOS refuses notifications from an unsigned
- * bundle with `Application is not code signed` — delivered asynchronously on
+ * FixLang is not Developer ID signed, and macOS has refused notifications from
+ * its bundle with `Application is not code signed` — delivered asynchronously on
  * the `failed` event, not as a throw, so a bare `new Notification(...).show()`
  * reports success and shows the user nothing. Any warning that is the only
  * explanation for something the app just did differently must come through
@@ -154,11 +187,14 @@ export const showNotificationWithFallback = (options: {
       return;
     }
 
-    const notification = new Notification({
+    const notificationOptions: NotificationConstructorOptions = {
       title: options.title,
       body: options.body,
-      ...(options.urgency === undefined ? {} : { urgency: options.urgency }),
-    });
+    };
+    if (options.urgency !== undefined) {
+      notificationOptions.urgency = options.urgency;
+    }
+    const notification = new Notification(notificationOptions);
     notification.on("failed", (_event, notificationError: string) => {
       console.error("Desktop notification failed:", notificationError);
       showFallback();
@@ -177,44 +213,44 @@ export const showNotificationWithFallback = (options: {
  * for a single failed action without suppressing a later, separate failure.
  *
  * `fallbackMessage`'s default is read via `mainT()` at call time (not a
- * literal), so the body shown when `error` isn't an `Error` instance and no
+ * literal), so the body shown when `cause` isn't an `Error` instance and no
  * caller-supplied fallback is passed stays locale-aware, matching the
  * notification `title` below.
  */
 export const showErrorNotification = (
-  error: unknown,
+  cause: unknown,
   fallbackMessage = mainT("notifications.error.body"),
 ): void => {
-  if (isAbortError(error)) {
+  if (isAbortError(cause)) {
     return;
   }
 
   const showFallback = (): void => {
-    showErrorPopup(resolveNotificationBody(error, fallbackMessage));
-    if (error !== null && typeof error === "object") {
-      notifiedErrors.add(error);
+    showErrorPopup(resolveNotificationBody(cause, fallbackMessage));
+    if (isTrackableError(cause)) {
+      notifiedErrors.add(cause);
     }
   };
 
-  if (error !== null && typeof error === "object") {
-    if (notifiedErrors.has(error)) {
+  if (isTrackableError(cause)) {
+    if (notifiedErrors.has(cause)) {
       return;
     }
   }
 
   if (!app.isReady()) {
-    if (error !== null && typeof error === "object") {
-      if (pendingErrors.has(error)) {
+    if (isTrackableError(cause)) {
+      if (pendingErrors.has(cause)) {
         return;
       }
-      pendingErrors.add(error);
+      pendingErrors.add(cause);
     }
 
     app.once("ready", () => {
-      if (error !== null && typeof error === "object") {
-        pendingErrors.delete(error);
+      if (isTrackableError(cause)) {
+        pendingErrors.delete(cause);
       }
-      showErrorNotification(error, fallbackMessage);
+      showErrorNotification(cause, fallbackMessage);
     });
     return;
   }
@@ -227,7 +263,7 @@ export const showErrorNotification = (
 
     const notification = new Notification({
       title: mainT("notifications.error.title"),
-      body: resolveNotificationBody(error, fallbackMessage),
+      body: resolveNotificationBody(cause, fallbackMessage),
       urgency: "critical",
     });
     notification.on("failed", (_event, notificationError: string) => {
@@ -236,8 +272,8 @@ export const showErrorNotification = (
     });
     notification.show();
 
-    if (error !== null && typeof error === "object") {
-      notifiedErrors.add(error);
+    if (isTrackableError(cause)) {
+      notifiedErrors.add(cause);
     }
   } catch {
     // Notification delivery must never mask the original application error.

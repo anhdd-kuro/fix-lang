@@ -18,10 +18,17 @@ import {
   parseCatalog,
 } from "../src/features/i18n/shared/catalogIntegrity";
 import { CATALOG_NAMESPACES } from "../src/features/i18n/shared/locales";
-import { LOCALE_CODES } from "../src/features/i18n/shared/registry";
+import {
+  LOCALE_CODES,
+  type Locale,
+} from "../src/features/i18n/shared/registry";
 
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
-const localesDir = path.join(scriptsDir, "..", "src/features/i18n/shared/locales");
+const localesDir = path.join(
+  scriptsDir,
+  "..",
+  "src/features/i18n/shared/locales",
+);
 
 const [sourceLocale, ...otherLocales] = LOCALE_CODES;
 
@@ -37,10 +44,15 @@ const loadNamespaces = (): NamespaceRaw[] =>
     return { namespace, rawByLocale };
   });
 
-const countKeys = (namespaces: readonly NamespaceRaw[], locale: string): number =>
+const countKeys = (
+  namespaces: readonly NamespaceRaw[],
+  locale: Locale,
+): number =>
   namespaces.reduce((sum, { rawByLocale }) => {
-    const raw = rawByLocale[locale as (typeof LOCALE_CODES)[number]];
-    return sum + (raw === undefined ? 0 : Object.keys(parseCatalog(raw)).length);
+    const raw = rawByLocale[locale];
+    return (
+      sum + (raw === undefined ? 0 : Object.keys(parseCatalog(raw)).length)
+    );
   }, 0);
 
 const groupByNamespace = (
@@ -69,7 +81,10 @@ const printSummary = (
   console.log("=============================");
   for (const { namespace } of namespaces) {
     const namespaceViolations = grouped.get(namespace) ?? [];
-    const status = namespaceViolations.length === 0 ? "OK" : `${String(namespaceViolations.length)} violation(s)`;
+    const status =
+      namespaceViolations.length === 0
+        ? "OK"
+        : `${String(namespaceViolations.length)} violation(s)`;
     console.log(`  ${namespace.padEnd(16)} ${status}`);
     for (const violation of namespaceViolations) {
       console.log(
@@ -80,7 +95,9 @@ const printSummary = (
 
   const globalViolations = grouped.get("(global)") ?? [];
   if (globalViolations.length > 0) {
-    console.log(`  ${"(global)".padEnd(16)} ${String(globalViolations.length)} violation(s)`);
+    console.log(
+      `  ${"(global)".padEnd(16)} ${String(globalViolations.length)} violation(s)`,
+    );
     for (const violation of globalViolations) {
       console.log(`    - [${violation.rule}] ${violation.message}`);
     }
@@ -106,7 +123,11 @@ const printSummary = (
 
 const main = (): void => {
   const namespaces = loadNamespaces();
-  const violations = checkCatalogIntegrity(namespaces, LOCALE_CODES, sourceLocale);
+  const violations = checkCatalogIntegrity(
+    namespaces,
+    LOCALE_CODES,
+    sourceLocale,
+  );
 
   printSummary(namespaces, violations);
 

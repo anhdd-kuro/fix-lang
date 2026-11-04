@@ -84,6 +84,33 @@ describe("normalizeAppearanceTypography", () => {
     });
   });
 
+  it("returns the shared default itself for falsy, array and function input", () => {
+    for (const raw of [undefined, 0, "", ["custom"], () => "custom"]) {
+      expect(normalizeAppearanceTypography(raw)).toBe(
+        DEFAULT_APPEARANCE_TYPOGRAPHY,
+      );
+    }
+  });
+
+  it("reads any other object field by field, trimming custom values", () => {
+    expect(
+      normalizeAppearanceTypography({
+        fontSize: new String("lg"),
+        fontFamily: "mono",
+        customFontSize: " 15px ",
+        customFontFamily: 7,
+      }),
+    ).toEqual({
+      fontSize: DEFAULT_APPEARANCE_TYPOGRAPHY.fontSize,
+      fontFamily: "mono",
+      customFontSize: "15px",
+      customFontFamily: DEFAULT_APPEARANCE_TYPOGRAPHY.customFontFamily,
+    });
+    expect(normalizeAppearanceTypography(new Date(0))).toEqual(
+      DEFAULT_APPEARANCE_TYPOGRAPHY,
+    );
+  });
+
   it("preserves custom values", () => {
     expect(
       normalizeAppearanceTypography({

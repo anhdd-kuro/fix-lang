@@ -105,7 +105,9 @@ const costSumOf = (rollup: AutocompleteDayRollup): CostSum => ({
 });
 
 /** Cost metric via `resolveOverviewCostHint`'s classification — see file doc. */
-const resolveCostMetric = (rollup: AutocompleteDayRollup): AutocompleteMetric => {
+const resolveCostMetric = (
+  rollup: AutocompleteDayRollup,
+): AutocompleteMetric => {
   const display = resolveOverviewCostHint(costSumOf(rollup));
   if (display.kind === "na") {
     return { kind: "na" };
@@ -134,7 +136,7 @@ const resolveCostMetric = (rollup: AutocompleteDayRollup): AutocompleteMetric =>
 const resolveTokenMetric = (
   value: number,
   responses: number,
-  tokenlessResponses: number
+  tokenlessResponses: number,
 ): AutocompleteMetric => {
   if (responses === 0) {
     return { kind: "value", value: 0 };
@@ -152,7 +154,7 @@ const resolveTokenMetric = (
 
 /** Derives one rollup's display metrics from its coverage counters. */
 export const resolveAutocompleteRollupView = (
-  rollup: AutocompleteDayRollup
+  rollup: AutocompleteDayRollup,
 ): AutocompleteRollupView => ({
   date: rollup.date,
   requests: rollup.requests,
@@ -160,7 +162,7 @@ export const resolveAutocompleteRollupView = (
   totalTokens: resolveTokenMetric(
     rollup.promptTokens + rollup.completionTokens,
     rollup.responses,
-    rollup.tokenlessResponses
+    rollup.tokenlessResponses,
   ),
   estimatedCostUsd: resolveCostMetric(rollup),
 });
@@ -168,7 +170,7 @@ export const resolveAutocompleteRollupView = (
 /** How much of the daily spend cap today's rollup has used, clamped to [0, 1]. */
 export const resolveAutocompleteCapUsage = (
   today: AutocompleteDayRollup,
-  capUsd: number
+  capUsd: number,
 ): AutocompleteCapUsage => {
   const spent = resolveCostMetric(today);
   return {
@@ -183,7 +185,7 @@ export const resolveAutocompleteCapUsage = (
 
 /** Assembles the full pure view from a raw wire snapshot. */
 export const resolveAutocompleteUsageView = (
-  snapshot: AutocompleteUsageSnapshot
+  snapshot: AutocompleteUsageSnapshot,
 ): AutocompleteUsageView => ({
   today: resolveAutocompleteRollupView(snapshot.today),
   month: resolveAutocompleteRollupView(snapshot.month),
@@ -195,17 +197,21 @@ export const resolveAutocompleteUsageView = (
 export const formatAutocompleteCount = (
   metric: AutocompleteMetric,
   t: Translator,
-  formatNumber: Formatters["formatNumber"]
+  formatNumber: Formatters["formatNumber"],
 ): string =>
-  metric.kind === "na" ? t("autocomplete.value.na") : formatNumber(metric.value);
+  metric.kind === "na"
+    ? t("autocomplete.value.na")
+    : formatNumber(metric.value);
 
 /** Renders a cost metric — N/A or a locale-formatted currency amount. */
 export const formatAutocompleteCost = (
   metric: AutocompleteMetric,
   t: Translator,
-  formatCurrency: Formatters["formatCurrency"]
+  formatCurrency: Formatters["formatCurrency"],
 ): string =>
-  metric.kind === "na" ? t("autocomplete.value.na") : formatCurrency(metric.value);
+  metric.kind === "na"
+    ? t("autocomplete.value.na")
+    : formatCurrency(metric.value);
 
 /**
  * A "2 of 3 known" coverage sub-line for a partially-covered metric —
@@ -214,7 +220,7 @@ export const formatAutocompleteCost = (
  */
 export const formatAutocompleteCoverage = (
   metric: AutocompleteMetric,
-  t: Translator
+  t: Translator,
 ): string | undefined =>
   metric.kind === "value" && metric.partial
     ? t("autocomplete.value.partial", {
@@ -224,5 +230,9 @@ export const formatAutocompleteCoverage = (
     : undefined;
 
 /** True when nothing at all has been recorded — drives the panel's empty state. */
-export const isAutocompleteUsageEmpty = (view: AutocompleteUsageView): boolean =>
-  view.today.requests === 0 && view.month.requests === 0 && view.days.length === 0;
+export const isAutocompleteUsageEmpty = (
+  view: AutocompleteUsageView,
+): boolean =>
+  view.today.requests === 0 &&
+  view.month.requests === 0 &&
+  view.days.length === 0;

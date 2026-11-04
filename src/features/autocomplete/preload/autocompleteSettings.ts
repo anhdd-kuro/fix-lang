@@ -7,46 +7,26 @@
  * this run. This repo already splits one feature across two preload modules
  * (`correction.ts` + `correctionResult.ts`), both exported from the barrel.
  *
- * Validated in both directions: a malformed main-process reply is dropped
- * before it reaches React (mirroring `autocomplete.ts`'s `isSuggestReply`),
- * and a malformed outgoing payload is rejected here rather than trusting the
- * TypeScript parameter type, which only holds at compile time.
+ * Validated in both directions with `AutocompleteSettingsSchema`: a malformed
+ * main-process reply is dropped before it reaches React, and a malformed
+ * outgoing payload is rejected here rather than trusting the TypeScript
+ * parameter type, which only holds at compile time.
  */
 import { ipcRenderer } from "electron";
+import { AutocompleteSettingsSchema } from "~/features/autocomplete/shared/autocompleteSchemas";
 import {
   normalizeAutocompleteSettings,
   type AutocompleteSettings,
 } from "~/features/autocomplete/shared/autocompleteSettings";
 
-/**
- * Field-by-field check, mirroring `~/features/ask/preload/ask.ts`: the shape
- * is small enough that widening any field to `unknown` would just move a
- * crash into React instead of preventing it.
- */
-const isAutocompleteSettings = (
-  value: unknown,
-): value is AutocompleteSettings => {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  return (
-    typeof record.enabled === "boolean" &&
-    typeof record.model === "string" &&
-    // Finite, for the same reason the main-process guard requires it: `NaN` and
-    // `Infinity` are both `number` and both make the day's cap comparison
-    // silently always-false, which is a budget that never fires.
-    typeof record.dailyCostCapUsd === "number" &&
-    Number.isFinite(record.dailyCostCapUsd)
-  );
-};
-
 export const autocompleteSettingsFeature = {
   /** A malformed main-process reply falls back to normalized defaults. */
   getAutocompleteSettings: async (): Promise<AutocompleteSettings> => {
-    const result: unknown = await ipcRenderer.invoke(
-      "get-autocomplete-settings",
+    const reply = AutocompleteSettingsSchema.safeParse(
+      await ipcRenderer.invoke("get-autocomplete-settings"),
     );
-    return isAutocompleteSettings(result)
-      ? result
+    return reply.success
+      ? reply.data
       : normalizeAutocompleteSettings(undefined);
   },
 
@@ -58,7 +38,7 @@ export const autocompleteSettingsFeature = {
   setAutocompleteSettings: async (
     settings: AutocompleteSettings,
   ): Promise<{ success: boolean }> => {
-    if (!isAutocompleteSettings(settings)) {
+    if (!AutocompleteSettingsSchema.safeParse(settings).success) {
       return { success: false };
     }
     return ipcRenderer.invoke("set-autocomplete-settings", settings);

@@ -27,7 +27,10 @@ import path from "node:path";
 import * as electron from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { scanForSecrets } from "~/features/secretGuard/shared/detectSecrets";
-import { buildSecretConfirmDialog, confirmSecretSend } from "./secretGuardDialog";
+import {
+  buildSecretConfirmDialog,
+  confirmSecretSend,
+} from "./secretGuardDialog";
 import type { SecretRuleId } from "~/features/secretGuard/shared/secretRules";
 
 const { showMessageBoxMock } = vi.hoisted(() => ({
@@ -43,7 +46,10 @@ vi.mock("~/features/i18n/store/localeStore", () => ({
   getLocale: vi.fn().mockReturnValue("en"),
 }));
 
-const SOURCE = readFileSync(path.join(__dirname, "secretGuardDialog.ts"), "utf8");
+const SOURCE = readFileSync(
+  path.join(__dirname, "secretGuardDialog.ts"),
+  "utf8",
+);
 
 /**
  * Fixtures are assembled from parts so no complete credential-shaped literal
@@ -51,7 +57,8 @@ const SOURCE = readFileSync(path.join(__dirname, "secretGuardDialog.ts"), "utf8"
  * literals; every value below is fabricated, but the scanner cannot know that.
  * The joined value is byte-identical to what it replaced.
  */
-const credentialFixture = (...parts: readonly string[]): string => parts.join("");
+const credentialFixture = (...parts: readonly string[]): string =>
+  parts.join("");
 
 /**
  * Vendor-published or obviously-fake-but-structurally-real samples, the same
@@ -61,8 +68,14 @@ const credentialFixture = (...parts: readonly string[]): string => parts.join(""
 const PINNED_SECRET_SAMPLES = [
   credentialFixture("AKIA", "IOSFODNN7EXAMPLE"),
   "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-  credentialFixture("sk-ant-api03-", "EXAMPLEfakekeymaterial0123456789abcdefgh-AAAAAA"),
-  credentialFixture("sk-or-v1-", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd"),
+  credentialFixture(
+    "sk-ant-api03-",
+    "EXAMPLEfakekeymaterial0123456789abcdefgh-AAAAAA",
+  ),
+  credentialFixture(
+    "sk-or-v1-",
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd",
+  ),
   "sk-proj-EXAMPLEfakeOpenAIkey1234567890abcdef",
   credentialFixture("ghp_", "EXAMPLEfakegithubtoken0123456789abcdefgh"),
   credentialFixture("xoxb-", "000000000000-000000000000-EXAMPLEfakeslacktoken"),
@@ -102,7 +115,10 @@ const deferredResponse = () => {
   return { promise, resolve };
 };
 
-const sendIndexOf = (options: { buttons: string[]; cancelId: number }): number => {
+const sendIndexOf = (options: {
+  buttons: string[];
+  cancelId: number;
+}): number => {
   const index = options.buttons.findIndex((label) => /send/i.test(label));
   expect(index).toBeGreaterThan(-1);
   expect(index).not.toBe(options.cancelId);
@@ -195,7 +211,10 @@ describe("buildSecretConfirmDialog", () => {
   });
 
   it("offers exactly Cancel and Send anyway, with Cancel as both default and cancel", () => {
-    const options = buildSecretConfirmDialog({ ruleIds: ["jwt"], matchCount: 1 });
+    const options = buildSecretConfirmDialog({
+      ruleIds: ["jwt"],
+      matchCount: 1,
+    });
 
     expect(options.buttons).toHaveLength(2);
     expect(options.defaultId).toBe(0);
@@ -205,7 +224,10 @@ describe("buildSecretConfirmDialog", () => {
   });
 
   it("carries no do-not-ask-again checkbox", () => {
-    const options = buildSecretConfirmDialog({ ruleIds: ["jwt"], matchCount: 1 });
+    const options = buildSecretConfirmDialog({
+      ruleIds: ["jwt"],
+      matchCount: 1,
+    });
 
     expect(options.checkboxLabel).toBeUndefined();
     expect(options.checkboxChecked).toBeUndefined();
@@ -229,13 +251,17 @@ describe("confirmSecretSend", () => {
 
   it("proceeds only on the Send index, asserted by index", async () => {
     showMessageBoxMock.mockResolvedValue({ response: 0 });
-    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(false);
+    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(
+      false,
+    );
 
     const options = showMessageBoxMock.mock.calls[0][0];
     const sendIndex = sendIndexOf(options);
 
     showMessageBoxMock.mockResolvedValue({ response: sendIndex });
-    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(true);
+    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(
+      true,
+    );
   });
 
   it.each([2, 3, -1, Number.NaN])(
@@ -243,7 +269,9 @@ describe("confirmSecretSend", () => {
     async (response) => {
       showMessageBoxMock.mockResolvedValue({ response });
 
-      expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(false);
+      expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(
+        false,
+      );
     },
   );
 
@@ -252,7 +280,10 @@ describe("confirmSecretSend", () => {
     showMessageBoxMock.mockReturnValueOnce(first.promise);
 
     const pending = confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 });
-    const reentrant = await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 });
+    const reentrant = await confirmSecretSend({
+      ruleIds: ["jwt"],
+      matchCount: 1,
+    });
 
     expect(reentrant).toBe(false);
     expect(showMessageBoxMock).toHaveBeenCalledTimes(1);
@@ -281,8 +312,12 @@ describe("confirmSecretSend", () => {
 
     const pending = confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 });
 
-    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(false);
-    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(false);
+    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(
+      false,
+    );
+    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(
+      false,
+    );
     expect(showMessageBoxMock).toHaveBeenCalledTimes(1);
 
     first.resolve({ response: 1 });
@@ -291,15 +326,21 @@ describe("confirmSecretSend", () => {
     // The flag belongs to the dialog that set it: once THAT one closes, and
     // only then, the next press is asked again.
     showMessageBoxMock.mockResolvedValue({ response: 0 });
-    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(false);
+    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(
+      false,
+    );
     expect(showMessageBoxMock).toHaveBeenCalledTimes(2);
   });
 
   it("clears the in-flight flag once the dialog closes, so the next press is asked again", async () => {
     showMessageBoxMock.mockResolvedValue({ response: 0 });
 
-    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(false);
-    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(false);
+    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(
+      false,
+    );
+    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(
+      false,
+    );
 
     expect(showMessageBoxMock).toHaveBeenCalledTimes(2);
   });
@@ -312,7 +353,9 @@ describe("confirmSecretSend", () => {
     ).resolves.toBe(false);
 
     showMessageBoxMock.mockResolvedValue({ response: 0 });
-    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(false);
+    expect(await confirmSecretSend({ ruleIds: ["jwt"], matchCount: 1 })).toBe(
+      false,
+    );
     expect(showMessageBoxMock).toHaveBeenCalledTimes(2);
   });
 });

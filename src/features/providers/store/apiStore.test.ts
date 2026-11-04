@@ -7,16 +7,26 @@
  */
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+/** What `conf` persists: JSON, plus `undefined` for an absent key. */
+type StoredJson =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | StoredJson[]
+  | { [key: string]: StoredJson };
+
 // Stateful mock of electron-store: get/set operate over an in-memory object
 // so seeded profiles/currentProfileId are readable by the real apiStore.ts
 // helpers, and writes made by those helpers are observable by assertions.
 vi.mock("electron-store", () => {
   class MockStore {
-    private data: Record<string, unknown> = {};
-    get(key: string, defaultValue?: unknown) {
+    private data: Record<string, StoredJson> = {};
+    get(key: string, defaultValue?: StoredJson) {
       return key in this.data ? this.data[key] : defaultValue;
     }
-    set(key: string, value: unknown) {
+    set(key: string, value: StoredJson) {
       this.data[key] = value;
     }
     delete(key: string) {
@@ -74,7 +84,6 @@ import {
 } from "~/prompts/correction";
 import type {
   CorrectionPreset,
-  CorrectionSettings,
   Model,
   Profile,
   SettingsStore,
@@ -195,8 +204,12 @@ describe("connectProviderToActiveProfile — adds a provider's slice without tou
 
     expect(result?.settings.selectedModel).toBe(before.selectedModel);
     expect(result?.settings.settingsCorrect).toEqual(before.settingsCorrect);
-    expect(result?.settings.settingsPromptGen).toEqual(before.settingsPromptGen);
-    expect(result?.settings.settingsSummarize).toEqual(before.settingsSummarize);
+    expect(result?.settings.settingsPromptGen).toEqual(
+      before.settingsPromptGen,
+    );
+    expect(result?.settings.settingsSummarize).toEqual(
+      before.settingsSummarize,
+    );
   });
 
   it("adds the new provider's slice while leaving the other provider's slice intact", () => {
@@ -443,7 +456,9 @@ describe("disconnectProviderFromActiveProfile — clears only that provider's re
     seedConnected();
 
     const result = disconnectProviderFromActiveProfile("openai");
-    const ids = result?.profile.settings.settingsCorrect.presets.map((p) => p.id);
+    const ids = result?.profile.settings.settingsCorrect.presets.map(
+      (p) => p.id,
+    );
 
     expect(ids).toEqual(["correction", "summarize", "legacy"]);
     expect(ids).not.toContain(DEFAULT_BUSINESS_WRITING_PRESET_ID);
@@ -452,7 +467,12 @@ describe("disconnectProviderFromActiveProfile — clears only that provider's re
 });
 
 describe("the profile-bound variants write to the id they are handed, not the active one", () => {
-  const openAIModel: Model = { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" };
+  const openAIModel: Model = {
+    id: "gpt-4o",
+    name: "gpt-4o",
+    created: 1,
+    provider: "openai",
+  };
 
   const seedTwoConnected = (): void => {
     const connected = () =>
@@ -529,7 +549,9 @@ describe("the profile-bound variants write to the id they are handed, not the ac
 
     const result = disconnectProviderFromProfile("profile_1", "openai");
 
-    expect(getProfiles()[0].settings.settingsAutocomplete.model).toBe("openrouter::llama");
+    expect(getProfiles()[0].settings.settingsAutocomplete.model).toBe(
+      "openrouter::llama",
+    );
     expect(result?.cleared.features).not.toContain("autocomplete");
   });
 
@@ -586,7 +608,9 @@ describe("the profile-bound variants write to the id they are handed, not the ac
   it("connects the named profile and leaves the active one alone", () => {
     seedTwoConnected();
 
-    const result = connectProviderToProfile("profile_1", "openrouter", [openRouterModel]);
+    const result = connectProviderToProfile("profile_1", "openrouter", [
+      openRouterModel,
+    ]);
 
     expect(result?.id).toBe("profile_1");
     expect(result?.settings.enabledProviders).toEqual(["openai", "openrouter"]);
@@ -607,7 +631,12 @@ describe("the profile-bound variants write to the id they are handed, not the ac
 
 describe("isModelForProvider", () => {
   it("matches an openai-tagged model only to openai", () => {
-    const model: Model = { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" };
+    const model: Model = {
+      id: "gpt-4o",
+      name: "gpt-4o",
+      created: 1,
+      provider: "openai",
+    };
     expect(isModelForProvider(model, "openai")).toBe(true);
     expect(isModelForProvider(model, "openrouter")).toBe(false);
     expect(isModelForProvider(model, "ollama")).toBe(false);
@@ -626,7 +655,11 @@ describe("isModelForProvider", () => {
   });
 
   it("matches a legacy untagged model (no provider, no local) only to openrouter", () => {
-    const model: Model = { id: "legacy-model", name: "legacy-model", created: 1 };
+    const model: Model = {
+      id: "legacy-model",
+      name: "legacy-model",
+      created: 1,
+    };
     expect(isModelForProvider(model, "openrouter")).toBe(true);
     expect(isModelForProvider(model, "openai")).toBe(false);
     expect(isModelForProvider(model, "ollama")).toBe(false);
@@ -666,34 +699,22 @@ describe("apiStore re-exports from ~/features/providers/shared/providers", () =>
 });
 
 describe("apiStoreSchema — provider removal and enabledProviders", () => {
-  const profileSchemaProperties = apiStoreSchema.profiles.items.properties as Record<
-    string,
-    unknown
-  >;
-  const settingsSchemaProperties = (
-    profileSchemaProperties.settings as {
-      properties: Record<string, unknown>;
-    }
-  ).properties;
+  const profileSchemaProperties = apiStoreSchema.profiles.items.properties;
+  const settingsSchemaProperties = profileSchemaProperties.settings.properties;
 
   it("the profile schema has no `provider` property", () => {
     expect(profileSchemaProperties).not.toHaveProperty("provider");
   });
 
   it("enabledProviders is a bare string array with no ajv `enum`, defaulting to []", () => {
-    const enabledProviders = settingsSchemaProperties.enabledProviders as Record<
-      string,
-      unknown
-    >;
+    const enabledProviders = settingsSchemaProperties.enabledProviders;
     expect(enabledProviders).toEqual({
       type: "array",
       items: { type: "string" },
       default: [],
     });
     expect(enabledProviders).not.toHaveProperty("enum");
-    expect(
-      (enabledProviders.items as Record<string, unknown>),
-    ).not.toHaveProperty("enum");
+    expect(enabledProviders.items).not.toHaveProperty("enum");
   });
 
   it("required stays [id, name, createdAt, settings] — no provider requirement", () => {
@@ -713,11 +734,11 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
     }
   ).properties;
 
-  it("selectedModel defaults to \"\"", () => {
+  it('selectedModel defaults to ""', () => {
     expect(settingsSchemaProperties.selectedModel.default).toBe("");
   });
 
-  it("settingsSummarize.model defaults to \"\" (property and object default)", () => {
+  it('settingsSummarize.model defaults to "" (property and object default)', () => {
     const summarize = settingsSchemaProperties.settingsSummarize as {
       properties: { model: { default?: unknown } };
       default: { model?: unknown };
@@ -726,7 +747,7 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
     expect(summarize.default.model).toBe("");
   });
 
-  it("settingsPromptGen.model defaults to \"\" (property and object default)", () => {
+  it('settingsPromptGen.model defaults to "" (property and object default)', () => {
     const promptGen = settingsSchemaProperties.settingsPromptGen as {
       properties: { model: { default?: unknown } };
       default: { model?: unknown };
@@ -736,10 +757,13 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
   });
 
   it("root configVersion defaults to 0", () => {
-    expect(apiStoreSchema.configVersion).toEqual({ type: "number", default: 0 });
+    expect(apiStoreSchema.configVersion).toEqual({
+      type: "number",
+      default: 0,
+    });
   });
 
-  it("settings.apiKey defaults to \"\" and never carries a value from the environment", () => {
+  it('settings.apiKey defaults to "" and never carries a value from the environment', () => {
     expect(settingsSchemaProperties.apiKey.default).toBe("");
   });
 
@@ -753,30 +777,17 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
         entry[1].length >= 8,
     );
     for (const [name, value] of secrets) {
-      expect(serialised, `schema embeds the value of ${name}`).not.toContain(value);
+      expect(serialised, `schema embeds the value of ${name}`).not.toContain(
+        value,
+      );
     }
   });
 });
 
 describe("apiStoreSchema — settingsCorrect default carries all eight built-in presets", () => {
-  const settingsCorrectSchema = (
-    apiStoreSchema.profiles.items.properties.settings as {
-      properties: {
-        settingsCorrect: {
-          properties: {
-            presets: {
-              default?: unknown[];
-              items: {
-                properties: Record<string, unknown>;
-                required: string[];
-              };
-            };
-          };
-          default: { presets?: unknown[] };
-        };
-      };
-    }
-  ).properties.settingsCorrect;
+  const settingsCorrectSchema =
+    apiStoreSchema.profiles.items.properties.settings.properties
+      .settingsCorrect;
 
   const presetItemSchema = settingsCorrectSchema.properties.presets.items;
 
@@ -797,10 +808,14 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
   it("both new presets are present in the schema default with isBuiltIn true", () => {
     const presets = settingsCorrectSchema.default.presets ?? [];
     expect(
-      presets.find((p) => (p as { id: string }).id === DEFAULT_BUSINESS_WRITING_PRESET_ID),
+      presets.find(
+        (p) => (p as { id: string }).id === DEFAULT_BUSINESS_WRITING_PRESET_ID,
+      ),
     ).toMatchObject({ isBuiltIn: true, hotkey: "Control+Shift+B" });
     expect(
-      presets.find((p) => (p as { id: string }).id === DEFAULT_STRUCTURED_TEXT_PRESET_ID),
+      presets.find(
+        (p) => (p as { id: string }).id === DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+      ),
     ).toMatchObject({ isBuiltIn: true, hotkey: "Control+Shift+R" });
   });
 
@@ -815,7 +830,9 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
       markdownOutput: true,
     };
 
-    expect(askIn(settingsCorrectSchema.default.presets)).toMatchObject(expected);
+    expect(askIn(settingsCorrectSchema.default.presets)).toMatchObject(
+      expected,
+    );
     expect(
       askIn(settingsCorrectSchema.properties.presets.default),
     ).toMatchObject(expected);
@@ -853,11 +870,7 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
     expect(presetItemSchema.properties.extraOptions).toEqual({});
     // `toEqual({})` alone passes for `{ type: undefined }`; this is the pin
     // that the node carries no keyword whatsoever.
-    expect(
-      Object.keys(
-        presetItemSchema.properties.extraOptions as Record<string, unknown>,
-      ),
-    ).toEqual([]);
+    expect(Object.keys(presetItemSchema.properties.extraOptions)).toEqual([]);
     expect(presetItemSchema.required).not.toContain("extraOptions");
     expect(presetItemSchema.required).toEqual([
       "id",
@@ -900,7 +913,7 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
     // Recursive on purpose — this must also catch an enum added to a nested
     // node, or to a property that does not exist yet.
     const enumPaths: string[] = [];
-    const walk = (node: unknown, path: string): void => {
+    const walk = (node: StoredJson, path: string): void => {
       if (!node || typeof node !== "object") return;
       if (Array.isArray(node)) {
         node.forEach((item, index) => walk(item, `${path}[${index}]`));
@@ -1192,6 +1205,23 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
 //
 // Proof in `.scratch/caveman-preset/evidence/05-fix/schema-hash-delta-proof.json`
 // and `.../schema-node-analysis.txt`.
+//
+// Updated once more for the Prompt optimization rewrite
+// (`src/prompts/enhance-prompt.md`). Again NO schema node changed: the prompt
+// is embedded only inside the two built-in preset `default` values, and a
+// default cannot reject stored data under `clearInvalidConfig: true`.
+//
+// Verified directly against the committed prompt and schema:
+//
+//   - the JSON-encoded new prompt occurs exactly 2× — once under
+//     `presets.default`, once under `settingsCorrect.default`
+//   - the encoded prompt shrank from 18721 to 7578 UTF-16 code units per
+//     occurrence, so the serialised schema shrank from 74330 to 52044 code
+//     units: the expected and actual deltas are both -22286
+//   - substituting the old encoded prompt for both new occurrences reproduces
+//     the previous snapshot
+//     `b78c6b4141412b66cc6cc23ddf8faa464df6373ac5a6cf28bd70f2dd7e44f860`
+//     byte-for-byte, proving no other part of the schema moved
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -1200,7 +1230,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "b78c6b4141412b66cc6cc23ddf8faa464df6373ac5a6cf28bd70f2dd7e44f860",
+      "849eb482a73960373c2ec0601b50aaf1e121e480114e778fa0506696cc9843cc",
     );
   });
 });
@@ -1223,7 +1253,12 @@ describe("getDefaultModelId", () => {
   it("falls back to a ref built from resolveDefaultModel(settings.models) when selectedModel is empty", () => {
     const models: Model[] = [
       { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
-      { id: "gpt-4o-mini", name: "gpt-4o-mini", created: 2, provider: "openai" },
+      {
+        id: "gpt-4o-mini",
+        name: "gpt-4o-mini",
+        created: 2,
+        provider: "openai",
+      },
     ];
     const profile = buildProfile({
       settings: buildSettings({ selectedModel: "", models }),
@@ -1233,7 +1268,7 @@ describe("getDefaultModelId", () => {
     expect(getDefaultModelId()).toBe(modelRefForModel(models[1]));
   });
 
-  it("returns \"\" when selectedModel is empty and there are no models", () => {
+  it('returns "" when selectedModel is empty and there are no models', () => {
     const profile = buildProfile({
       settings: buildSettings({ selectedModel: "", models: [] }),
     });
@@ -1273,11 +1308,16 @@ describe("resetCurrentProfileSettings — preserves apiKey, models and enabledPr
 
     expect(result.success).toBe(true);
     const [resetProfile] = getProfiles();
-    expect(resetProfile.settings.enabledProviders).toEqual(["openai", "ollama"]);
+    expect(resetProfile.settings.enabledProviders).toEqual([
+      "openai",
+      "ollama",
+    ]);
   });
 
   it("still preserves apiKey and models alongside enabledProviders", () => {
-    const models: Model[] = [{ id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" }];
+    const models: Model[] = [
+      { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
+    ];
     const profile = buildProfile({
       settings: buildSettings({
         apiKey: "secret-key",
@@ -1366,7 +1406,9 @@ describe("createProfile — yields all 8 built-in presets", () => {
 
 describe("withoutProfileSecrets — strips apiKey and keeps every model field", () => {
   it("strips apiKey but returns models and selectedModel intact", () => {
-    const models: Model[] = [{ id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" }];
+    const models: Model[] = [
+      { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
+    ];
     const profile = buildProfile({
       settings: buildSettings({
         apiKey: "secret-key",
@@ -1415,7 +1457,9 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
     buildProfile({
       settings: buildSettings({
         apiKey: "secret-key",
-        models: [{ id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" }],
+        models: [
+          { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
+        ],
         selectedModel: "openai::gpt-4o",
         enabledProviders: ["openai", "openrouter"],
         openaiProjectId: "proj_exporter",
@@ -1443,7 +1487,9 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
     // Names a project inside the exporter's own OpenAI organization.
     expect(result.settings.openaiProjectId).toBe("");
     expect(
-      result.settings.settingsCorrect.presets.every((preset) => preset.model === ""),
+      result.settings.settingsCorrect.presets.every(
+        (preset) => preset.model === "",
+      ),
     ).toBe(true);
     expect(result.settings.settingsPromptGen.model).toBe("");
     expect(result.settings.settingsSummarize.model).toBe("");
@@ -1463,7 +1509,9 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
     expect(result.settings.settingsSummarize.minLength).toBe(3);
     expect(result.settings.settingsSummarize.targetLanguage).toBe("ja");
     expect(
-      result.settings.settingsCorrect.presets.map((preset) => preset.systemPrompt),
+      result.settings.settingsCorrect.presets.map(
+        (preset) => preset.systemPrompt,
+      ),
     ).toEqual(["Fix grammar.", "Summarize."]);
   });
 
@@ -1485,7 +1533,9 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
     );
     expect(
       secretsOnly.settings.settingsCorrect.presets.map((p) => p.model),
-    ).not.toEqual(exportable.settings.settingsCorrect.presets.map((p) => p.model));
+    ).not.toEqual(
+      exportable.settings.settingsCorrect.presets.map((p) => p.model),
+    );
     expect(secretsOnly.settings.settingsPromptGen.model).not.toEqual(
       exportable.settings.settingsPromptGen.model,
     );
@@ -1508,14 +1558,25 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
         openaiProjectId: "",
         settingsCorrect: {
           ...secretsOnly.settings.settingsCorrect,
-          presets: secretsOnly.settings.settingsCorrect.presets.map((preset) => ({
-            ...preset,
-            model: "",
-          })),
+          presets: secretsOnly.settings.settingsCorrect.presets.map(
+            (preset) => ({
+              ...preset,
+              model: "",
+            }),
+          ),
         },
-        settingsPromptGen: { ...secretsOnly.settings.settingsPromptGen, model: "" },
-        settingsSummarize: { ...secretsOnly.settings.settingsSummarize, model: "" },
-        settingsAutocomplete: { ...secretsOnly.settings.settingsAutocomplete, model: "" },
+        settingsPromptGen: {
+          ...secretsOnly.settings.settingsPromptGen,
+          model: "",
+        },
+        settingsSummarize: {
+          ...secretsOnly.settings.settingsSummarize,
+          model: "",
+        },
+        settingsAutocomplete: {
+          ...secretsOnly.settings.settingsAutocomplete,
+          model: "",
+        },
       },
     };
     expect(exportable).toEqual(blanked);
@@ -1587,6 +1648,12 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
 });
 
 describe("migrateStoredProfilesForModelRefs", () => {
+  /** Pre-model-ref profile shape, which still carried a top-level `provider`. */
+  type LegacyProfile = Profile & { provider: string };
+  const setLegacyProfiles = (profiles: LegacyProfile[]): void => {
+    apiStore.set("profiles", profiles);
+  };
+
   beforeEach(() => {
     apiStore.set("profiles", []);
     apiStore.set("currentProfileId", "");
@@ -1594,7 +1661,7 @@ describe("migrateStoredProfilesForModelRefs", () => {
   });
 
   it("migrates raw legacy profiles and bumps configVersion to 1", () => {
-    apiStore.set("profiles", [
+    setLegacyProfiles([
       {
         id: "profile_1",
         name: "Legacy Profile",
@@ -1615,7 +1682,7 @@ describe("migrateStoredProfilesForModelRefs", () => {
 
   it("does not run when configVersion is already >= 1", () => {
     apiStore.set("configVersion", 1);
-    apiStore.set("profiles", [
+    setLegacyProfiles([
       {
         id: "profile_1",
         name: "Untouched Profile",
@@ -1628,15 +1695,17 @@ describe("migrateStoredProfilesForModelRefs", () => {
 
     migrateStoredProfilesForModelRefs();
 
-    const rawProfiles = apiStore.get("profiles") as Record<string, unknown>[];
+    // The driver must leave the retired `provider` field on disk untouched.
+    type StoredLegacyProfile = Profile & { provider?: string };
+    const rawProfiles = apiStore.get("profiles") as StoredLegacyProfile[];
     expect(rawProfiles[0].provider).toBe("openai");
-    expect(
-      (rawProfiles[0].settings as SettingsStore).selectedModel,
-    ).toBe("gpt-4o");
+    expect((rawProfiles[0].settings as SettingsStore).selectedModel).toBe(
+      "gpt-4o",
+    );
   });
 
   it("with configVersion forced back to 0 and already-migrated profiles on disk, replaying the driver rewrites nothing", () => {
-    apiStore.set("profiles", [
+    setLegacyProfiles([
       {
         id: "profile_1",
         name: "Legacy Profile",
@@ -1658,7 +1727,7 @@ describe("migrateStoredProfilesForModelRefs", () => {
   });
 
   it("initializeDefaultProfile runs the migration before ensuring a default profile exists", () => {
-    apiStore.set("profiles", [
+    setLegacyProfiles([
       {
         id: "profile_1",
         name: "Legacy Profile",
@@ -1686,7 +1755,9 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
     const fs = await import("node:fs");
     const os = await import("node:os");
     const path = await import("node:path");
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "fixlang-apistore-schema-"));
+    const cwd = fs.mkdtempSync(
+      path.join(os.tmpdir(), "fixlang-apistore-schema-"),
+    );
 
     try {
       // A throwaway cwd: this must never touch a real user config file.
@@ -1727,7 +1798,9 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
     const fs = await import("node:fs");
     const os = await import("node:os");
     const path = await import("node:path");
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "fixlang-apistore-enum-"));
+    const cwd = fs.mkdtempSync(
+      path.join(os.tmpdir(), "fixlang-apistore-enum-"),
+    );
 
     try {
       const realStore = new Conf<{ profiles: Profile[] }>({
@@ -1750,7 +1823,8 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
                 model: "",
                 isBuiltIn: true,
                 requiresInput: true,
-                outputMode: "banana" as unknown as "popup",
+                // @ts-expect-error -- deliberately unrecognized stored value
+                outputMode: "banana",
                 markdownOutput: true,
               },
             ],
@@ -1782,7 +1856,9 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
     const fs = await import("node:fs");
     const os = await import("node:os");
     const path = await import("node:path");
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "fixlang-apistore-combo-"));
+    const cwd = fs.mkdtempSync(
+      path.join(os.tmpdir(), "fixlang-apistore-combo-"),
+    );
 
     try {
       const realStore = new Conf<{ profiles: Profile[] }>({
@@ -1800,8 +1876,9 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
             ...settings.settingsCorrect,
             combos: [
               // Every field the wrong type, plus a missing one.
+              // @ts-expect-error -- deliberately malformed stored combo
               { id: 7, name: null, steps: "nope", schemaVersion: "one" },
-            ] as unknown as NonNullable<CorrectionSettings["combos"]>,
+            ],
           },
         },
       });
@@ -1853,7 +1930,9 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
       );
 
       try {
-        const openStore = (): InstanceType<typeof Conf<{ profiles: Profile[] }>> =>
+        const openStore = (): InstanceType<
+          typeof Conf<{ profiles: Profile[] }>
+        > =>
           new Conf<{ profiles: Profile[] }>({
             cwd,
             configName: "config",
@@ -1887,14 +1966,20 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
         // The hand edit: replace the option OBJECT with a bare value, exactly
         // as a user reaching for `"extraOptions": "ultra"` would.
         const configPath = path.join(cwd, "config.json");
+        // The file is what a hand edit sees: `extraOptions` may hold anything
+        // the editor typed, not only what `CorrectionPreset` allows.
+        type HandEditedPreset = Omit<CorrectionPreset, "extraOptions"> & {
+          extraOptions?: CorrectionPreset["extraOptions"] | typeof garbage;
+        };
         const onDisk = JSON.parse(fs.readFileSync(configPath, "utf8")) as {
-          profiles: { settings: { settingsCorrect: CorrectionSettings } }[];
+          profiles: {
+            settings: { settingsCorrect: { presets: HandEditedPreset[] } };
+          }[];
         };
         const editedPreset =
           onDisk.profiles[0].settings.settingsCorrect.presets[0];
         expect(editedPreset.extraOptions).toEqual({ cavemanMode: "ultra" });
-        editedPreset.extraOptions =
-          garbage as unknown as CorrectionPreset["extraOptions"];
+        editedPreset.extraOptions = garbage;
         fs.writeFileSync(configPath, JSON.stringify(onDisk, null, "\t"));
 
         // Reopening is what a relaunch does, and it is where
@@ -1932,7 +2017,9 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
     const fs = await import("node:fs");
     const os = await import("node:os");
     const path = await import("node:path");
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "fixlang-apistore-options-"));
+    const cwd = fs.mkdtempSync(
+      path.join(os.tmpdir(), "fixlang-apistore-options-"),
+    );
 
     try {
       const realStore = new Conf<{ profiles: Profile[] }>({
@@ -1968,7 +2055,9 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
       const readBack = realStore.get("profiles", []);
 
       expect(readBack).toHaveLength(1);
-      expect(readBack[0].settings.settingsCorrect.presets[0].extraOptions).toEqual({
+      expect(
+        readBack[0].settings.settingsCorrect.presets[0].extraOptions,
+      ).toEqual({
         optionFromAFutureBuild: "some-value",
         cavemanMode: "banana",
       });
@@ -1993,8 +2082,18 @@ describe("resolveDefaultModel", () => {
 
   it("picks the newest model whose id contains both gpt and mini", () => {
     const models: Model[] = [
-      { id: "gpt-4o-mini", name: "gpt-4o-mini", created: 1, provider: "openai" },
-      { id: "gpt-4.1-mini", name: "gpt-4.1-mini", created: 2, provider: "openai" },
+      {
+        id: "gpt-4o-mini",
+        name: "gpt-4o-mini",
+        created: 1,
+        provider: "openai",
+      },
+      {
+        id: "gpt-4.1-mini",
+        name: "gpt-4.1-mini",
+        created: 2,
+        provider: "openai",
+      },
       { id: "gpt-4o", name: "gpt-4o", created: 3, provider: "openai" },
     ];
     expect(resolveDefaultModel(models)?.id).toBe("gpt-4.1-mini");
@@ -2002,8 +2101,18 @@ describe("resolveDefaultModel", () => {
 
   it("falls back to the first model when none match gpt+mini", () => {
     const models: Model[] = [
-      { id: "claude-3-opus", name: "claude-3-opus", created: 1, provider: "openrouter" },
-      { id: "claude-3-sonnet", name: "claude-3-sonnet", created: 2, provider: "openrouter" },
+      {
+        id: "claude-3-opus",
+        name: "claude-3-opus",
+        created: 1,
+        provider: "openrouter",
+      },
+      {
+        id: "claude-3-sonnet",
+        name: "claude-3-sonnet",
+        created: 2,
+        provider: "openrouter",
+      },
     ];
     expect(resolveDefaultModel(models)?.id).toBe("claude-3-opus");
   });
@@ -2022,6 +2131,3 @@ describe("resolveDefaultOpenAIModel — legacy delegate stays byte-for-byte comp
     expect(resolveDefaultOpenAIModel([])).toBe("openai/gpt-4.1-mini");
   });
 });
-
-
-

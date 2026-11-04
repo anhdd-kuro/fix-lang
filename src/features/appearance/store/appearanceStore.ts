@@ -32,7 +32,10 @@ class AppearanceStore {
 
   getTypography(): AppearanceTypography {
     return normalizeAppearanceTypography({
-      fontSize: this.store.get("fontSize", DEFAULT_APPEARANCE_TYPOGRAPHY.fontSize),
+      fontSize: this.store.get(
+        "fontSize",
+        DEFAULT_APPEARANCE_TYPOGRAPHY.fontSize,
+      ),
       fontFamily: this.store.get(
         "fontFamily",
         DEFAULT_APPEARANCE_TYPOGRAPHY.fontFamily,

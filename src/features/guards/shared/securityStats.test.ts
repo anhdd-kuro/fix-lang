@@ -11,15 +11,19 @@ import {
   EMPTY_SECURITY_STATS,
   entryInRange,
   isSecurityEvent,
-  isSecurityStats,
-  isSecurityStatsRange,
+  SecurityStatsRangeSchema,
+  SecurityStatsSchema,
   SECRET_GATE_SCOPE,
   SECRET_MASK_SCOPE,
   securityStatsCutoff,
   summarizeSecurityStats,
   topSecurityRules,
 } from "./securityStats";
-import type { LogContext, LogEntry, LogLevel } from "~/features/logs/shared/logging";
+import type {
+  LogContext,
+  LogEntry,
+  LogLevel,
+} from "~/features/logs/shared/logging";
 
 let idCounter = 0;
 
@@ -45,7 +49,11 @@ const selectionGuard = (
   guardReason: string,
   timestamp?: string,
 ): LogEntry =>
-  entry("correction.hotkey", { presetId: "correction", guardEvent, guardReason }, { timestamp });
+  entry(
+    "correction.hotkey",
+    { presetId: "correction", guardEvent, guardReason },
+    { timestamp },
+  );
 
 const secretGate = (context: LogContext, timestamp?: string): LogEntry =>
   entry(SECRET_GATE_SCOPE, context, { timestamp });
@@ -59,26 +67,37 @@ describe("summarizeSecurityStats", () => {
     const stats = summarizeSecurityStats([
       selectionGuard("blocked", "denied-app"),
       selectionGuard("declined", "large-selection"),
-      selectionGuard("declined", "stale-clipboard"),
-      selectionGuard("declined", "stale-clipboard"),
-      selectionGuard("declined", "unknown-clipboard-age"),
       selectionGuard("context-dropped", "denied-app"),
     ]);
 
     expect(stats.blockedByApp).toBe(1);
     expect(stats.declinedLargeSelection).toBe(1);
-    expect(stats.declinedStaleClipboard).toBe(2);
-    expect(stats.declinedUnknownClipboardAge).toBe(1);
     expect(stats.askContextDropped).toBe(1);
-    expect(stats.eventCount).toBe(6);
+    expect(stats.eventCount).toBe(3);
   });
 
   /**
-   * A fourth confirm reason added to `selectionGuards.ts` must read as a missing
-   * metric, not as extra stale-clipboard declines.
+   * The stale-clipboard guard was removed, but its declines still sit in older
+   * log archives. They must be dropped like any unknown reason — no crash, and
+   * not folded into the size bucket.
+   */
+  it("drops declines from the retired stale-clipboard guard in old logs", () => {
+    const stats = summarizeSecurityStats([
+      selectionGuard("declined", "stale-clipboard"),
+      selectionGuard("declined", "unknown-clipboard-age"),
+    ]);
+
+    expect(stats).toEqual(EMPTY_SECURITY_STATS);
+  });
+
+  /**
+   * A new confirm reason added to `selectionGuards.ts` must read as a missing
+   * metric, not as extra size declines.
    */
   it("drops a decline whose reason it does not recognise instead of guessing", () => {
-    const stats = summarizeSecurityStats([selectionGuard("declined", "some-future-reason")]);
+    const stats = summarizeSecurityStats([
+      selectionGuard("declined", "some-future-reason"),
+    ]);
 
     expect(stats).toEqual(EMPTY_SECURITY_STATS);
   });
@@ -107,7 +126,10 @@ describe("summarizeSecurityStats", () => {
 
   it("keeps legacy lines out of the classified buckets alongside current ones", () => {
     const stats = summarizeSecurityStats([
-      entry("correction.hotkey", { presetId: "correction", guardReason: "large-selection" }),
+      entry("correction.hotkey", {
+        presetId: "correction",
+        guardReason: "large-selection",
+      }),
       selectionGuard("declined", "large-selection"),
     ]);
 
@@ -118,7 +140,11 @@ describe("summarizeSecurityStats", () => {
 
   it("counts both arms of the secret dialog and the masked path", () => {
     const stats = summarizeSecurityStats([
-      secretGate({ gateDecision: "confirmed", matchCount: 2, ruleIds: ["openai-key"] }),
+      secretGate({
+        gateDecision: "confirmed",
+        matchCount: 2,
+        ruleIds: ["openai-key"],
+      }),
       secretGate({ gateDecision: "declined", matchCount: 1, ruleIds: ["jwt"] }),
       secretGate({
         gateDecision: "masked",
@@ -133,19 +159,27 @@ describe("summarizeSecurityStats", () => {
     expect(stats.secretMasked).toBe(1);
     expect(stats.maskedValues).toBe(3);
     expect(stats.maskedPlaceholders).toBe(2);
-    expect(stats.ruleCounts).toEqual({ "openai-key": 2, jwt: 1, "aws-access-key-id": 1 });
+    expect(stats.ruleCounts).toEqual({
+      "openai-key": 2,
+      jwt: 1,
+      "aws-access-key-id": 1,
+    });
   });
 
   /** `gateDecision: "allow"` is never logged, but must not become an event. */
   it("ignores a secret-gate line with no countable decision", () => {
-    expect(summarizeSecurityStats([secretGate({ gateDecision: "allow" })])).toEqual(
-      EMPTY_SECURITY_STATS,
-    );
+    expect(
+      summarizeSecurityStats([secretGate({ gateDecision: "allow" })]),
+    ).toEqual(EMPTY_SECURITY_STATS);
   });
 
   it("counts a rule once per event even when it matched twice in one selection", () => {
     const stats = summarizeSecurityStats([
-      secretGate({ gateDecision: "masked", matchCount: 2, ruleIds: ["jwt", "jwt"] }),
+      secretGate({
+        gateDecision: "masked",
+        matchCount: 2,
+        ruleIds: ["jwt", "jwt"],
+      }),
     ]);
 
     expect(stats.ruleCounts).toEqual({ jwt: 1 });
@@ -153,7 +187,10 @@ describe("summarizeSecurityStats", () => {
 
   it("counts a failed restore and keeps it out of the masked counters", () => {
     const stats = summarizeSecurityStats([
-      entry(SECRET_MASK_SCOPE, { appliedMode: "mask-and-restore", missingCount: 1 }),
+      entry(SECRET_MASK_SCOPE, {
+        appliedMode: "mask-and-restore",
+        missingCount: 1,
+      }),
     ]);
 
     expect(stats.restoreFailures).toBe(1);
@@ -171,17 +208,34 @@ describe("summarizeSecurityStats", () => {
   });
 
   it("reports the newest timestamp regardless of input order", () => {
-    const older = selectionGuard("blocked", "denied-app", "2026-08-01T00:00:00.000Z");
-    const newer = selectionGuard("blocked", "denied-app", "2026-08-09T23:59:59.000Z");
+    const older = selectionGuard(
+      "blocked",
+      "denied-app",
+      "2026-08-01T00:00:00.000Z",
+    );
+    const newer = selectionGuard(
+      "blocked",
+      "denied-app",
+      "2026-08-09T23:59:59.000Z",
+    );
 
-    expect(summarizeSecurityStats([newer, older]).lastEventAt).toBe(newer.timestamp);
-    expect(summarizeSecurityStats([older, newer]).lastEventAt).toBe(newer.timestamp);
+    expect(summarizeSecurityStats([newer, older]).lastEventAt).toBe(
+      newer.timestamp,
+    );
+    expect(summarizeSecurityStats([older, newer]).lastEventAt).toBe(
+      newer.timestamp,
+    );
   });
 
   /** A rename to `secretCount`/`clipboardStale` would zero every number here. */
   it("survives the real redactor with numbers intact", () => {
     const stats = summarizeSecurityStats([
-      secretGate({ gateDecision: "masked", matchCount: 5, placeholderCount: 4, ruleIds: ["jwt"] }),
+      secretGate({
+        gateDecision: "masked",
+        matchCount: 5,
+        placeholderCount: 4,
+        ruleIds: ["jwt"],
+      }),
     ]);
 
     expect(stats.maskedValues).toBe(5);
@@ -193,9 +247,15 @@ describe("isSecurityEvent", () => {
   it("keeps exactly what the roll-up counts", () => {
     expect(isSecurityEvent(selectionGuard("blocked", "denied-app"))).toBe(true);
     expect(isSecurityEvent(secretGate({ gateDecision: "masked" }))).toBe(true);
-    expect(isSecurityEvent(entry(SECRET_MASK_SCOPE, { missingCount: 1 }))).toBe(true);
-    expect(isSecurityEvent(entry(SECRET_GATE_SCOPE, { guardMode: "mask" }))).toBe(false);
-    expect(isSecurityEvent(entry("correction.hotkey", { delivery: "paste" }))).toBe(false);
+    expect(isSecurityEvent(entry(SECRET_MASK_SCOPE, { missingCount: 1 }))).toBe(
+      true,
+    );
+    expect(
+      isSecurityEvent(entry(SECRET_GATE_SCOPE, { guardMode: "mask" })),
+    ).toBe(false);
+    expect(
+      isSecurityEvent(entry("correction.hotkey", { delivery: "paste" })),
+    ).toBe(false);
   });
 });
 
@@ -222,9 +282,12 @@ describe("range windowing", () => {
   it("has no cutoff for `all`", () => {
     expect(securityStatsCutoff("all", now)).toBeNull();
     expect(dayFolderInRange("2019-01-01", null)).toBe(true);
-    expect(entryInRange(selectionGuard("blocked", "denied-app", "2019-01-01T00:00:00.000Z"), null)).toBe(
-      true,
-    );
+    expect(
+      entryInRange(
+        selectionGuard("blocked", "denied-app", "2019-01-01T00:00:00.000Z"),
+        null,
+      ),
+    ).toBe(true);
   });
 
   it("keeps one surplus day folder because folders are local days and entries are UTC", () => {
@@ -241,36 +304,75 @@ describe("range windowing", () => {
   it("filters entries exactly at the cutoff instant", () => {
     const cutoff = securityStatsCutoff("30d", now);
 
-    expect(entryInRange(selectionGuard("blocked", "denied-app", "2026-07-12T12:00:00.000Z"), cutoff)).toBe(
-      true,
-    );
-    expect(entryInRange(selectionGuard("blocked", "denied-app", "2026-07-12T11:59:59.000Z"), cutoff)).toBe(
-      false,
-    );
+    expect(
+      entryInRange(
+        selectionGuard("blocked", "denied-app", "2026-07-12T12:00:00.000Z"),
+        cutoff,
+      ),
+    ).toBe(true);
+    expect(
+      entryInRange(
+        selectionGuard("blocked", "denied-app", "2026-07-12T11:59:59.000Z"),
+        cutoff,
+      ),
+    ).toBe(false);
   });
 
   it("drops an unparseable timestamp rather than counting it in every range", () => {
-    expect(entryInRange(selectionGuard("blocked", "denied-app", "not-a-date"), securityStatsCutoff("7d", now))).toBe(
-      false,
-    );
+    expect(
+      entryInRange(
+        selectionGuard("blocked", "denied-app", "not-a-date"),
+        securityStatsCutoff("7d", now),
+      ),
+    ).toBe(false);
   });
 });
 
 describe("IPC payload guards", () => {
   it("accepts a real roll-up and rejects malformed ones", () => {
-    expect(isSecurityStats(EMPTY_SECURITY_STATS)).toBe(true);
-    expect(isSecurityStats({ ...EMPTY_SECURITY_STATS, blockedByApp: -1 })).toBe(false);
-    expect(isSecurityStats({ ...EMPTY_SECURITY_STATS, blockedByApp: 1.5 })).toBe(false);
-    expect(isSecurityStats({ ...EMPTY_SECURITY_STATS, ruleCounts: { jwt: "3" } })).toBe(false);
-    expect(isSecurityStats({ ...EMPTY_SECURITY_STATS, lastEventAt: 17 })).toBe(false);
-    expect(isSecurityStats(null)).toBe(false);
-    expect(isSecurityStats([])).toBe(false);
+    expect(SecurityStatsSchema.safeParse(EMPTY_SECURITY_STATS).success).toBe(
+      true,
+    );
+    expect(
+      SecurityStatsSchema.safeParse({
+        ...EMPTY_SECURITY_STATS,
+        blockedByApp: -1,
+      }).success,
+    ).toBe(false);
+    expect(
+      SecurityStatsSchema.safeParse({
+        ...EMPTY_SECURITY_STATS,
+        blockedByApp: 1.5,
+      }).success,
+    ).toBe(false);
+    expect(
+      SecurityStatsSchema.safeParse({
+        ...EMPTY_SECURITY_STATS,
+        ruleCounts: { jwt: "3" },
+      }).success,
+    ).toBe(false);
+    // An own `__proto__` key survives JSON.parse but not zod's object copy;
+    // the count check must read the original record.
+    expect(
+      SecurityStatsSchema.safeParse({
+        ...EMPTY_SECURITY_STATS,
+        ruleCounts: JSON.parse('{"__proto__":"b"}'),
+      }).success,
+    ).toBe(false);
+    expect(
+      SecurityStatsSchema.safeParse({
+        ...EMPTY_SECURITY_STATS,
+        lastEventAt: 17,
+      }).success,
+    ).toBe(false);
+    expect(SecurityStatsSchema.safeParse(null).success).toBe(false);
+    expect(SecurityStatsSchema.safeParse([]).success).toBe(false);
   });
 
   it("accepts only the three range tokens", () => {
-    expect(isSecurityStatsRange("all")).toBe(true);
-    expect(isSecurityStatsRange("7d")).toBe(true);
-    expect(isSecurityStatsRange("90d")).toBe(false);
-    expect(isSecurityStatsRange(7)).toBe(false);
+    expect(SecurityStatsRangeSchema.safeParse("all").success).toBe(true);
+    expect(SecurityStatsRangeSchema.safeParse("7d").success).toBe(true);
+    expect(SecurityStatsRangeSchema.safeParse("90d").success).toBe(false);
+    expect(SecurityStatsRangeSchema.safeParse(7).success).toBe(false);
   });
 });

@@ -67,7 +67,9 @@ describe("syncPromptGenWindowLocale", () => {
 
   it("retitles an already-open window to the freshly-built locale title", () => {
     createPromptGenWindow();
-    windowTitlesMocks.buildPromptGenWindowTitle.mockReturnValue("生成されたプロンプト");
+    windowTitlesMocks.buildPromptGenWindowTitle.mockReturnValue(
+      "生成されたプロンプト",
+    );
 
     syncPromptGenWindowLocale();
 

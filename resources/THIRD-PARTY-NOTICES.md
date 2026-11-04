@@ -240,34 +240,31 @@ top-level entries. Vite tree-shakes some of these out of the final bundle, so th
 list over-includes rather than under-includes — crediting a package that was
 dropped is harmless, omitting one that shipped is not.
 
-Licence spread: 202 × MIT, 42 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × (AFL-2.1 OR BSD-3-Clause), 1 × (MIT OR CC0-1.0), 1 × 0BSD, 1 × BSD-2-Clause.
+Licence spread: 204 × MIT, 40 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × (AFL-2.1 OR BSD-3-Clause), 1 × (MIT OR CC0-1.0), 1 × 0BSD, 1 × BSD-2-Clause.
 
 | Package | Version | Licence | Project |
 | ------- | ------- | ------- | ------- |
-| `@ai-sdk/amazon-bedrock` | 5.0.35 | Apache-2.0 | [source](https://github.com/vercel/ai) |
-| `@ai-sdk/anthropic` | 4.0.23 | Apache-2.0 | [source](https://github.com/vercel/ai) |
-| `@ai-sdk/gateway` | 4.0.28 | Apache-2.0 | [source](https://github.com/vercel/ai) |
-| `@ai-sdk/openai` | 4.0.20 | Apache-2.0 | [source](https://github.com/vercel/ai) |
-| `@ai-sdk/openai` | 4.0.23 | Apache-2.0 | [source](https://github.com/vercel/ai) |
-| `@ai-sdk/provider` | 4.0.3 | Apache-2.0 | [source](https://github.com/vercel/ai) |
-| `@ai-sdk/provider` | 4.0.4 | Apache-2.0 | [source](https://github.com/vercel/ai) |
-| `@ai-sdk/provider-utils` | 5.0.12 | Apache-2.0 | [source](https://github.com/vercel/ai) |
-| `@ai-sdk/provider-utils` | 5.0.14 | Apache-2.0 | [source](https://github.com/vercel/ai) |
-| `@aws-sdk/client-bedrock` | 3.1116.0 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
-| `@aws-sdk/core` | 3.977.9 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
-| `@aws-sdk/credential-provider-env` | 3.972.70 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
-| `@aws-sdk/credential-provider-http` | 3.972.72 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
-| `@aws-sdk/credential-provider-ini` | 3.973.15 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
-| `@aws-sdk/credential-provider-login` | 3.972.77 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
-| `@aws-sdk/credential-provider-node` | 3.972.81 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
-| `@aws-sdk/credential-provider-process` | 3.972.70 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
-| `@aws-sdk/credential-provider-sso` | 3.973.14 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
-| `@aws-sdk/credential-provider-web-identity` | 3.972.76 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
-| `@aws-sdk/nested-clients` | 3.997.44 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
-| `@aws-sdk/signature-v4-multi-region` | 3.996.46 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
-| `@aws-sdk/token-providers` | 3.1116.0 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
-| `@aws-sdk/types` | 3.974.5 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
-| `@aws-sdk/xml-builder` | 3.972.40 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@ai-sdk/amazon-bedrock` | 5.0.127 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `@ai-sdk/anthropic` | 4.0.91 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `@ai-sdk/gateway` | 4.0.129 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `@ai-sdk/openai` | 4.0.104 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `@ai-sdk/provider` | 4.0.34 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `@ai-sdk/provider-utils` | 5.0.70 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `@aws-sdk/client-bedrock` | 3.1159.0 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/core` | 3.978.7 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-env` | 3.972.78 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-http` | 3.972.80 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-ini` | 3.973.23 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-login` | 3.972.85 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-node` | 3.972.90 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-process` | 3.972.78 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-sso` | 3.973.22 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-web-identity` | 3.972.84 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/nested-clients` | 3.997.52 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/signature-v4-multi-region` | 3.996.50 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/token-providers` | 3.1159.0 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/types` | 3.975.0 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/xml-builder` | 3.972.42 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
 | `@aws/lambda-invoke-store` | 0.3.0 | Apache-2.0 | [source](https://github.com/awslabs/aws-lambda-invoke-store) |
 | `@babel/code-frame` | 7.29.7 | MIT | [source](https://github.com/babel/babel) |
 | `@babel/generator` | 7.29.7 | MIT | [source](https://github.com/babel/babel) |
@@ -299,21 +296,22 @@ Licence spread: 202 × MIT, 42 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × 
 | `@jridgewell/sourcemap-codec` | 1.5.5 | MIT | [source](https://github.com/jridgewell/sourcemaps) |
 | `@jridgewell/trace-mapping` | 0.3.31 | MIT | [source](https://github.com/jridgewell/sourcemaps) |
 | `@kurkle/color` | 0.3.4 | MIT | [source](https://github.com/kurkle/color) |
-| `@openrouter/ai-sdk-provider` | 3.0.0 | Apache-2.0 | [source](https://github.com/OpenRouterTeam/ai-sdk-provider) |
+| `@openrouter/ai-sdk-provider` | 3.1.0 | Apache-2.0 | [source](https://github.com/OpenRouterTeam/ai-sdk-provider) |
 | `@smithy/core` | 3.31.0 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
 | `@smithy/core` | 3.33.3 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
+| `@smithy/core` | 3.37.0 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
 | `@smithy/credential-provider-imds` | 4.5.2 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
 | `@smithy/eventstream-codec` | 4.4.15 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
-| `@smithy/fetch-http-handler` | 5.7.2 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
-| `@smithy/node-http-handler` | 4.11.3 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
-| `@smithy/signature-v4` | 5.6.11 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
-| `@smithy/signature-v4` | 5.7.3 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
+| `@smithy/fetch-http-handler` | 5.8.0 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
+| `@smithy/node-http-handler` | 4.13.0 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
+| `@smithy/signature-v4` | 5.7.4 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
 | `@smithy/types` | 4.16.1 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
 | `@smithy/types` | 4.17.2 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
+| `@smithy/types` | 4.19.0 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
 | `@smithy/util-utf8` | 4.4.15 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
 | `@standard-schema/spec` | 1.1.0 | MIT | [source](https://github.com/standard-schema/standard-schema) |
-| `@tanstack/react-virtual` | 3.14.10 | MIT | [source](https://github.com/TanStack/virtual) |
-| `@tanstack/virtual-core` | 3.17.8 | MIT | [source](https://github.com/TanStack/virtual) |
+| `@tanstack/react-virtual` | 3.14.23 | MIT | [source](https://github.com/TanStack/virtual) |
+| `@tanstack/virtual-core` | 3.19.8 | MIT | [source](https://github.com/TanStack/virtual) |
 | `@types/debug` | 4.1.13 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
 | `@types/estree` | 1.0.9 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
 | `@types/estree-jsx` | 1.0.5 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
@@ -321,14 +319,14 @@ Licence spread: 202 × MIT, 42 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × 
 | `@types/mdast` | 4.0.4 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
 | `@types/ms` | 2.1.0 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
 | `@types/parse-json` | 4.0.2 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
-| `@types/react` | 19.2.18 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
+| `@types/react` | 19.3.0 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
 | `@types/react-transition-group` | 4.4.12 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
 | `@types/unist` | 2.0.11 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
 | `@types/unist` | 3.0.3 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
 | `@ungap/structured-clone` | 1.3.3 | ISC | [source](https://github.com/ungap/structured-clone) |
 | `@vercel/oidc` | 3.2.0 | Apache-2.0 | [source](https://github.com/vercel/vercel) |
 | `@workflow/serde` | 4.1.0 | Apache-2.0 | [source](https://github.com/vercel/workflow) |
-| `ai` | 7.0.37 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `ai` | 7.0.156 | Apache-2.0 | [source](https://github.com/vercel/ai) |
 | `ajv` | 8.20.0 | MIT | [source](https://github.com/ajv-validator/ajv) |
 | `ajv-formats` | 3.0.1 | MIT | [source](https://github.com/ajv-validator/ajv-formats) |
 | `atomically` | 2.1.1 | MIT | [source](https://github.com/fabiospampinato/atomically) |
@@ -342,10 +340,10 @@ Licence spread: 202 × MIT, 42 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × 
 | `character-entities-html4` | 2.1.0 | MIT | [source](https://github.com/wooorm/character-entities-html4) |
 | `character-entities-legacy` | 3.0.0 | MIT | [source](https://github.com/wooorm/character-entities-legacy) |
 | `character-reference-invalid` | 2.0.1 | MIT | [source](https://github.com/wooorm/character-reference-invalid) |
-| `chart.js` | 4.5.1 | MIT | [source](https://github.com/chartjs/Chart.js) |
+| `chart.js` | 4.6.1 | MIT | [source](https://github.com/chartjs/Chart.js) |
 | `colord` | 2.10.0 | MIT | [source](https://github.com/omgovich/colord) |
 | `comma-separated-tokens` | 2.0.3 | MIT | [source](https://github.com/wooorm/comma-separated-tokens) |
-| `conf` | 15.1.0 | MIT | [source](https://github.com/sindresorhus/conf) |
+| `conf` | 16.0.0 | MIT | [source](https://github.com/sindresorhus/conf) |
 | `convert-source-map` | 1.9.0 | MIT | [source](https://github.com/thlorenz/convert-source-map) |
 | `cosmiconfig` | 7.1.0 | MIT | [source](https://github.com/davidtheclark/cosmiconfig) |
 | `csstype` | 3.2.3 | MIT | [source](https://github.com/frenic/csstype) |
@@ -356,9 +354,9 @@ Licence spread: 202 × MIT, 42 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × 
 | `dequal` | 2.0.3 | MIT | [source](https://github.com/lukeed/dequal) |
 | `devlop` | 1.1.0 | MIT | [source](https://github.com/wooorm/devlop) |
 | `dom-helpers` | 5.2.1 | MIT | [source](https://github.com/react-bootstrap/dom-helpers) |
-| `dot-prop` | 10.1.0 | MIT | [source](https://github.com/sindresorhus/dot-prop) |
-| `electron-store` | 11.0.2 | MIT | [source](https://github.com/sindresorhus/electron-store) |
-| `env-paths` | 3.0.0 | MIT | [source](https://github.com/sindresorhus/env-paths) |
+| `dot-prop` | 10.2.0 | MIT | [source](https://github.com/sindresorhus/dot-prop) |
+| `electron-store` | 12.0.0 | MIT | [source](https://github.com/sindresorhus/electron-store) |
+| `env-paths` | 4.0.0 | MIT | [source](https://github.com/sindresorhus/env-paths) |
 | `error-ex` | 1.3.4 | MIT | [source](https://github.com/qix-/node-error-ex) |
 | `es-errors` | 1.3.0 | MIT | [source](https://github.com/ljharb/es-errors) |
 | `escape-string-regexp` | 4.0.0 | MIT | [source](https://github.com/sindresorhus/escape-string-regexp) |
@@ -385,6 +383,7 @@ Licence spread: 202 × MIT, 42 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × 
 | `is-decimal` | 2.0.1 | MIT | [source](https://github.com/wooorm/is-decimal) |
 | `is-hexadecimal` | 2.0.1 | MIT | [source](https://github.com/wooorm/is-hexadecimal) |
 | `is-plain-obj` | 4.1.0 | MIT | [source](https://github.com/sindresorhus/is-plain-obj) |
+| `is-safe-filename` | 0.1.1 | MIT | [source](https://github.com/sindresorhus/is-safe-filename) |
 | `js-tokens` | 4.0.0 | MIT | [source](https://github.com/lydell/js-tokens) |
 | `jsesc` | 3.1.0 | MIT | [source](https://github.com/mathiasbynens/jsesc) |
 | `json-parse-even-better-errors` | 2.3.1 | MIT | [source](https://github.com/npm/json-parse-even-better-errors) |
@@ -442,8 +441,8 @@ Licence spread: 202 × MIT, 42 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × 
 | `mimic-function` | 5.0.1 | MIT | [source](https://github.com/sindresorhus/mimic-function) |
 | `ms` | 2.1.3 | MIT | [source](https://github.com/vercel/ms) |
 | `object-assign` | 4.1.1 | MIT | [source](https://github.com/sindresorhus/object-assign) |
-| `ollama` | 0.6.3 | MIT | [source](https://github.com/ollama/ollama-js) |
-| `openai` | 6.49.0 | Apache-2.0 | [source](https://github.com/openai/openai-node) |
+| `ollama` | 0.6.4 | MIT | [source](https://github.com/ollama/ollama-js) |
+| `openai` | 7.45.1 | Apache-2.0 | [source](https://github.com/openai/openai-node) |
 | `parent-module` | 1.0.1 | MIT | [source](https://github.com/sindresorhus/parent-module) |
 | `parse-entities` | 4.0.2 | MIT | [source](https://github.com/wooorm/parse-entities) |
 | `parse-json` | 5.2.0 | MIT | [source](https://github.com/sindresorhus/parse-json) |
@@ -452,9 +451,9 @@ Licence spread: 202 × MIT, 42 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × 
 | `picocolors` | 1.1.1 | ISC | [source](https://github.com/alexeyraspopov/picocolors) |
 | `prop-types` | 15.8.1 | MIT | [source](https://github.com/facebook/prop-types) |
 | `property-information` | 7.2.0 | MIT | [source](https://github.com/wooorm/property-information) |
-| `react` | 19.2.8 | MIT | [source](https://github.com/react/react) |
+| `react` | 19.3.1 | MIT | [source](https://github.com/react/react) |
 | `react-chartjs-2` | 5.3.1 | MIT | [source](https://github.com/reactchartjs/react-chartjs-2) |
-| `react-dom` | 19.2.8 | MIT | [source](https://github.com/react/react) |
+| `react-dom` | 19.3.1 | MIT | [source](https://github.com/react/react) |
 | `react-is` | 16.13.1 | MIT | [source](https://github.com/facebook/react) |
 | `react-markdown` | 10.1.0 | MIT | [source](https://github.com/remarkjs/react-markdown) |
 | `react-select` | 5.10.2 | MIT | [source](https://github.com/JedWatson/react-select/tree/master/packages/react-select) |
@@ -466,7 +465,7 @@ Licence spread: 202 × MIT, 42 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × 
 | `require-from-string` | 2.0.2 | MIT | [source](https://github.com/floatdrop/require-from-string) |
 | `resolve` | 1.22.12 | MIT | — |
 | `resolve-from` | 4.0.0 | MIT | [source](https://github.com/sindresorhus/resolve-from) |
-| `scheduler` | 0.27.0 | MIT | [source](https://github.com/facebook/react) |
+| `scheduler` | 0.28.0 | MIT | [source](https://github.com/react/react) |
 | `semver` | 7.8.5 | ISC | [source](https://github.com/npm/node-semver) |
 | `source-map` | 0.5.7 | BSD-3-Clause | [source](http://github.com/mozilla/source-map) |
 | `space-separated-tokens` | 2.0.2 | MIT | [source](https://github.com/wooorm/space-separated-tokens) |
@@ -478,13 +477,14 @@ Licence spread: 202 × MIT, 42 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × 
 | `stylis` | 4.2.0 | MIT | [source](https://github.com/thysultan/stylis.js) |
 | `supports-preserve-symlinks-flag` | 1.0.0 | MIT | [source](https://github.com/inspect-js/node-supports-preserve-symlinks-flag) |
 | `tagged-tag` | 1.0.0 | MIT | [source](https://github.com/sindresorhus/tagged-tag) |
-| `tailwind-merge` | 3.6.0 | MIT | [source](https://github.com/dcastil/tailwind-merge) |
+| `tailwind-merge` | 3.7.0 | MIT | [source](https://github.com/dcastil/tailwind-merge) |
 | `trim-lines` | 3.0.1 | MIT | [source](https://github.com/wooorm/trim-lines) |
 | `trough` | 2.2.0 | MIT | [source](https://github.com/wooorm/trough) |
 | `tslib` | 2.8.1 | 0BSD | [source](https://github.com/Microsoft/tslib) |
-| `type-fest` | 5.7.0 | (MIT OR CC0-1.0) | [source](https://github.com/sindresorhus/type-fest) |
+| `type-fest` | 5.10.0 | (MIT OR CC0-1.0) | [source](https://github.com/sindresorhus/type-fest) |
 | `uint8array-extras` | 1.5.0 | MIT | [source](https://github.com/sindresorhus/uint8array-extras) |
-| `undici` | 8.10.0 | MIT | [source](https://github.com/nodejs/undici) |
+| `undici` | 7.30.1 | MIT | [source](https://github.com/nodejs/undici) |
+| `undici` | 8.12.3 | MIT | [source](https://github.com/nodejs/undici) |
 | `unified` | 11.0.5 | MIT | [source](https://github.com/unifiedjs/unified) |
 | `unist-util-is` | 6.0.1 | MIT | [source](https://github.com/syntax-tree/unist-util-is) |
 | `unist-util-position` | 5.0.0 | MIT | [source](https://github.com/syntax-tree/unist-util-position) |
@@ -492,13 +492,13 @@ Licence spread: 202 × MIT, 42 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × 
 | `unist-util-visit` | 5.1.0 | MIT | [source](https://github.com/syntax-tree/unist-util-visit) |
 | `unist-util-visit-parents` | 6.0.2 | MIT | [source](https://github.com/syntax-tree/unist-util-visit-parents) |
 | `use-isomorphic-layout-effect` | 1.2.1 | MIT | [source](https://github.com/Andarist/use-isomorphic-layout-effect) |
-| `uuid` | 14.0.2 | MIT | [source](https://github.com/uuidjs/uuid) |
+| `uuid` | 14.0.3 | MIT | [source](https://github.com/uuidjs/uuid) |
 | `vfile` | 6.0.3 | MIT | [source](https://github.com/vfile/vfile) |
 | `vfile-message` | 4.0.3 | MIT | [source](https://github.com/vfile/vfile-message) |
 | `whatwg-fetch` | 3.6.20 | MIT | [source](https://github.com/github/fetch) |
 | `when-exit` | 2.1.5 | MIT | [source](https://github.com/fabiospampinato/when-exit) |
 | `yaml` | 1.10.3 | ISC | [source](https://github.com/eemeli/yaml) |
-| `zod` | 4.4.3 | MIT | [source](https://github.com/colinhacks/zod) |
+| `zod` | 4.6.7 | MIT | [source](https://github.com/colinhacks/zod) |
 | `zwitch` | 2.0.4 | MIT | [source](https://github.com/wooorm/zwitch) |
 
 Electron itself bundles Chromium and Node.js; see

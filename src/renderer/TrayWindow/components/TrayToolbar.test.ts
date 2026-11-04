@@ -161,7 +161,6 @@ describe("TrayToolbar", () => {
     expect(api.openUpdateRelease).toHaveBeenCalledTimes(1);
   });
 
-
   it("opens About and starts the Homebrew update when the user picks Update now", async () => {
     await render(
       {
@@ -284,7 +283,9 @@ describe("TrayToolbar", () => {
     await waitForUi();
 
     const [options] = api.showMessageBox.mock.calls[0];
-    expect(options.message).toContain(tEn("tray.toolbar.updateCheck.unsupported"));
+    expect(options.message).toContain(
+      tEn("tray.toolbar.updateCheck.unsupported"),
+    );
     expect(options.buttons).toEqual([tEn("common.ok")]);
     expect(api.openUpdateRelease).not.toHaveBeenCalled();
   });

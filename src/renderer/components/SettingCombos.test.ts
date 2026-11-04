@@ -63,17 +63,22 @@ describe("SettingCombos tab strip", () => {
   let root: Root;
 
   const render = async () => {
-    (window as unknown as { electronAPI: unknown }).electronAPI = {
-      getCorrectSettings: vi.fn().mockResolvedValue(correctionSettings()),
-      setCorrectSettings: vi.fn().mockResolvedValue({ success: true }),
-      getKeyBindings: vi.fn().mockResolvedValue({}),
-      fetchAIModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
-      getSelectedModel: vi.fn().mockResolvedValue(""),
-      onSettingsUpdated: vi.fn().mockReturnValue(() => undefined),
-      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
-      setLocale: vi.fn().mockResolvedValue({ success: true }),
-      onLocaleChanged: vi.fn().mockReturnValue(() => undefined),
-    };
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: {
+        getCorrectSettings: vi.fn().mockResolvedValue(correctionSettings()),
+        setCorrectSettings: vi.fn().mockResolvedValue({ success: true }),
+        getKeyBindings: vi.fn().mockResolvedValue({}),
+        fetchAIModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
+        getSelectedModel: vi.fn().mockResolvedValue(""),
+        onSettingsUpdated: vi.fn().mockReturnValue(() => undefined),
+        getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+        setLocale: vi.fn().mockResolvedValue({ success: true }),
+        onLocaleChanged: vi.fn().mockReturnValue(() => undefined),
+      },
+    });
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -97,7 +102,9 @@ describe("SettingCombos tab strip", () => {
   ];
 
   const renameInput = (): HTMLInputElement | null =>
-    container.querySelector<HTMLInputElement>('input[aria-label="Rename combo"]');
+    container.querySelector<HTMLInputElement>(
+      'input[aria-label="Rename combo"]',
+    );
 
   const startRenamingFirstTab = async () => {
     await act(async () => {
@@ -135,7 +142,9 @@ describe("SettingCombos tab strip", () => {
 
     expect(renameInput()).not.toBeNull();
 
-    const selected = container.querySelector('[role="tab"][aria-selected="true"]');
+    const selected = container.querySelector(
+      '[role="tab"][aria-selected="true"]',
+    );
     expect(selected).not.toBeNull();
     expect(selected?.getAttribute("tabindex")).toBe("0");
 

@@ -36,17 +36,29 @@ const isWaveOwnedSettingsKey = (key: string): boolean =>
   !key.startsWith("settings.general.");
 
 const waveEnSettings = Object.fromEntries(
-  Object.entries(enSettings as Catalog).filter(([key]) => isWaveOwnedSettingsKey(key)),
+  Object.entries(enSettings as Catalog).filter(([key]) =>
+    isWaveOwnedSettingsKey(key),
+  ),
 );
 const waveJaSettings = Object.fromEntries(
-  Object.entries(jaSettings as Catalog).filter(([key]) => isWaveOwnedSettingsKey(key)),
+  Object.entries(jaSettings as Catalog).filter(([key]) =>
+    isWaveOwnedSettingsKey(key),
+  ),
 );
 
 /** One {en, ja, label} entry per namespace file this wave owns. */
 const NAMESPACES: { label: string; en: Catalog; ja: Catalog }[] = [
   { label: "models.json", en: enModels as Catalog, ja: jaModels as Catalog },
-  { label: "profiles.json", en: enProfiles as Catalog, ja: jaProfiles as Catalog },
-  { label: "settings.json (wave-owned keys)", en: waveEnSettings, ja: waveJaSettings },
+  {
+    label: "profiles.json",
+    en: enProfiles as Catalog,
+    ja: jaProfiles as Catalog,
+  },
+  {
+    label: "settings.json (wave-owned keys)",
+    en: waveEnSettings,
+    ja: waveJaSettings,
+  },
 ];
 
 describe.each(NAMESPACES)("$label: en/ja parity", ({ en, ja }) => {
@@ -59,7 +71,9 @@ describe.each(NAMESPACES)("$label: en/ja parity", ({ en, ja }) => {
   });
 
   it("every EN key (except *_one plural variants) has a JA translation", () => {
-    const missing = enKeys.filter((key) => !isEnOnlyPluralOne(key) && !jaKeys.has(key));
+    const missing = enKeys.filter(
+      (key) => !isEnOnlyPluralOne(key) && !jaKeys.has(key),
+    );
     expect(missing).toEqual([]);
   });
 
@@ -74,7 +88,9 @@ describe.each(NAMESPACES)("$label: en/ja parity", ({ en, ja }) => {
       .filter((key) => {
         const enPlaceholders = placeholdersOf(en[key]);
         const jaPlaceholders = placeholdersOf(ja[key]);
-        return JSON.stringify(enPlaceholders) !== JSON.stringify(jaPlaceholders);
+        return (
+          JSON.stringify(enPlaceholders) !== JSON.stringify(jaPlaceholders)
+        );
       });
     expect(mismatches).toEqual([]);
   });
@@ -124,7 +140,9 @@ describe("no key collisions across the wave's namespace files", () => {
 
   it("does not duplicate any settings.general.* key already owned by the reference conversion", () => {
     const generalKeys = new Set(
-      Object.keys(enSettings as Catalog).filter((key) => key.startsWith("settings.general.")),
+      Object.keys(enSettings as Catalog).filter((key) =>
+        key.startsWith("settings.general."),
+      ),
     );
     const overlap = [
       ...Object.keys(enModels as Catalog),
