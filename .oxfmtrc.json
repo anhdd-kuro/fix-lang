@@ -23,6 +23,9 @@
     "src/renderer/themes/generated/**",
     "**/*.generated.ts",
     "src/main/webViewWindows/overlay.html",
-    "tools/oxlint/anti-slop/**"
+    "tools/oxlint/anti-slop/**",
+    "LICENSE.md",
+    "resources/THIRD-PARTY-NOTICES.md",
+    "resources/THIRD-PARTY-LICENSES.txt"
   ]
 }
