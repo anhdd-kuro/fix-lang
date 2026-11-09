@@ -15,6 +15,7 @@ import {
   DEFAULT_SUMMARIZE_PRESET_ID,
 } from "~/prompts";
 import { makeAIRequest } from "./shared";
+import { stripEchoedInputLabel } from "./strip-echoed-input-label";
 import {
   appContextPolicyForPreset,
   withActiveAppContext,
@@ -200,7 +201,10 @@ export const fixGrammar = async (
 
     console.log(`Correction used preset: ${preset.name}`);
 
-    const correctedText = response.content.join("\n\n");
+    const correctedText = stripEchoedInputLabel(
+      response.content.join("\n\n"),
+      text,
+    );
 
     return {
       correctedText,
